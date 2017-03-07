@@ -1,0 +1,11 @@
+[package]
+name = "keyboard_optimizer_layoutgen"
+version = "3000.0.0"
+authors = ["Ilion Iasoon Beyst"]
+
+[dependencies]
+rand = "*"
+error-chain = "*"
+serde = "0.8"
+serde_derive = "0.8"
+serde_json = "0.8"
