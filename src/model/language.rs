@@ -1,7 +1,6 @@
 use std::ops::Index;
 
-#[derive(Debug, Clone, Copy)]
-pub struct TokenId(pub usize);
+use model::TokenId;
 
 #[derive(Debug)]
 pub struct Language {
