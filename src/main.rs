@@ -43,12 +43,9 @@ fn main() {
 }
 
 fn get_operation<'a>() -> impl Operation + 'a {
-    Analyze {
+    Optimize {
         kb_conf: &Path::new("data/kb_conf.json"),
         corpus: &Path::new("data/corpus.json"),
         score_tree: &Path::new("data/score_tree.json"),
-        keymap: &Path::new("data/keymap.json"),
-        results: &Path::new("results.json"),
-
     }
 }
