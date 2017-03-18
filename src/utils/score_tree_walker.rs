@@ -20,6 +20,22 @@ pub fn map_children(walker: &mut ScoreTreeWalker<Elem, Group>,
     }
 }
 
+pub fn visit_children(walker: &mut ScoreTreeWalker<(), ()>, children: &Children) -> Result<()> {
+    match *children {
+        Children::Elems(ref elems) => {
+            for elem in elems.iter() {
+                try!(walker.visit_elem(elem));
+            }
+        },
+        Children::Groups(ref groups) => {
+            for group in groups.iter() {
+                try!(walker.visit_group(group));
+            }
+        },
+    }
+    Ok(())
+}
+
 fn collect_results<F, A, B>(vec: &Vec<A>, mut fun: F) -> Result<Vec<B>>
     where F: FnMut(&A) -> Result<B>
 {
