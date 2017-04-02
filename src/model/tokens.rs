@@ -17,17 +17,17 @@ pub enum Group {
 }
 
 impl Group {
-    pub fn lock_id(self) -> Option<LockId> {
-        match self {
-            Group::Free(_) => None,
-            Group::Locked(lock_id) => Some(lock_id),
-        }
-    }
-
     pub fn free_id(self) -> Option<FreeId> {
         match self {
             Group::Free(free_id) => Some(free_id),
-            Group::Locked(_) => None,
+            _ => None,
+        }
+    }
+
+    pub fn lock_id(self) -> Option<LockId> {
+        match self {
+            Group::Locked(lock_id) => Some(lock_id),
+            _ => None,
         }
     }
 }
