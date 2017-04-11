@@ -7,8 +7,9 @@ use errors::*;
 pub use parser::{Parser, KbParser};
 pub use self::lt_parser::LtParser;
 
-use model::{LtConf, Groups, KeyMasks, GroupId};
+use model::{LtConf, Groups, GroupId, KeyId};
 use data::lt_conf::LtConf as LtConfData;
+use utils::LookupTable;
 
 
 impl<'a> Parser<LtConf> for KbParser<'a> {
@@ -34,7 +35,7 @@ impl<'a> LtConfReader<'a> {
         })
     }
 
-    fn read_key_masks(&self) -> Result<KeyMasks> {
+    fn read_key_masks(&self) -> Result<LookupTable<(GroupId, KeyId), bool>> {
         LtParser::new(self.parser, &self.groups).parse(&self.data.key_masks)
     }
 

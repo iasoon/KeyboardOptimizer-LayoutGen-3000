@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use data::KbConf;
-use model::{TokenId, KeyId, LayerId};
+use model::{KbConf, Key, KeyId, Token, TokenId, Layer, LayerId};
+use utils::{Countable, BoundedSet};
 use errors::*;
 
 use parser::Parser;
+
 
 pub struct KbParser<'a> {
     pub kb_conf: &'a KbConf,
@@ -23,16 +24,22 @@ impl<'a> KbParser<'a> {
         }
     }
 
-    fn mk_token_map(tokens: &'a Vec<String>) -> HashMap<&'a str, TokenId> {
-        tokens.iter().enumerate().map(|(num, name)| (name.as_str(), TokenId(num))).collect()
+    fn mk_token_map(tokens: &'a BoundedSet<Token>) -> HashMap<&'a str, TokenId> {
+        TokenId::enumerate(&tokens.elem_count()).map(|token_id| {
+            (tokens[token_id].name.as_str(), token_id)
+        }).collect()
     }
 
-    fn mk_key_map(keys: &'a Vec<String>) -> HashMap<&'a str, KeyId> {
-        keys.iter().enumerate().map(|(num, name)| (name.as_str(), KeyId(num))).collect()
+    fn mk_key_map(keys: &'a BoundedSet<Key>) -> HashMap<&'a str, KeyId> {
+        KeyId::enumerate(&keys.elem_count()).map(|key_id| {
+            (keys[key_id].name.as_str(), key_id)
+        }).collect()
     }
 
-    fn mk_layer_map(layers: &'a Vec<String>) -> HashMap<&'a str, LayerId> {
-        layers.iter().enumerate().map(|(num, name)| (name.as_str(), LayerId(num))).collect()
+    fn mk_layer_map(layers: &'a BoundedSet<Layer>) -> HashMap<&'a str, LayerId> {
+        LayerId::enumerate(&layers.elem_count()).map(|layer_id| {
+            (layers[layer_id].name.as_str(), layer_id)
+        }).collect()
     }
 }
 

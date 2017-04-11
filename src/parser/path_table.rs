@@ -2,8 +2,8 @@ use std::vec::Vec;
 use std::collections::HashMap;
 
 use parser::{Parser, KbParser};
-use data::score_tree::{ScoreTree, Group, Children, Elem, Loc as LocData};
-use model::{Loc, Path, PathTable};
+use data::score_tree::{ScoreTree, Group, Elem, Loc as LocRepr};
+use model::{Loc, LocData, Path, PathTable};
 
 use errors::*;
 
@@ -51,16 +51,18 @@ impl<'a> PathTableReader<'a> {
     }
 
     fn mk_path_table(mut self) -> PathTable {
-        PathTable::new(self.extract_paths(),
-                       self.parser.kb_conf.layers.len(),
-                       self.parser.kb_conf.keys.len())
+        let loc_data = LocData {
+            key_data: self.parser.kb_conf.keys.elem_count(),
+            layer_data: self.parser.kb_conf.layers.elem_count(),
+        };
+        PathTable::new(self.extract_paths(), loc_data)
     }
 }
 
 impl<'a> Parser<Vec<Loc>> for KbParser<'a> {
-    type Repr = Vec<LocData>;
+    type Repr = Vec<LocRepr>;
 
-    fn parse(&self, repr: &Vec<LocData>) -> Result<Vec<Loc>> {
+    fn parse(&self, repr: &Vec<LocRepr>) -> Result<Vec<Loc>> {
         let mut vec = Vec::with_capacity(repr.len());
         for locdata in repr.iter() {
             vec.push(self.parse(locdata)?);

@@ -1,7 +1,8 @@
 use errors::*;
 
 use parser::{Parser, KbParser};
-use model::Groups;
+use model::{Groups, Key};
+use utils::ElemCount;
 
 pub struct LtParser<'a> {
     pub kb_parser: &'a KbParser<'a>,
@@ -16,8 +17,8 @@ impl<'a> LtParser<'a> {
         }
     }
 
-    pub fn num_keys(&self) -> usize {
-        self.kb_parser.kb_conf.keys.len()
+    pub fn key_count(&self) -> ElemCount<Key> {
+        self.kb_parser.kb_conf.keys.elem_count()
     }
 }
 

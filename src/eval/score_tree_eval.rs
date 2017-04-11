@@ -30,7 +30,7 @@ impl<'a> ScoreTreeEvaluator<'a> {
 
     fn path_weight(&self, path: &Vec<LocData>) -> Result<f64> {
         let table = &self.language.freqs[path.len()];
-        match table.freq(self.read_path(path)) {
+        match table.get(self.read_path(path)) {
             Ok(score) => Ok(score),
             Err(Unassigned) => Ok(0.0),
             Err(ParseError(e)) => Err(e),

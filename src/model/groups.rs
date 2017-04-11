@@ -1,31 +1,19 @@
-use std::vec::Vec;
+use model::*;
+use utils::{BoundedSet, LookupTable};
 use std::ops::Index;
 
-use model::*;
-
-#[derive(Debug)]
 pub struct Groups {
-    pub token_group: Vec<GroupId>,
-    pub groups: Vec<Group>,
-    pub locks: Vec<Lock>,
-    pub frees: Vec<TokenId>,
-}
-
-impl Index<TokenId> for Groups {
-    type Output = GroupId;
-
-    fn index<'a>(&'a self, idx: TokenId) -> &'a GroupId {
-        let TokenId(token_num) = idx;
-        return &self.token_group[token_num];
-    }
+    pub groups: BoundedSet<Group>,
+    pub locks: BoundedSet<Lock>,
+    pub frees: BoundedSet<Free>,
+    pub token_group: LookupTable<TokenId, GroupId>,
 }
 
 impl Index<GroupId> for Groups {
     type Output = Group;
 
     fn index<'a>(&'a self, idx: GroupId) -> &'a Group {
-        let GroupId(group_num) = idx;
-        return &self.groups[group_num];
+        &self.groups[idx]
     }
 }
 
@@ -33,16 +21,14 @@ impl Index<LockId> for Groups {
     type Output = Lock;
 
     fn index<'a>(&'a self, idx: LockId) -> &'a Lock {
-        let LockId(lock_num) = idx;
-        return &self.locks[lock_num];
+        &self.locks[idx]
     }
 }
 
 impl Index<FreeId> for Groups {
-    type Output = TokenId;
+    type Output = Free;
 
-    fn index<'a>(&'a self, idx: FreeId) -> &'a TokenId {
-        let FreeId(free_num) = idx;
-        return &self.frees[free_num];
+    fn index<'a>(&'a self, idx: FreeId) -> &'a Free {
+        &self.frees[idx]
     }
 }

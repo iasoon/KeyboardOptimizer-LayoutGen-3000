@@ -1,6 +1,4 @@
-use std::result;
-
-use model::{Language, FreqTable, TokenId};
+use model::{Language, FreqTable};
 use model::{Path, PathList, PathTable};
 use layout::Keymap;
 
@@ -31,7 +29,7 @@ impl Evaluator {
 
     fn score_path(freqs: &FreqTable, keymap: &Keymap, path: &Path) -> f64 {
         let path_tokens = path.iter().map(|&loc| keymap[loc].ok_or(Unassigned));
-        match freqs.freq(path_tokens) {
+        match freqs.get(path_tokens) {
             Ok(score) => score * path.weight,
             Err(Unassigned) => 0.0,
         }

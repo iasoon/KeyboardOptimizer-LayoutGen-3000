@@ -1,16 +1,21 @@
 use parser::{Parser, KbParser};
-use model::Loc;
-use data::score_tree::Loc as LocData;
+use model::{Loc, LocData};
+use data::score_tree::Loc as LocRepr;
 
 use errors::*;
 
 impl<'a> Parser<Loc> for KbParser<'a> {
-    type Repr = LocData;
+    type Repr = LocRepr;
 
-    fn parse(&self, repr: &LocData) -> Result<Loc> {
-        Ok(Loc {
-            layer_id: self.parse(&repr.layer)?,
-            key_id: self.parse(&repr.key)?,
-        })
+    fn parse(&self, repr: &LocRepr) -> Result<Loc> {
+        let data = LocData {
+            key_data: self.kb_conf.keys.elem_count(),
+            layer_data: self.kb_conf.layers.elem_count(),
+        };
+        Ok(Loc::new(
+            &data,
+            self.parse(&repr.key)?,
+            self.parse(&repr.layer)?
+        ))
     }
 }

@@ -1,5 +1,5 @@
-use model::Loc;
-use utils::LocMap;
+use model::{Loc, LocData};
+use utils::LookupTable;
 
 #[derive(Clone)]
 pub struct Path {
@@ -64,19 +64,20 @@ impl PathList {
 
 pub struct PathTable {
     pub all: PathList,
-    pub loc_paths: LocMap<PathList>,
+    pub loc_paths: LookupTable<Loc, PathList>,
 }
 
 impl PathTable {
-    pub fn new(paths: Vec<Path>, num_layers: usize, num_keys: usize) -> Self {
+    pub fn new(paths: Vec<Path>, loc_data: LocData) -> Self {
         PathTable {
-            loc_paths: Self::mk_loc_paths(&paths, num_layers, num_keys),
+            loc_paths: Self::mk_loc_paths(&paths, loc_data),
             all: PathList::new(paths),
         }
     }
 
-    fn mk_loc_paths(paths: &Vec<Path>, num_layers: usize, num_keys: usize) -> LocMap<PathList> {
-        let mut loc_paths = LocMap::from_fn(num_layers, num_keys, |_| Vec::new());
+    fn mk_loc_paths(paths: &Vec<Path>, loc_data: LocData)
+                    -> LookupTable<Loc, PathList> {
+        let mut loc_paths = LookupTable::new(loc_data, Vec::new());
         for path in paths.iter() {
             for &loc in path.unique_locs() {
                 loc_paths[loc].push(path.clone());

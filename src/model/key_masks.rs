@@ -18,10 +18,8 @@ impl KeyMasks {
         where F: Fn(GroupId, KeyId) -> bool
     {
         let mut key_masks = KeyMasks::empty(num_groups, num_keys);
-        for group_num in 0..num_groups {
-            for key_num in 0..num_keys {
-                let group_id = GroupId(group_num);
-                let key_id = KeyId(key_num);
+        for group_id in (0..num_groups).map(|n| GroupId(n)) {
+            for key_id in (0..num_keys).map(|n| KeyId(n)) {
                 key_masks.set(group_id, key_id, fun(group_id, key_id));
             }
         }

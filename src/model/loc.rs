@@ -1,3 +1,5 @@
+use utils::Countable;
+use model::KeyId;
 
 // a location on the keyboard.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -6,8 +8,6 @@ pub struct Loc {
     pub layer_id: LayerId,
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct KeyId(pub usize);
 
 impl KeyId {
     pub fn layer(self, layer_id: LayerId) -> Loc {
@@ -31,9 +31,5 @@ impl LayerId {
             key_id: key_id,
             layer_id: self,
         }
-    }
-
-    pub fn key_num(self, key_num: usize) -> Loc {
-        self.key(KeyId(key_num))
     }
 }
