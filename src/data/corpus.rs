@@ -1,15 +1,20 @@
-use std::vec::Vec;
+use errors::*;
+use utils::{Countable, ElemCount, SeqTable, SeqAssocList};
+use model::{KbDef, Token, TokenId, GroupId};
 
-pub type Corpus = Vec<NGrams>;
+use data::countable::Assocs;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NGrams {
-    pub ngram_length: usize,
-    pub ngrams: Vec<NGram>,
-}
+use std::path::Path;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NGram {
-    pub tokens: Vec<String>,
-    pub freq: f64,
+pub fn read_corpus(kb_def: &KbDef, path: &Path) -> Result<SeqAssocList<GroupId, f64>> {
+    let assocs = Assocs::read(path, &kb_def.tokens.elem_count())?;
+
+    let seqs = assocs.vec.iter()
+        .flat_map(|&(ref seq, _)| {
+            seq.iter().cloned().map(move |token_id| kb_def.token_group[token_id])
+        })
+        .collect();
+    let values = assocs.vec.into_iter().map(|(_, value)| value).collect();
+
+    Ok(SeqAssocList::from_vecs(seqs, assocs.seq_len, values))
 }
