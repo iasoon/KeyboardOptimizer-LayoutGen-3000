@@ -1,3 +1,5 @@
+use errors::*;
+
 pub trait Countable {
     type Data;
 
@@ -6,20 +8,32 @@ pub trait Countable {
 
     fn count(data: &Self::Data) -> usize;
 
-    fn enumerate<'a>(data: &'a Self::Data) -> Enumerator<'a, Self>
+    fn enumerate<'a>(data: Self::Data) -> Enumerator<Self>
         where Self: Sized
     {
         Enumerator::new(data)
     }
+
+    fn from_num_checked(data: &Self::Data, num: usize) -> Result<Self>
+        where Self: Sized
+    {
+        if num < Self::count(data) {
+            Ok(Self::from_num(data, num))
+        } else {
+            bail!(format!("Countable out of bounds: count is {} but number is {}",
+                          Self::count(data),
+                          num))
+        }
+    }
 }
 
-pub struct Enumerator<'a, T: Countable + 'a> {
+pub struct Enumerator<T: Countable> {
     pos: usize,
-    data: &'a T::Data,
+    data: T::Data,
 }
 
-impl<'a, T: Countable> Enumerator<'a, T> {
-    fn new(data: &'a T::Data) -> Self {
+impl<T: Countable> Enumerator<T> {
+    fn new(data: T::Data) -> Self {
         Enumerator {
             pos: 0,
             data: data,
@@ -27,12 +41,12 @@ impl<'a, T: Countable> Enumerator<'a, T> {
     }
 }
 
-impl<'a, T: Countable> Iterator for Enumerator<'a, T> {
+impl<T: Countable> Iterator for Enumerator<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        if self.pos < T::count(self.data) {
-            let item = T::from_num(self.data, self.pos);
+        if self.pos < T::count(&self.data) {
+            let item = T::from_num(&self.data, self.pos);
             self.pos += 1;
             Some(item)
         } else {

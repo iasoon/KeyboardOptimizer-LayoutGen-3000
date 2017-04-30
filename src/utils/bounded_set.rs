@@ -1,4 +1,4 @@
-use utils::countable::Countable;
+use utils::{Countable, BoundedSubset};
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 use std::vec::Vec;
@@ -25,6 +25,16 @@ impl<T> BoundedSet<T>
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T> {
         self.elems.iter()
+    }
+
+    pub fn ids(&self) -> impl Iterator<Item = T::Id> {
+        T::Id::enumerate(self.elem_count())
+    }
+
+    pub fn subset(&self) -> BoundedSubset<T::Id>
+        where T::Id: Copy
+    {
+        BoundedSubset::from_vec(self.elem_count(), self.ids().collect())
     }
 }
 

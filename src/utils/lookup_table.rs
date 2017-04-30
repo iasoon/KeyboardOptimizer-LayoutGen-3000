@@ -8,13 +8,16 @@ pub struct LookupTable<C: Countable, T> {
 }
 
 impl<C: Countable, T> LookupTable<C, T> {
+    pub fn from_vec(vec: Vec<T>, data: C::Data) -> Self {
+        LookupTable {
+            table: vec,
+            data: data,
+        }
+    }
     pub fn new(data: C::Data, default: T) -> Self
         where T: Clone
     {
-        LookupTable {
-            table: vec![default; C::count(&data)],
-            data: data,
-        }
+        Self::from_vec(vec![default; C::count(&data)], data)
     }
 
     pub fn data<'a>(&'a self) -> &'a C::Data {
@@ -30,15 +33,6 @@ impl<C: Countable, T> LookupTable<C, T> {
 
     pub fn values<'a>(&'a self) -> impl Iterator<Item = &'a T> {
         self.table.iter()
-    }
-
-    pub fn from_fn<F>(data: C::Data, fun: F) -> Self
-        where F: Fn(C) -> T
-    {
-        LookupTable {
-            table: C::enumerate(&data).map(fun).collect(),
-            data: data,
-        }
     }
 
     pub fn drain_map<F, R>(self, fun: F) -> LookupTable<C, R>
