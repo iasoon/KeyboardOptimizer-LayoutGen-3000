@@ -1,11 +1,8 @@
-mod keymap;
+mod maps;
 mod generator;
 pub mod combinator;
-pub mod swap;
+mod assignment;
 
-pub use self::keymap::Keymap;
+pub use self::maps::*;
 pub use self::generator::Generator;
-
-
-use utils::LookupTable;
-use model::*;
+pub use self::assignment::{Assignment, AssignmentResolver};
