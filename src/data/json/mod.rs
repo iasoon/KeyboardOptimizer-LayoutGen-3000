@@ -35,6 +35,8 @@ impl KbDefData {
             frees: groups.frees,
 
             token_group: groups.token_group,
+            free_group: groups.free_group,
+            lock_group: groups.lock_group,
         })
     }
 

@@ -11,6 +11,9 @@ pub struct KbDef {
     pub frees: BoundedSet<Free>,
 
     pub token_group: LookupTable<TokenId, GroupId>,
+    pub free_group: LookupTable<FreeId, GroupId>,
+    pub lock_group: LookupTable<LockId, GroupId>,
+
 }
 
 impl KbDef {
