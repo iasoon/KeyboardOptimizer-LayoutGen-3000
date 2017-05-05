@@ -1,8 +1,18 @@
 mod maps;
 mod generator;
 pub mod combinator;
-mod assignment;
+mod layout;
+mod group_map_walker;
+
+mod move_gen;
+
+mod alteration;
+mod assignment_resolver;
 
 pub use self::maps::*;
 pub use self::generator::Generator;
-pub use self::assignment::{Assignment, AssignmentResolver};
+pub use self::layout::Layout;
+pub use self::move_gen::Moves;
+pub use self::group_map_walker::GroupMapWalker;
+pub use self::assignment_resolver::AssignmentResolver;
+pub use self::alteration::{Alteration, Assignment};

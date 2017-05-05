@@ -1,5 +1,6 @@
 use model::*;
 use utils::{LookupTable, BoundedSubset};
+use layout::mk_keymap;
 
 #[derive(Debug)]
 pub struct Cycle {
@@ -33,14 +34,6 @@ type Keymap = LookupTable<Loc, Option<TokenId>>;
 pub type TokenMap = LookupTable<TokenId, Loc>;
 
 type TokenSet = BoundedSubset<TokenId>;
-
-pub fn mk_keymap(token_map: &TokenMap, kb_def: &KbDef) -> Keymap {
-    let mut keymap = LookupTable::new(kb_def.loc_data(), None);
-    for (token_id, &loc) in token_map.iter() {
-        keymap[loc] = Some(token_id);
-    }
-    return keymap;
-}
 
 pub struct LayoutPair<'a> {
     keymaps: [Keymap; 2],

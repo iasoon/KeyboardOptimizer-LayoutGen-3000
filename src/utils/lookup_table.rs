@@ -14,10 +14,20 @@ impl<C: Countable, T> LookupTable<C, T> {
             data: data,
         }
     }
+
     pub fn new(data: C::Data, default: T) -> Self
         where T: Clone
     {
         Self::from_vec(vec![default; C::count(&data)], data)
+    }
+
+    pub fn from_fn<F>(data: C::Data, fun: F) -> Self
+        where F: Fn(C) -> T
+    {
+        LookupTable {
+            table: (0..C::count(&data)).map(|num| fun(C::from_num(&data, num))).collect(),
+            data: data,
+        }
     }
 
     pub fn data<'a>(&'a self) -> &'a C::Data {

@@ -10,7 +10,7 @@ mod seq_set;
 mod seq_assoc_list;
 mod bounded_subset;
 
-pub use self::countable::Countable;
+pub use self::countable::{Countable, Enumerator};
 pub use self::bounded_set::{BoundedSet, HasId, ElemCount};
 pub use self::lookup_table::LookupTable;
 pub use self::seq_table::SeqTable;

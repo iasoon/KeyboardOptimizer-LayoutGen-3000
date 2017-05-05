@@ -1,12 +1,6 @@
 use utils::LookupTable;
 use model::*;
-use layout::{Keymap, TokenMap};
-
-#[derive(Debug, Clone, Copy)]
-pub enum Assignment {
-    Free { free_id: FreeId, loc: Loc },
-    Lock { lock_id: LockId, key_id: KeyId },
-}
+use layout::{Keymap, TokenMap, Alteration, Assignment};
 
 pub struct AssignmentResolver<'a> {
     kb_def: &'a KbDef,
@@ -14,7 +8,6 @@ pub struct AssignmentResolver<'a> {
     token_map: &'a TokenMap,
 
     group_used: LookupTable<GroupId, bool>,
-
     assignments: Vec<Assignment>,
 }
 
@@ -29,14 +22,14 @@ impl<'a> AssignmentResolver<'a> {
         }
     }
 
-    pub fn resolve(mut self) -> Vec<Assignment> {
+    pub fn resolve(mut self) -> Alteration {
         let mut pos = 0;
         while pos < self.assignments.len() {
             let assignment = self.assignments[pos];
             self.resolve_assignment(assignment);
             pos += 1;
         }
-        return self.assignments;
+        return Alteration::new(self.assignments);
     }
 
     fn resolve_assignment(&mut self, assignment: Assignment) {

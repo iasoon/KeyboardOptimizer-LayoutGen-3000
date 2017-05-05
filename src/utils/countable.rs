@@ -33,7 +33,7 @@ pub struct Enumerator<T: Countable> {
 }
 
 impl<T: Countable> Enumerator<T> {
-    fn new(data: T::Data) -> Self {
+    pub fn new(data: T::Data) -> Self {
         Enumerator {
             pos: 0,
             data: data,

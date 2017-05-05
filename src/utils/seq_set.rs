@@ -28,6 +28,10 @@ impl<T> SeqSet<T> {
     pub fn seq_count(&self) -> SeqCount {
         SeqCount { count: self.vec.len() / self.seq_len }
     }
+
+    pub fn seq_len(&self) -> usize {
+        return self.seq_len;
+    }
 }
 
 pub struct Seq<'a, T: 'a> {

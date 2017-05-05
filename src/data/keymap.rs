@@ -53,7 +53,7 @@ impl<'a> KeymapReader<'a> {
 
     fn read_key_mapping(&mut self, key_id: KeyId, key_mapping: &KeyMapping) -> Result<()> {
         for (layer_name, token_name) in key_mapping.iter() {
-            let loc = Loc::new(self.keymap.data(), key_id, self.kb_reader.read_layer(layer_name)?);
+            let loc = self.keymap.data().loc(key_id, self.kb_reader.read_layer(layer_name)?);
             self.keymap[loc] = Some(self.kb_reader.read_token(token_name)?);
         }
         Ok(())

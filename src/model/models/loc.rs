@@ -4,19 +4,22 @@ use utils::{Countable, ElemCount};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Loc(usize);
 
+#[derive(Clone)]
 pub struct LocData {
     pub key_data: ElemCount<Key>,
     pub layer_data: ElemCount<Layer>,
 }
 
-impl Loc {
-    pub fn new(data: &LocData, key_id: KeyId, layer_id: LayerId) -> Loc {
-        let key_num = key_id.to_num(&data.key_data);
-        let layer_num = layer_id.to_num(&data.layer_data);
-        let num_keys = KeyId::count(&data.key_data);
+impl LocData {
+    pub fn loc(&self, key_id: KeyId, layer_id: LayerId) -> Loc {
+        let key_num = key_id.to_num(&self.key_data);
+        let layer_num = layer_id.to_num(&self.layer_data);
+        let num_keys = KeyId::count(&self.key_data);
         Loc(layer_num * num_keys + key_num)
     }
+}
 
+impl Loc {
     pub fn key(&self, data: &LocData) -> KeyId {
         let num = self.to_num(data);
         KeyId::from_num(&data.key_data, num % data.key_data.count())

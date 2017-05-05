@@ -138,8 +138,7 @@ impl Step {
                 cursor.pos()
                     .map_or(false, |pos| {
                         gen.kb_def.locks[id].elems().all(|(layer_id, _)| {
-                            let loc =
-                                Loc::new(&gen.kb_def.loc_data(), cursor.pos().unwrap(), layer_id);
+                            let loc = gen.kb_def.loc_data().loc(cursor.pos().unwrap(), layer_id);
                             return gen.keymap[loc].is_none();
                         })
                     })
@@ -199,7 +198,7 @@ struct AssignLock {
 impl Move for AssignLock {
     fn keymap(&self, kb_def: &KbDef, keymap: &mut Keymap) {
         for (layer_id, token_id) in kb_def.locks[self.lock_id].elems() {
-            let loc = Loc::new(&kb_def.loc_data(), self.key_id, layer_id);
+            let loc = kb_def.loc_data().loc(self.key_id, layer_id);
             keymap[loc] = Some(token_id);
         }
     }
@@ -219,7 +218,7 @@ struct UnassignLock {
 impl Move for UnassignLock {
     fn keymap(&self, kb_def: &KbDef, keymap: &mut Keymap) {
         for (layer_id, token_id) in kb_def.locks[self.lock_id].elems() {
-            let loc = Loc::new(&kb_def.loc_data(), self.key_id, layer_id);
+            let loc = kb_def.loc_data().loc(self.key_id, layer_id);
             keymap[loc] = None;
         }
     }

@@ -23,4 +23,8 @@ impl<K, V> SeqAssocList<K, V> {
         SeqId::enumerate(self.seqs.seq_count())
             .map(move |seq_id| self.get(seq_id))
     }
+
+    pub fn seq_len(&self) -> usize {
+        return self.seqs.seq_len();
+    }
 }
