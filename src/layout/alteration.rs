@@ -32,7 +32,7 @@ pub enum Assignment {
 }
 
 impl Assignment {
-    fn group(&self, kb_def: &KbDef) -> GroupId {
+    pub fn group(&self, kb_def: &KbDef) -> GroupId {
         match self {
             &Assignment::Free { free_id, loc: _ } => {
                 kb_def.free_group[free_id]
