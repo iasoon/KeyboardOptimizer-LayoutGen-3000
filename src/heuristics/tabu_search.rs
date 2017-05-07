@@ -20,17 +20,15 @@ fn init_group_components(layout: &Layout, evaluator: &Evaluator) -> LookupTable<
                          |group_id| evaluator.eval_group(group_id, &layout.group_map))
 }
 
-fn init_lock_assignment_cost(layout: &Layout, evaluator: &Evaluator) -> LookupTable<(LockId, KeyId), f64> {
+fn init_assignment_delta(layout: &Layout, evaluator: &Evaluator) -> AssignmentMap<f64> {
     let mut walker = GroupMapWalker::new(&layout.group_map, layout.kb_def);
-    let data = (layout.kb_def.locks.elem_count(), layout.kb_def.keys.elem_count());
-    LookupTable::from_fn(data, |(lock_id, key_id)| {
-        let group_id = layout.kb_def.lock_group[lock_id];
-        let a = Assignment::Lock { lock_id, key_id };
-        let deassign = evaluator.eval_group(group_id, walker.pos());
-        walker.assign(a);
-        let assign = evaluator.eval_group(group_id, walker.pos());
-        walker.reset_assign(a);
-        return assign - deassign;
+    AssignmentMap::from_fn(layout.kb_def, |assignment| {
+        let group_id = assignment.group(layout.kb_def);
+        let before = evaluator.eval_group(group_id, walker.pos());
+        walker.assign(assignment);
+        let after = evaluator.eval_group(group_id, walker.pos());
+        walker.reset_assign(assignment);
+        return after - before;
     })
 }
 
@@ -109,7 +107,7 @@ impl<'a> TabuSearcher<'a> {
 
                 let tol = (10.0 as f64).powi(-12);
                 if (delta - check).abs() > tol {
-                    println!("ERROR: expected {} but was {}, diff: {}", delta, check, check - delta);
+                    println!("ERROR: expected {} but was {}, diff: {}", check, delta, check - delta);
                 }
                 ScoredAlteration {
                     alteration: alteration,
@@ -139,14 +137,14 @@ impl<'a> TabuSearcher<'a> {
 
 struct Cache {
     pub group_component: LookupTable<GroupId, f64>,
-    pub lock_assignment_cost: LookupTable<(LockId, KeyId), f64>,
+    pub assignment_delta: AssignmentMap<f64>,
 }
 
 impl Cache {
     fn new(layout: &Layout, evaluator: &Evaluator) -> Self {
         Cache {
             group_component: init_group_components(layout, evaluator),
-            lock_assignment_cost: init_lock_assignment_cost(layout, evaluator),
+            assignment_delta: init_assignment_delta(layout, evaluator),
         }
     }
 }
@@ -190,17 +188,13 @@ impl<'a> AlterationScorer<'a> {
     fn score(&mut self, assignments: &[Assignment]) -> f64 {
         let mut delta = 0.0;
         for (num, &assignment) in assignments.iter().enumerate() {
-            let mut step = 0.0;
-            if let Assignment::Lock {lock_id, key_id} = assignment {
-                step = self.cache.lock_assignment_cost[(lock_id, key_id)];
-            }
 
             let d1 = self.calc_delta(&[assignment], &assignments[0..num]);
             self.walker.assign(assignment);
             let d2 = self.calc_delta(&[assignment], &assignments[0..num]);
             self.walker.reset_assign(assignment);
 
-            step += d2 - d1;
+            let step = self.cache.assignment_delta[assignment] + d2 - d1;
 
             delta += step;
         }
