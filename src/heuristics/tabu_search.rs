@@ -1,12 +1,12 @@
 use layout::*;
 use eval::Evaluator;
-use utils::LookupTable;
-use model::{GroupId, KeyId};
+use utils::{LookupTable, Countable};
+use model::{KbDef, GroupId, KeyId, LockId};
 
 pub struct TabuSearcher<'a> {
     layout: Layout<'a>,
     evaluator: &'a Evaluator,
-    group_component: LookupTable<GroupId, f64>,
+    cache: Cache,
 }
 
 #[derive(Debug)]
@@ -20,10 +20,24 @@ fn init_group_components(layout: &Layout, evaluator: &Evaluator) -> LookupTable<
                          |group_id| evaluator.eval_group(group_id, &layout.group_map))
 }
 
+fn init_lock_assignment_cost(layout: &Layout, evaluator: &Evaluator) -> LookupTable<(LockId, KeyId), f64> {
+    let mut walker = GroupMapWalker::new(&layout.group_map, layout.kb_def);
+    let data = (layout.kb_def.locks.elem_count(), layout.kb_def.keys.elem_count());
+    LookupTable::from_fn(data, |(lock_id, key_id)| {
+        let group_id = layout.kb_def.lock_group[lock_id];
+        let a = Assignment::Lock { lock_id, key_id };
+        let deassign = evaluator.eval_group(group_id, walker.pos());
+        walker.assign(a);
+        let assign = evaluator.eval_group(group_id, walker.pos());
+        walker.reset_assign(a);
+        return assign - deassign;
+    })
+}
+
 impl<'a> TabuSearcher<'a> {
     pub fn new(layout: Layout<'a>, evaluator: &'a Evaluator) -> Self {
         TabuSearcher {
-            group_component: init_group_components(&layout, evaluator),
+            cache: Cache::new(&layout, evaluator),
             layout: layout,
             evaluator: evaluator,
         }
@@ -31,31 +45,75 @@ impl<'a> TabuSearcher<'a> {
 
     fn alter(&mut self, alteration: Alteration) {
         self.layout.do_move(&alteration);
-        for group_id in self.layout.kb_def.groups.ids() {
-            self.group_component[group_id] = self.evaluator
-                .eval_group(group_id, &self.layout.group_map);
+    }
+
+    fn scorer<'b>(&'b self) -> AlterationScorer<'b> {
+        AlterationScorer {
+            walker: GroupMapWalker::new(&self.layout.group_map, &self.layout.kb_def),
+            evaluator: &self.evaluator,
+            cache: &self.cache,
+            kb_def: self.layout.kb_def,
         }
     }
 
+    pub fn test(&mut self) {
+        // construct a move
+        let mut resolver = AssignmentResolver::new(
+            &self.layout.keymap,
+            &self.layout.token_map,
+            self.layout.kb_def,
+        );
+        resolver.assign_lock(
+            LockId::from_num(&self.layout.kb_def.locks.elem_count(), 0),
+            KeyId::from_num(&self.layout.kb_def.keys.elem_count(), 0)
+        );
+        resolver.assign_lock(
+            LockId::from_num(&self.layout.kb_def.locks.elem_count(), 2),
+            KeyId::from_num(&self.layout.kb_def.keys.elem_count(), 2)
+        );
+        let alteration = resolver.resolve();
+        let mut scorer = self.scorer();
+
+        let assignments: Vec<Assignment> = alteration.assignments().collect();
+        let calculated = scorer.score(assignments.as_slice());
+
+        let mut walker = GroupMapWalker::new(&self.layout.group_map, &self.layout.kb_def);
+        let before = self.evaluator.evaluate(walker.pos());
+        walker.do_move(&alteration);
+        let after = self.evaluator.evaluate(walker.pos());
+        let delta = after - before;
+
+        let tol = (10.0 as f64).powi(-12);
+        if (calculated - delta).abs() > tol {
+            println!("ERROR: expected {} but was {}, diff: {}", delta, calculated, calculated - delta);
+        } else {
+            println!("SUCCESS: expected {} and got {}", delta, calculated);
+        }
+    }
 
     pub fn best_move(&self) -> ScoredAlteration {
-        let mut walker = GroupMapWalker::new(&self.layout.group_map, &self.layout.kb_def);
+        let mut scorer = self.scorer();
         self.layout
             .moves()
             .map(|alteration| {
-                let deassign: f64 = alteration.groups(&self.layout.kb_def)
-                    .map(|group_id| self.group_component[group_id])
-                    .sum();
+                let assignments: Vec<Assignment> = alteration.assignments().collect();
+                let delta = scorer.score(assignments.as_slice());
 
-                walker.do_move(&alteration);
+                let score_before = self.evaluator.evaluate(scorer.walker.pos());
+                scorer.walker.do_move(&alteration);
+                let score_after = self.evaluator.evaluate(scorer.walker.pos());
+                scorer.walker.reset_move(&alteration);
 
-                let assign: f64 = alteration.groups(&self.layout.kb_def)
-                    .map(|group_id| self.evaluator.eval_group(group_id, walker.pos()))
-                    .sum();
-                walker.reset_move(&alteration);
+
+                let check = score_after - score_before;
+
+                let tol = (10.0 as f64).powi(-12);
+                if (delta - check).abs() > tol {
+                    println!("ERROR: expected {} but was {}, diff: {}", delta, check, check - delta);
+                }
                 ScoredAlteration {
                     alteration: alteration,
-                    delta: assign - deassign,
+                    delta: delta,
                 }
             })
             .min_by(|ref a, ref b| a.delta.partial_cmp(&b.delta).unwrap())
@@ -76,5 +134,77 @@ impl<'a> TabuSearcher<'a> {
             self.layout.print();
             println!("score: {}", self.evaluator.evaluate(&self.layout.group_map));
         }
+    }
+}
+
+struct Cache {
+    pub group_component: LookupTable<GroupId, f64>,
+    pub lock_assignment_cost: LookupTable<(LockId, KeyId), f64>,
+}
+
+impl Cache {
+    fn new(layout: &Layout, evaluator: &Evaluator) -> Self {
+        Cache {
+            group_component: init_group_components(layout, evaluator),
+            lock_assignment_cost: init_lock_assignment_cost(layout, evaluator),
+        }
+    }
+}
+
+struct AlterationScorer<'a> {
+    evaluator: &'a Evaluator,
+    walker: GroupMapWalker<'a>,
+    cache: &'a Cache,
+    kb_def: &'a KbDef,
+}
+
+impl<'a> AlterationScorer<'a> {
+    fn calc_overlap(&self, assignment: Assignment, assignments: &[Assignment]) -> f64 {
+        let group1 = assignment.group(self.kb_def);
+        assignments.iter().map(|assignment| {
+            let group2 = assignment.group(self.kb_def);
+            self.evaluator.eval_overlap(group1, group2, self.walker.pos())
+        }).sum()
+    }
+
+    fn calc_step(&mut self, assigned: &[Assignment], step: Assignment) -> f64 {
+        let before = self.calc_overlap(step, assigned);
+        self.walker.assign(step);
+        let after = self.calc_overlap(step, assigned);
+        return after - before;
+    }
+
+    fn calc_delta(&mut self, assigned: &[Assignment], to_assign: &[Assignment]) -> f64 {
+        let mut delta = 0.0;
+        for &step in to_assign.iter() {
+            delta += self.calc_step(assigned, step);
+        }
+
+        for &assignment in to_assign.iter() {
+            self.walker.reset_assign(assignment);
+        }
+
+        return delta;
+    }
+
+    fn score(&mut self, assignments: &[Assignment]) -> f64 {
+        let mut delta = 0.0;
+        for (num, &assignment) in assignments.iter().enumerate() {
+            let mut step = 0.0;
+            if let Assignment::Lock {lock_id, key_id} = assignment {
+                step = self.cache.lock_assignment_cost[(lock_id, key_id)];
+            }
+
+            let d1 = self.calc_delta(&[assignment], &assignments[0..num]);
+            self.walker.assign(assignment);
+            let d2 = self.calc_delta(&[assignment], &assignments[0..num]);
+            self.walker.reset_assign(assignment);
+
+            step += d2 - d1;
+
+            delta += step;
+        }
+
+        return delta;
     }
 }

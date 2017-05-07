@@ -33,7 +33,7 @@ impl<'a> GroupMapWalker<'a> {
         }
     }
 
-    fn assign(&mut self, assignment: Assignment) {
+    pub fn assign(&mut self, assignment: Assignment) {
         match assignment {
             Assignment::Free { free_id, loc } => {
                 let group_id = self.kb_def.free_group[free_id];
@@ -46,7 +46,7 @@ impl<'a> GroupMapWalker<'a> {
         }
     }
 
-    fn reset_assign(&mut self, assignment: Assignment) {
+    pub fn reset_assign(&mut self, assignment: Assignment) {
         match assignment {
             Assignment::Free { free_id , loc: _ } => {
                 let group_id = self.kb_def.free_group[free_id];

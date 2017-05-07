@@ -21,8 +21,8 @@ impl<C: Countable, T> LookupTable<C, T> {
         Self::from_vec(vec![default; C::count(&data)], data)
     }
 
-    pub fn from_fn<F>(data: C::Data, fun: F) -> Self
-        where F: Fn(C) -> T
+    pub fn from_fn<F>(data: C::Data, mut fun: F) -> Self
+        where F: FnMut(C) -> T
     {
         LookupTable {
             table: (0..C::count(&data)).map(|num| fun(C::from_num(&data, num))).collect(),

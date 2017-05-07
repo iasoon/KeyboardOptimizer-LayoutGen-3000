@@ -1,5 +1,6 @@
 use std::vec::Vec;
 use model::{KbDef, FreeId, LockId, Loc, KeyId, GroupId};
+use std::ops::Index;
 
 // "move" is a keyword, unfortunately.
 #[derive(Debug)]
@@ -22,6 +23,14 @@ impl Alteration {
         self.assignments.iter().map(move |assignment| {
             assignment.group(kb_def)
         })
+    }
+}
+
+impl Index<usize> for Alteration {
+    type Output = Assignment;
+
+    fn index<'a>(&'a self, idx: usize) -> &'a Assignment {
+        &self.assignments[idx]
     }
 }
 
