@@ -20,13 +20,13 @@ impl<'a> Moves<'a> {
         }
     }
 
-    fn generate_move(&mut self, lock_id: LockId, key_id: KeyId) -> Alteration {
+    fn generate_move(&mut self, lock_id: LockId, key_id: KeyId) -> Vec<Assignment> {
         let mv = self.mk_move(lock_id, key_id);
         self.visit_move(&mv);
         return mv;
     }
 
-    fn mk_move(&self, lock_id: LockId, key_id: KeyId) -> Alteration {
+    fn mk_move(&self, lock_id: LockId, key_id: KeyId) -> Vec<Assignment> {
         let mut resolver = AssignmentResolver::new(&self.layout.keymap,
                                                    &self.layout.token_map,
                                                    self.layout.kb_def);
@@ -34,8 +34,8 @@ impl<'a> Moves<'a> {
         return resolver.resolve();
     }
 
-    fn visit_move(&mut self, alteration: &Alteration) {
-        for assignment in alteration.assignments() {
+    fn visit_move(&mut self, assignments: &Vec<Assignment>) {
+        for &assignment in assignments.iter() {
             if let Assignment::Lock { lock_id, key_id } = assignment {
                 self.assignment_used[(lock_id, key_id)] = true;
             }
@@ -54,9 +54,9 @@ impl<'a> Moves<'a> {
 
 
 impl<'a> Iterator for Moves<'a> {
-    type Item = Alteration;
+    type Item = Vec<Assignment>;
 
-    fn next(&mut self) -> Option<Alteration> {
+    fn next(&mut self) -> Option<Vec<Assignment>> {
         while let Some((lock_id, key_id)) = self.enumerator.next() {
 
             if self.assignment_valid(lock_id, key_id) {

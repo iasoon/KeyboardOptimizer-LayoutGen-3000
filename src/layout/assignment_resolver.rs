@@ -1,6 +1,6 @@
 use utils::LookupTable;
 use model::*;
-use layout::{Keymap, TokenMap, Alteration, Assignment};
+use layout::{Keymap, TokenMap, Assignment};
 
 pub struct AssignmentResolver<'a> {
     kb_def: &'a KbDef,
@@ -22,14 +22,14 @@ impl<'a> AssignmentResolver<'a> {
         }
     }
 
-    pub fn resolve(mut self) -> Alteration {
+    pub fn resolve(mut self) -> Vec<Assignment> {
         let mut pos = 0;
         while pos < self.assignments.len() {
             let assignment = self.assignments[pos];
             self.resolve_assignment(assignment);
             pos += 1;
         }
-        return Alteration::new(self.assignments);
+        return self.assignments;
     }
 
     fn resolve_assignment(&mut self, assignment: Assignment) {

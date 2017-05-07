@@ -93,7 +93,7 @@ impl Evaluator {
         self.eval_seqs(table, &self.seqs)
     }
 
-    pub fn eval_group(&self, group_id: GroupId, table: &GroupMap) -> f64 {
+    pub fn group_component(&self, group_id: GroupId, table: &GroupMap) -> f64 {
         self.eval_seqs(table, &self.group_seqs[group_id])
     }
 

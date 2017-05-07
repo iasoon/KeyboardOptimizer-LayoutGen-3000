@@ -21,13 +21,7 @@ impl<'a> Layout<'a> {
         }
     }
 
-    pub fn do_move(&mut self, alteration: &Alteration) {
-        for assignment in alteration.assignments() {
-            self.assign(assignment);
-        }
-    }
-
-    fn assign(&mut self, assignment: Assignment) {
+    pub fn assign(&mut self, assignment: Assignment) {
         match assignment {
             Assignment::Free { free_id, loc } => {
                 let group_id = self.kb_def.free_group[free_id];
