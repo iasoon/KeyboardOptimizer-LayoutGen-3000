@@ -6,7 +6,7 @@ use model::{KbDef, GroupId, KeyId, LockId};
 pub struct TabuSearcher<'a> {
     layout: Layout<'a>,
     evaluator: &'a Evaluator,
-    cache: Cache,
+    cache: Cache<'a>,
 }
 
 #[derive(Debug)]
@@ -43,6 +43,7 @@ impl<'a> TabuSearcher<'a> {
 
     fn alter(&mut self, alteration: Alteration) {
         self.layout.do_move(&alteration);
+        self.cache.update(&self.layout);
     }
 
     fn scorer<'b>(&'b self) -> AlterationScorer<'b> {
@@ -135,24 +136,39 @@ impl<'a> TabuSearcher<'a> {
     }
 }
 
-struct Cache {
-    pub group_component: LookupTable<GroupId, f64>,
+struct Cache<'a> {
+    //pub group_component: LookupTable<GroupId, f64>,
     pub assignment_delta: AssignmentMap<f64>,
+    evaluator: &'a Evaluator,
 }
 
-impl Cache {
-    fn new(layout: &Layout, evaluator: &Evaluator) -> Self {
+impl<'a> Cache<'a> {
+    fn new(layout: &Layout, evaluator: &'a Evaluator) -> Self {
         Cache {
-            group_component: init_group_components(layout, evaluator),
+            //group_component: init_group_components(layout, evaluator),
             assignment_delta: init_assignment_delta(layout, evaluator),
+            evaluator: evaluator,
         }
+    }
+
+    fn update(&mut self, layout: &Layout) {
+        let mut walker = GroupMapWalker::new(&layout.group_map, &layout.kb_def);
+        let eval = self.evaluator;
+        self.assignment_delta.map_mut(|assignment, cost| {
+            let group_id = assignment.group(layout.kb_def);
+            let before = eval.eval_group(group_id, walker.pos());
+            walker.assign(assignment);
+            let after = eval.eval_group(group_id, walker.pos());
+            walker.reset_assign(assignment);
+            *cost = after - before;
+        });
     }
 }
 
 struct AlterationScorer<'a> {
     evaluator: &'a Evaluator,
     walker: GroupMapWalker<'a>,
-    cache: &'a Cache,
+    cache: &'a Cache<'a>,
     kb_def: &'a KbDef,
 }
 

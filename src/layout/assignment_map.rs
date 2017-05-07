@@ -31,6 +31,19 @@ impl<T> AssignmentMap<T> {
                 |(free_id, loc)| fun(Assignment::Free { free_id, loc })),
         }
     }
+
+    pub fn map_mut<F>(&mut self, mut fun: F)
+        where F: FnMut(Assignment, &mut T)
+    {
+        self.lock_map.map_mut(|(lock_id, key_id), elem| {
+            let assignment = Assignment::Lock { lock_id, key_id };
+            fun(assignment, elem);
+        });
+        self.free_map.map_mut(|(free_id, loc), elem| {
+            let assignment = Assignment::Free { free_id, loc };
+            fun(assignment, elem);
+        });
+    }
 }
 
 

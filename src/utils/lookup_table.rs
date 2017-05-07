@@ -45,6 +45,15 @@ impl<C: Countable, T> LookupTable<C, T> {
         self.table.iter()
     }
 
+    pub fn map_mut<F>(&mut self, mut fun: F)
+        where F: FnMut(C, &mut T)
+    {
+        for (num, elem) in self.table.iter_mut().enumerate() {
+            let c = C::from_num(&self.data, num);
+            fun(c, elem);
+        }
+    }
+
     pub fn drain_map<F, R>(self, fun: F) -> LookupTable<C, R>
         where F: Fn(T) -> R
     {
