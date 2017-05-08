@@ -36,10 +36,10 @@ impl<'a> TabuSearcher<'a> {
     }
 
     fn alter(&mut self, assignments: &[Assignment]) {
+        self.cache.update(&self.layout, assignments);
         for &assignment in assignments.iter() {
             self.layout.assign(assignment);
         }
-        self.cache.update(&self.layout);
     }
 
     fn scorer<'b>(&'b self) -> AlterationScorer<'b> {
@@ -58,7 +58,6 @@ impl<'a> TabuSearcher<'a> {
             .map(|assignments| {
                 let delta = scorer.score(assignments.as_slice());
                 let check = scorer.walker.delta(assignments.as_slice());
-
                 let tol = (10.0 as f64).powi(-12);
                 if (delta - check).abs() > tol {
                     println!("ERROR: expected {} but was {}, diff: {}", check, delta, check - delta);
@@ -104,10 +103,21 @@ impl<'a> Cache<'a> {
         }
     }
 
-    fn update(&mut self, layout: &Layout) {
+    fn update(&mut self, layout: &Layout, assignments: &[Assignment]) {
         let mut walker = Walker::new(layout, self.evaluator);
+        let mut changed = LookupTable::new(layout.kb_def.groups.elem_count(), false);
+        for &assignment in assignments.iter() {
+            changed[assignment.group(layout.kb_def)] = true;
+        }
+
         self.assignment_delta.map_mut(|assignment, cost| {
-            *cost = walker.delta(&[assignment]);
+            if changed[assignment.group(layout.kb_def)] {
+                walker.assign_all(assignments);
+                *cost = walker.delta(&[assignment]);
+                walker.reset_all(assignments);
+            } else {
+                *cost += walker.alteration_delta(&[assignment], assignments);
+            }
         });
     }
 }
@@ -123,15 +133,8 @@ impl<'a> AlterationScorer<'a> {
     fn score(&mut self, assignments: &[Assignment]) -> f64 {
         let mut delta = 0.0;
         for (num, &assignment) in assignments.iter().enumerate() {
-            let alteration = &[assignment];
-            let step = &assignments[0..num];
-
-            let d1 = self.walker.alteration_delta(alteration, step);
-            self.walker.assign(assignment);
-            let d2 = self.walker.alteration_delta(alteration, step);
-            self.walker.reset_assignment(assignment);
-
-            delta += self.cache.assignment_delta[assignment] + d2 - d1;
+            let d = self.walker.alteration_delta(&[assignment], &assignments[0..num]);
+            delta += self.cache.assignment_delta[assignment] + d;
         }
 
         return delta;

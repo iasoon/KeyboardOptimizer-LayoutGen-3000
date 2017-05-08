@@ -19,8 +19,15 @@ impl<'a> Walker<'a> {
             evaluator: evaluator,
         }
     }
-
     pub fn alteration_delta(&mut self, alteration: &[Assignment], assignments: &[Assignment]) -> f64 {
+        let d1 = self.alteration_component(alteration, assignments);
+        self.assign_all(alteration);
+        let d2 = self.alteration_component(alteration, assignments);
+        self.reset_all(alteration);
+        return d2 - d1;
+    }
+
+    fn alteration_component(&mut self, alteration: &[Assignment], assignments: &[Assignment]) -> f64 {
         let mut delta = 0.0;
         for &assignment in assignments.iter() {
             let before = self.calc_overlap(assignment, alteration);
@@ -28,7 +35,7 @@ impl<'a> Walker<'a> {
             let after = self.calc_overlap(assignment, alteration);
             delta += after - before;
         }
-        self.reset_assignments(assignments);
+        self.reset_all(assignments);
         return delta;
     }
 
@@ -50,8 +57,14 @@ impl<'a> Walker<'a> {
             let after = self.evaluator.group_component(group_id, &self.pos);
             delta += after - before;
         }
-        self.reset_assignments(assignments);
+        self.reset_all(assignments);
         return delta;
+    }
+
+    pub fn assign_all(&mut self, assignments: &[Assignment]) {
+        for &assignment in assignments.iter() {
+            self.assign(assignment);
+        }
     }
 
     pub fn assign(&mut self, assignment: Assignment) {
@@ -67,7 +80,7 @@ impl<'a> Walker<'a> {
         }
     }
 
-    pub fn reset_assignments(&mut self, assignments: &[Assignment]) {
+    pub fn reset_all(&mut self, assignments: &[Assignment]) {
         for &assignment in assignments.iter() {
             self.reset_assignment(assignment);
         }
