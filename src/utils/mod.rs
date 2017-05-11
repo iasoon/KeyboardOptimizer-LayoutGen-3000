@@ -9,6 +9,7 @@ mod seq_table;
 mod seq_set;
 mod seq_assoc_list;
 mod bounded_subset;
+mod bag;
 
 pub use self::countable::{Countable, Enumerator};
 pub use self::bounded_set::{BoundedSet, HasId, ElemCount};
@@ -17,3 +18,4 @@ pub use self::seq_table::SeqTable;
 pub use self::seq_assoc_list::SeqAssocList;
 pub use self::seq_set::{SeqSet, SeqCount, SeqId};
 pub use self::bounded_subset::{BoundedSubset, SubsetCursor};
+pub use self::bag::{Bag, BagData};
