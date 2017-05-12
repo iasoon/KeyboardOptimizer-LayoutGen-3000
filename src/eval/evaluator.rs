@@ -22,18 +22,19 @@ fn seq_members<'a>(seq: &'a Vec<GroupId>) -> impl Iterator<Item = GroupId> + 'a 
         .map(|(_, item)| item)
 }
 
+#[derive(Clone)]
 struct SeqAssocData {
     items: Vec<GroupId>,
     values: Vec<f64>,
 }
 
 fn mk_group_paths(paths: &Paths, group_count: ElemCount<Group>) -> GroupPaths {
-    let mut table = LookupTable::from_fn(group_count, |_| {
+    let mut table = LookupTable::new(group_count,
         SeqAssocData {
             items: Vec::new(),
             values: Vec::new(),
         }
-    });
+    );
     for (seq, &cost) in paths.iter() {
         let seq_vec: Vec<GroupId> = seq.cloned().collect();
         for item in seq_members(&seq_vec) {
@@ -107,7 +108,7 @@ impl Evaluator {
                  -> f64 {
         seqs.iter()
             .map(|(group_seq, value)| {
-                let key_seq = group_seq.cloned().map(|group_id| table[group_id]);
+                let key_seq = group_seq.map(|&group_id| &table[group_id]);
                 return self.path_costs.get(key_seq) * value;
             })
             .sum()

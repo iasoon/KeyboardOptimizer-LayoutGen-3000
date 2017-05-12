@@ -1,4 +1,5 @@
 use utils::Countable;
+use std::marker::PhantomData;
 
 pub fn choose(n: usize, k: usize) -> usize {
     (1..k+1).fold(1, |num, i| {
@@ -14,28 +15,32 @@ pub struct Bag<T> {
     elems: Vec<T>,
 }
 
-impl<T> Bag<T> {
-    pub fn new(mut vec: Vec<T>) -> Self
-        where T: Ord
+impl<C: Countable> Bag<C> {
+    pub fn new(mut vec: Vec<C>) -> Self
+        where C: Ord
     {
         vec.sort_by(|a, b| b.cmp(a));
         return Bag::from_sorted(vec);
     }
 
-    pub fn elems<'a>(&'a self) -> &'a [T] {
+    pub fn elems<'a>(&'a self) -> &'a [C] {
         &self.elems
     }
 
-    pub fn from_sorted(vec: Vec<T>) -> Self {
+    pub fn from_sorted(vec: Vec<C>) -> Self {
         Bag {
             elems: vec
         }
     }
+
+    pub fn id(&self, data: &BagData<C>) -> BagId<C> {
+        BagId::from_num(data, self.to_num(data))
+    }
 }
 
 pub struct BagData<C: Countable> {
-    data: C::Data,
-    len: usize,
+    pub data: C::Data,
+    pub len: usize,
 }
 
 impl<C: Countable> Countable for Bag<C> {
@@ -73,5 +78,29 @@ impl<C: Countable> Countable for Bag<C> {
 
     fn count(data: &BagData<C>) -> usize {
         choose_repeat(C::count(&data.data), data.len)
+    }
+}
+
+pub struct BagId<C> {
+    num: usize,
+    phantom: PhantomData<C>,
+}
+
+impl<C: Countable> Countable for BagId<C> {
+    type Data = BagData<C>;
+
+    fn to_num(&self, _: &BagData<C>) -> usize {
+        self.num
+    }
+
+    fn from_num(_: &BagData<C>, num: usize) -> Self {
+        BagId {
+            num: num,
+            phantom: PhantomData,
+        }
+    }
+
+    fn count(data: &BagData<C>) -> usize {
+        Bag::count(data)
     }
 }
