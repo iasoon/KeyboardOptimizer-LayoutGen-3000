@@ -1,4 +1,4 @@
-use utils::{SeqTable, SeqAssocList, LookupTable};
+use utils::{SeqTable, SeqAssocList, SeqAssocListBuilder, LookupTable};
 use model::{KbDef, Group, GroupId, KeyId};
 use utils::ElemCount;
 use layout::GroupMap;
@@ -22,29 +22,15 @@ fn seq_members<'a>(seq: &'a Vec<GroupId>) -> impl Iterator<Item = GroupId> + 'a 
         .map(|(_, item)| item)
 }
 
-#[derive(Clone)]
-struct SeqAssocData {
-    items: Vec<GroupId>,
-    values: Vec<f64>,
-}
-
 fn mk_group_paths(paths: &Paths, group_count: ElemCount<Group>) -> GroupPaths {
-    let mut table = LookupTable::new(group_count,
-        SeqAssocData {
-            items: Vec::new(),
-            values: Vec::new(),
-        }
-    );
+    let mut table = LookupTable::from_fn(group_count, |_| SeqAssocListBuilder::new(3));
     for (seq, &cost) in paths.iter() {
         let seq_vec: Vec<GroupId> = seq.cloned().collect();
         for item in seq_members(&seq_vec) {
-            table[item].items.extend(seq_vec.iter());
-            table[item].values.push(cost);
+            table[item].push(seq_vec.iter().cloned(), cost);
         }
     }
-    return table.drain_map(|data| {
-        SeqAssocList::from_vecs(data.items, paths.seq_len(), data.values)
-    });
+    return table.drain_map(|builder| builder.build());
 }
 
 fn pairs<'a, T>(vec: &'a Vec<T>) -> impl Iterator<Item = (T, T)> + 'a
@@ -56,25 +42,16 @@ fn pairs<'a, T>(vec: &'a Vec<T>) -> impl Iterator<Item = (T, T)> + 'a
 }
 
 fn mk_pair_paths(paths: &Paths, group_count: ElemCount<Group>) -> PairPaths {
-    let mut table = LookupTable::from_fn((group_count.clone(), group_count), |_| {
-        SeqAssocData {
-            items: Vec::new(),
-            values: Vec::new(),
-        }
-    });
+    let mut table = LookupTable::from_fn((group_count.clone(), group_count), |_| SeqAssocListBuilder::new(3));
     for (seq, &cost) in paths.iter() {
         let seq_vec: Vec<GroupId> = seq.cloned().collect();
         let members: Vec<GroupId> = seq_members(&seq_vec).collect();
         for (a, b) in pairs(&members) {
-            table[(a, b)].items.extend(seq_vec.iter());
-            table[(b, a)].items.extend(seq_vec.iter());
-            table[(a, b)].values.push(cost);
-            table[(b, a)].values.push(cost);
+            table[(a, b)].push(seq_vec.iter().cloned(), cost);
+            table[(b, a)].push(seq_vec.iter().cloned(), cost);
         }
     }
-    return table.drain_map(|data| {
-        SeqAssocList::from_vecs(data.items, paths.seq_len(), data.values)
-    });
+    return table.drain_map(|builder| builder.build());
 }
 
 impl Evaluator {
