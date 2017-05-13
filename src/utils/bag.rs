@@ -86,6 +86,17 @@ pub struct BagId<C> {
     phantom: PhantomData<C>,
 }
 
+impl<C> Clone for BagId<C> {
+    fn clone(&self) -> Self {
+        BagId {
+            num: self.num,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<C> Copy for BagId<C> {}
+
 impl<C: Countable> Countable for BagId<C> {
     type Data = BagData<C>;
 

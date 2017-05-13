@@ -15,6 +15,14 @@ impl<C: Countable, T> SeqTable<C, T> {
         }
     }
 
+    pub fn from_fn<F>(data: SeqData<C>, fun: F) -> Self
+        where F: Fn(SeqId<C>) -> T
+    {
+        SeqTable {
+            table: LookupTable::from_fn(data, fun),
+        }
+    }
+
     pub fn get<'a, Iter>(&'a self, iter: Iter) -> &'a T
         where Iter: Iterator<Item = &'a C> + 'a
     {

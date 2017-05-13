@@ -21,6 +21,7 @@ impl<C: Countable> Seq<C> {
     }
 }
 
+#[derive(Clone)]
 pub struct SeqData<C: Countable> {
     pub data: C::Data,
     pub len: usize,
@@ -100,6 +101,12 @@ impl<'a, T: 'a> Iterator for SeqIter<'a, T> {
 pub struct SeqId<C> {
     num: usize,
     phantom: PhantomData<C>,
+}
+
+impl<C: Countable> SeqId<C> {
+    pub fn seq(&self, data: &SeqData<C>) -> Seq<C> {
+        Seq::from_num(data, self.to_num(data))
+    }
 }
 
 impl<C: Countable> Countable for SeqId<C> {
