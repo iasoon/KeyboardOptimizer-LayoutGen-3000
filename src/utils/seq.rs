@@ -40,7 +40,7 @@ impl<C: Countable> Countable for Seq<C> {
         for _ in 0..data.len {
             let rem = num % c_count;
             num /= c_count;
-            elems.push(C::from_num(&data.data, num));
+            elems.push(C::from_num(&data.data, rem));
         }
         elems.reverse();
         return Seq { elems: elems };
