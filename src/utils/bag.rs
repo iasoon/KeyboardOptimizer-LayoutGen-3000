@@ -2,9 +2,12 @@ use utils::Countable;
 use std::marker::PhantomData;
 
 pub fn choose(n: usize, k: usize) -> usize {
-    (1..k+1).fold(1, |num, i| {
-        (num * n - (k-i)) / i
-    })
+    let mut num = 1;
+    for i in 1..k+1 {
+        num *= n - (k-i);
+        num /= i;
+    }
+    return num;
 }
 
 pub fn choose_repeat(n: usize, k: usize) -> usize {
@@ -38,6 +41,7 @@ impl<C: Countable> Bag<C> {
     }
 }
 
+#[derive(Clone)]
 pub struct BagData<C: Countable> {
     pub data: C::Data,
     pub len: usize,
@@ -47,9 +51,15 @@ impl<C: Countable> Countable for Bag<C> {
     type Data = BagData<C>;
 
     fn to_num(&self, data: &BagData<C>) -> usize {
-        self.elems.iter().enumerate().map(|(pos, ref elem)| {
-            choose_repeat(elem.to_num(&data.data), pos+1)
-        }).sum()
+        let mut num = 0;
+        for i in 0..data.len {
+            let k = data.len - i;
+            let c = self.elems[i].to_num(&data.data);
+            if c > 0 {
+                num += choose_repeat(c, k)
+            }
+        }
+        return num;
     }
 
     fn from_num(data: &BagData<C>, mut num: usize) -> Bag<C> {
@@ -81,6 +91,7 @@ impl<C: Countable> Countable for Bag<C> {
     }
 }
 
+#[derive(Debug)]
 pub struct BagId<C> {
     num: usize,
     phantom: PhantomData<C>,
