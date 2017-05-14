@@ -12,7 +12,7 @@ impl<K: Countable, V> SeqAssocList<K, V> {
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = (SeqIter<'a, K>, &'a V)> + 'a {
         SeqNum::enumerate(self.seqs.seq_count())
-            .map(move |seq_id| self.get(seq_id))
+            .map(move |seq_num| self.get(seq_num))
     }
 
     pub fn seq_len(&self) -> usize {
@@ -20,6 +20,7 @@ impl<K: Countable, V> SeqAssocList<K, V> {
     }
 }
 
+#[derive(Clone)]
 pub struct SeqAssocListBuilder<K: Countable, V> {
     seqs: Vec<K>,
     values: Vec<V>,

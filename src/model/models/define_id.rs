@@ -6,7 +6,7 @@ macro_rules! define_id {
             type Id = $id;
         }
 
-        #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+        #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
         pub struct $id(usize);
 
         impl Countable for $id {

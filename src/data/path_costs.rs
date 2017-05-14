@@ -1,5 +1,5 @@
 use errors::*;
-use utils::{Countable, ElemCount, SeqTable, SeqData};
+use utils::{Countable, SeqTable, SeqData};
 use model::{KbDef, KeyId};
 
 use data::countable::Assocs;

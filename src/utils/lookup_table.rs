@@ -54,6 +54,16 @@ impl<C: Countable, T> LookupTable<C, T> {
         }
     }
 
+    pub fn map<F, R>(&self, fun: F) -> LookupTable<C, R>
+        where F: Fn(&T) -> R,
+              C::Data: Clone
+    {
+        LookupTable {
+            table: self.table.iter().map(fun).collect(),
+            data: self.data.clone(),
+        }
+    }
+
     pub fn drain_map<F, R>(self, fun: F) -> LookupTable<C, R>
         where F: Fn(T) -> R
     {

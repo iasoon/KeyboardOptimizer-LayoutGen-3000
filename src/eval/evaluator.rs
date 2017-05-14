@@ -8,7 +8,7 @@ type GroupPaths = LookupTable<GroupId, Paths>;
 type PairPaths = LookupTable<(GroupId, GroupId), Paths>;
 
 pub struct Evaluator {
-    seqs: SeqAssocList<GroupId, f64>,
+    pub seqs: SeqAssocList<GroupId, f64>,
     path_costs: SeqTable<KeyId, f64>,
     group_seqs: LookupTable<GroupId, Paths>,
     pair_paths: LookupTable<(GroupId, GroupId), Paths>,
@@ -79,7 +79,7 @@ impl Evaluator {
         self.eval_seqs(table, &self.pair_paths[(group_a, group_b)])
     }
 
-    fn eval_seqs(&self,
+    pub fn eval_seqs(&self,
                  table: &GroupMap,
                  seqs: &SeqAssocList<GroupId, f64>)
                  -> f64 {
