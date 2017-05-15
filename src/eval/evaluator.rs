@@ -1,57 +1,15 @@
 use utils::{SeqTable, SeqAssocList, SeqAssocListBuilder, LookupTable};
 use model::{KbDef, Group, GroupId, KeyId};
-use utils::ElemCount;
+use utils::{ElemCount, BagTable, BagData, SubSequences};
 use layout::GroupMap;
 
-type Paths = SeqAssocList<GroupId, f64>;
-type GroupPaths = LookupTable<GroupId, Paths>;
-type PairPaths = LookupTable<(GroupId, GroupId), Paths>;
+type PathSet = SeqAssocList<GroupId, f64>;
+type PathSetMap = BagTable<GroupId, PathSet>;
 
 pub struct Evaluator {
-    pub seqs: SeqAssocList<GroupId, f64>,
+    seqs: PathSet,
     path_costs: SeqTable<KeyId, f64>,
-    group_seqs: LookupTable<GroupId, Paths>,
-    pair_paths: LookupTable<(GroupId, GroupId), Paths>,
-}
-
-fn seq_members<'a>(seq: &'a Vec<GroupId>) -> impl Iterator<Item = GroupId> + 'a {
-    seq.iter()
-        .cloned()
-        .enumerate()
-        .filter(move |&(idx, item)| !seq[0..idx].contains(&item))
-        .map(|(_, item)| item)
-}
-
-fn mk_group_paths(paths: &Paths, group_count: ElemCount<Group>) -> GroupPaths {
-    let mut table = LookupTable::from_fn(group_count, |_| SeqAssocListBuilder::new(3));
-    for (seq, &cost) in paths.iter() {
-        let seq_vec: Vec<GroupId> = seq.cloned().collect();
-        for item in seq_members(&seq_vec) {
-            table[item].push(seq_vec.iter().cloned(), cost);
-        }
-    }
-    return table.drain_map(|builder| builder.build());
-}
-
-fn pairs<'a, T>(vec: &'a Vec<T>) -> impl Iterator<Item = (T, T)> + 'a
-    where T: Clone
-{
-    (0..vec.len()).flat_map(move |num| {
-        (0..num).map(move |num2| (vec[num].clone(), vec[num2].clone()))
-    })
-}
-
-fn mk_pair_paths(paths: &Paths, group_count: ElemCount<Group>) -> PairPaths {
-    let mut table = LookupTable::from_fn((group_count.clone(), group_count), |_| SeqAssocListBuilder::new(3));
-    for (seq, &cost) in paths.iter() {
-        let seq_vec: Vec<GroupId> = seq.cloned().collect();
-        let members: Vec<GroupId> = seq_members(&seq_vec).collect();
-        for (a, b) in pairs(&members) {
-            table[(a, b)].push(seq_vec.iter().cloned(), cost);
-            table[(b, a)].push(seq_vec.iter().cloned(), cost);
-        }
-    }
-    return table.drain_map(|builder| builder.build());
+    seq_maps: Vec<PathSetMap>,
 }
 
 impl Evaluator {
@@ -61,8 +19,7 @@ impl Evaluator {
                -> Self {
         Evaluator {
             path_costs: path_costs,
-            group_seqs: mk_group_paths(&seqs, kb_def.groups.elem_count()),
-            pair_paths: mk_pair_paths(&seqs, kb_def.groups.elem_count()),
+            seq_maps: mk_path_set_maps(kb_def.groups.elem_count(), &seqs),
             seqs: seqs,
         }
     }
@@ -71,12 +28,9 @@ impl Evaluator {
         self.eval_seqs(table, &self.seqs)
     }
 
-    pub fn group_component(&self, group_id: GroupId, table: &GroupMap) -> f64 {
-        self.eval_seqs(table, &self.group_seqs[group_id])
-    }
-
-    pub fn eval_overlap(&self, group_a: GroupId, group_b: GroupId, table: &GroupMap) -> f64 {
-        self.eval_seqs(table, &self.pair_paths[(group_a, group_b)])
+    pub fn eval_component(&self, groups: &[GroupId], table: &GroupMap) -> f64 {
+        let seqs = self.seq_maps[groups.len() - 1].get(groups.iter());
+        return self.eval_seqs(table, seqs);
     }
 
     pub fn eval_seqs(&self,
@@ -91,3 +45,81 @@ impl Evaluator {
             .sum()
     }
 }
+
+#[derive(Clone)]
+struct PathSetMapBuilderEntry {
+    seqs: SeqAssocListBuilder<GroupId, f64>,
+    last_pushed: usize,
+}
+
+impl PathSetMapBuilderEntry {
+    fn push(&mut self, seq_num: usize, path: &Vec<GroupId>, weight: f64) {
+        // prevent paths from being added twice
+        if self.last_pushed < seq_num {
+            self.seqs.push(path.iter().cloned(), weight);
+            self.last_pushed = seq_num;
+        }
+    }
+}
+
+struct PathSetMapBuilder {
+    table: BagTable<GroupId, PathSetMapBuilderEntry>,
+    seq_num: usize,
+}
+
+impl PathSetMapBuilder {
+    fn new(seq_len: usize, bag_data: BagData<GroupId>) -> Self {
+        PathSetMapBuilder {
+            seq_num: 0,
+            table: BagTable::new(bag_data, PathSetMapBuilderEntry {
+                seqs: SeqAssocListBuilder::new(seq_len),
+                last_pushed: 0,
+            }),
+        }
+    }
+
+    fn register_path(&mut self, path: &Vec<GroupId>, weight: f64) {
+        self.seq_num += 1;
+        for seq in SubSequences::new(path.as_slice(), self.table.data().len) {
+            self.table.get_mut(seq.into_iter()).push(self.seq_num, path, weight);
+        }
+    }
+
+    fn build(self) -> PathSetMap {
+        self.table.drain_map(|entry| entry.seqs.build())
+    }
+}
+
+fn test(data: ElemCount<Group>, paths: &PathSet) {
+    let (path_iter, &weight) = paths.iter().nth(0).unwrap();
+    let path = path_iter.cloned().collect();
+
+    let mut builder = PathSetMapBuilder::new(3, BagData {
+        data: data.clone(),
+        len: 1,
+    });
+    builder.register_path(&path, weight);
+    let table = builder.build();
+    for elem in path.iter().cloned() {
+        let s = [elem];
+        println!("{}", table.get(s.iter()).iter().count());
+    }
+}
+
+fn mk_path_set_maps(data: ElemCount<Group>, paths: &PathSet) -> Vec<PathSetMap> {
+    let mut vec = (1..paths.seq_len()+1).map(|len| {
+        PathSetMapBuilder::new(3, BagData {
+            data: data.clone(),
+            len: len,
+        })
+    }).collect::<Vec<_>>();
+
+    for (seq_iter, &weight) in paths.iter() {
+        let seq = seq_iter.cloned().collect();
+        for builder in vec.iter_mut() {
+            builder.register_path(&seq, weight);
+        }
+    }
+    return vec.into_iter().map(|builder| builder.build()).collect();
+}
+
