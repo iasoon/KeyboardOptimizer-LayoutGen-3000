@@ -1,4 +1,4 @@
-use layout::{Layout, Alteration, Assignment, AssignmentResolver};
+use layout::{Layout, Assignment, AssignmentResolver};
 use model::{KbDef, LockId, KeyId};
 use utils::{Enumerator, LookupTable};
 

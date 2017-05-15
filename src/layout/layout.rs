@@ -11,36 +11,7 @@ pub struct Layout<'a> {
     pub kb_def: &'a KbDef,
 }
 
-impl<'a> Layout<'a> {
-    pub fn from_token_map(token_map: TokenMap, kb_def: &'a KbDef) -> Self {
-        Layout {
-            keymap: mk_keymap(&token_map, kb_def),
-            group_map: mk_group_map(&token_map, kb_def),
-            token_map: token_map,
-            kb_def: kb_def,
-        }
-    }
-
-    pub fn assign(&mut self, assignment: Assignment) {
-        match assignment {
-            Assignment::Free { free_id, loc } => {
-                let group_id = self.kb_def.free_group[free_id];
-                self.assign_group(group_id, loc.key(&self.kb_def.loc_data()));
-                let token_id = self.kb_def.frees[free_id].token_id;
-                self.assign_token(token_id, loc);
-            }
-            Assignment::Lock { lock_id, key_id } => {
-                let group_id = self.kb_def.lock_group[lock_id];
-                self.assign_group(group_id, key_id);
-                let lock = &self.kb_def.locks[lock_id];
-                for (layer_id, token_id) in lock.elems() {
-                    let loc = self.kb_def.loc_data().loc(key_id, layer_id);
-                    self.assign_token(token_id, loc);
-                }
-            }
-        }
-    }
-
+impl<'a> AssignmentAcceptor for Layout<'a> {
     fn assign_group(&mut self, group_id: GroupId, key_id: KeyId) {
         self.group_map[group_id] = key_id;
     }
@@ -53,6 +24,22 @@ impl<'a> Layout<'a> {
 
         self.keymap[loc] = Some(token_id);
         self.token_map[token_id] = loc;
+    }
+}
+
+impl<'a> Layout<'a> {
+    pub fn from_token_map(token_map: TokenMap, kb_def: &'a KbDef) -> Self {
+        Layout {
+            keymap: mk_keymap(&token_map, kb_def),
+            group_map: mk_group_map(&token_map, kb_def),
+            token_map: token_map,
+            kb_def: kb_def,
+        }
+    }
+
+    pub fn assign(&mut self, assignment: Assignment) {
+        let kb_def = self.kb_def;
+        assignment.perform(self, kb_def);
     }
 
     pub fn moves<'b>(&'b self) -> Moves<'b> {
