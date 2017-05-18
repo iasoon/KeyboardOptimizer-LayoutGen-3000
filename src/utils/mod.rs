@@ -2,6 +2,7 @@
 pub mod json;
 mod bounded_set;
 
+mod circular_buffer;
 mod subsequences;
 mod countable;
 mod product;
@@ -14,6 +15,7 @@ mod bounded_subset;
 mod bag;
 mod bag_table;
 
+pub use self::circular_buffer::CircularBuffer;
 pub use self::subsequences::SubSequences;
 pub use self::countable::{Countable, Enumerator};
 pub use self::bounded_set::{BoundedSet, HasId, ElemCount};
