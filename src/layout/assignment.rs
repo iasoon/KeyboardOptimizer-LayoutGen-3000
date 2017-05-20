@@ -1,6 +1,6 @@
 use std::vec::Vec;
 use model::*;
-use std::ops::Index;
+use std::ops::{Index, Fn};
 use utils::{Countable, ElemCount};
 
 #[derive(Debug, Clone, Copy)]

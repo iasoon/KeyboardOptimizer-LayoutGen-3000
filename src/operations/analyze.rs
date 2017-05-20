@@ -3,8 +3,7 @@ use utils::json;
 use parser::{Parser, KbParser};
 use errors::*;
 
-use data::{KbConf, ScoreTree};
-use eval::ScoreTreeEvaluator;
+use model::KbConf;
 
 use operations::Operation;
 
@@ -50,8 +49,9 @@ impl<'a> Analyze<'a> {
 
     fn mk_data(&self) -> Result<Data> {
         Ok(Data {
-            kb_conf: json::read(self.kb_conf)
-                .chain_err(|| "could not read keyboard configuration")?,
+            kb_conf: KbConf::from_repr(
+                json::read(self.kb_conf)
+                    .chain_err(|| "could not read keyboard configuration")?),
             score_tree: json::read(self.score_tree)
                 .chain_err(|| "could not read score tree")?,
         })

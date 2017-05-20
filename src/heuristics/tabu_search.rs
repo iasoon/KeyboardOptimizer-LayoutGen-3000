@@ -2,12 +2,14 @@ use layout::*;
 use eval::Evaluator;
 use utils::{LookupTable, Countable};
 use model::{KbDef, GroupId, KeyId, LockId};
-use heuristics::{Walker, Cache};
+use heuristics::{Walker, Traverser};
+
+use rand::{thread_rng, Rng};
 
 pub struct TabuSearcher<'a> {
     layout: Layout<'a>,
     evaluator: &'a Evaluator,
-    cache: Cache<'a>,
+    traverser: Traverser<'a>,
 }
 
 #[derive(Debug)]
@@ -18,26 +20,26 @@ struct ScoredAlteration {
 impl<'a> TabuSearcher<'a> {
     pub fn new(layout: Layout<'a>, evaluator: &'a Evaluator) -> Self {
         TabuSearcher {
-            cache: Cache::new(layout.clone(), evaluator),
+            traverser: Traverser::new(&layout, evaluator),
             layout: layout,
             evaluator: evaluator,
         }
     }
 
     fn alter(&mut self, assignments: &[Assignment]) {
-        self.cache.update(assignments);
+        self.traverser.update(assignments);
         for &assignment in assignments.iter() {
             self.layout.assign(assignment);
         }
     }
 
-    pub fn best_move(&self) -> ScoredAlteration {
-        let mut walker = Walker::new(&self.layout, self.evaluator);
+    fn best_move(&mut self) -> ScoredAlteration {
+        let traverser = &mut self.traverser;
         self.layout
             .moves()
             .map(|assignments| {
-                let delta = self.cache.score_assignments(assignments.as_slice());
-                let check = walker.delta(assignments.as_slice());
+                let delta = traverser.score_assignments(assignments.as_slice());
+                let check = traverser.walker.delta(assignments.as_slice());
                 let tol = (10.0 as f64).powi(-12);
                 if (delta - check).abs() > tol {
                     println!("ERROR: expected {} but was {}, diff: {}", check, delta, check - delta);
@@ -53,7 +55,20 @@ impl<'a> TabuSearcher<'a> {
 
     pub fn bench(&mut self) {
         for _ in 0..100 {
-            let mv = self.best_move();
+            let moves = {
+                let traverser = &mut self.traverser;
+                self.layout.moves().map(|assignments| {
+                    ScoredAlteration {
+                        delta: traverser.score_assignments(assignments.as_slice()),
+                        assignments: assignments,
+                    }
+                }).collect::<Vec<_>>()
+            };
+
+            let min = moves.iter().min_by(|ref a, ref b| a.delta.partial_cmp(&b.delta).unwrap()).unwrap();
+            println!("best move: {}", min.delta);
+
+            let mv = thread_rng().choose(moves.as_slice()).unwrap();
             self.alter(mv.assignments.as_slice());
             self.layout.print();
         }

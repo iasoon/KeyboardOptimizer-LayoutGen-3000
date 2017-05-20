@@ -1,4 +1,4 @@
-mod analyze;
+//mod analyze;
 mod optimize;
 mod operation;
 
