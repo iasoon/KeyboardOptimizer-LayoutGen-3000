@@ -1,45 +1,51 @@
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 
-use cat::universe::{ElemType, Num, NumberedSet, to_num, from_num};
+use cat::universe::*;
 
-pub struct Table<K: ElemType, V> {
-    elems: Vec<V>,
-    phantom: PhantomData<K>,
+pub struct Table<D: FiniteDomain, T> {
+    elems: Vec<T>,
+    phantom: PhantomData<D>,
 }
 
-impl<K: ElemType, V> Table<K, V> {
-    pub fn from_vec(vec: Vec<V>) -> Self {
+impl<D: FiniteDomain, T> Table<D, T> {
+    fn from_vec(vec: Vec<T>) -> Self {
         Table {
             elems: vec,
             phantom: PhantomData,
         }
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (Num<K>, &'a V)> {
+    pub fn iter<'t>(&'t self) -> impl Iterator<Item = (Num<D>, &'t T)> {
         self.elems.iter().enumerate().map(|(num, item)| (to_num(num), item))
     }
 }
 
-impl<T: ElemType> NumberedSet<T> for Table<T, T::Type> {
+impl<D: FiniteDomain> Elements<D> for Table<D, D::Type> {
+    fn from_vec(vec: Vec<D::Type>) -> Self {
+        Self::from_vec(vec)
+    }
 
-    fn get<'a>(&'a self, num: Num<T>) -> &'a T::Type {
-        &self[num]
+    fn count(&self) -> usize {
+        self.elems.len()
+    }
+    // fn get<'t>(&'t self, num: Num<D>) -> &'t D::Type {
+    //     &self[num]
+    // }
+}
+
+impl<D: FiniteDomain, T> Index<Num<D>> for Table<D, T> {
+    type Output = T;
+
+    fn index<'t>(&'t self, num: Num<D>) -> &'t T {
+        let idx = from_num(num);
+        return &self.elems[idx];
     }
 }
 
-impl<K: ElemType, V> Index<Num<K>> for Table<K, V> {
-    type Output = V;
-
-    fn index<'a>(&'a self, idx: Num<K>) -> &'a V {
-        let num = from_num(idx);
-        return &self.elems[num];
-    }
-}
-
-impl<K: ElemType, V> IndexMut<Num<K>> for Table<K, V> {
-    fn index_mut<'a>(&'a mut self, idx: Num<K>) -> &'a mut V {
-        let num = from_num(idx);
-        return &mut self.elems[num];
-    }
-}
+// impl<K: ElemType, V> IndexMut<Num<K>> for Table<K, V> {
+//     fn index_mut<'a>(&'a mut self, idx: Num<K>) -> &'a mut V {
+//         let num = from_num(idx);
+//         return &mut self.elems[num];
+//     }
+// }

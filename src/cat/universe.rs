@@ -1,17 +1,28 @@
 use std::marker::PhantomData;
-use std::hash::Hash;
 use std::collections::HashMap;
+use std::ops::Index;
 
-pub trait ElemType {
+use cat::mapping::*;
+use cat::table::*;
+
+pub trait Domain {
     type Type;
 }
 
-pub struct Num<T: ElemType> {
-    num: usize,
-    phantom: PhantomData<T>,
+pub trait FiniteDomain : Domain {
+    // TODO
 }
 
-impl<T: ElemType> Clone for Num<T> {
+pub struct Num<D: FiniteDomain> {
+    num: usize,
+    phantom: PhantomData<D>,
+}
+
+impl Domain for String {
+    type Type = String;
+}
+
+impl<D: FiniteDomain> Clone for Num<D> {
     fn clone(&self) -> Self {
         Num {
             num: self.num,
@@ -20,42 +31,83 @@ impl<T: ElemType> Clone for Num<T> {
     }
 }
 
-impl<T: ElemType> Copy for Num<T> {}
+impl<D: FiniteDomain> Copy for Num<D> {}
 
-pub fn from_num<T: ElemType>(num: Num<T>) -> usize {
+pub fn from_num<D: FiniteDomain>(num: Num<D>) -> usize {
     num.num
 }
 
-pub fn to_num<T: ElemType>(num: usize) -> Num<T> {
+pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {
     Num {
         num: num,
         phantom: PhantomData,
     }
 }
 
-pub trait PartialMapping<'a, S, T: 'a> {
-    fn partial_map(&'a self, s: S) -> Option<T>;
-}
+pub trait Elements<D: FiniteDomain> : Index<Num<D>, Output = D::Type> {
+    fn from_vec(vec: Vec<D::Type>) -> Self;
+    fn count(&self) -> usize;
 
-impl<'a, S, T> PartialMapping<'a, S, T> for HashMap<S, T>
-    where S: Hash + Eq,
-          T: Copy + 'a
-{
-    fn partial_map(&'a self, s: S) -> Option<T> {
-        self.get(&s).map(|&e| e)
+    fn enumerate<'e>(&'e self) -> ElemEnumerator<'e, D, Self>
+        where Self: Sized
+    {
+        ElemEnumerator {
+            elems: self,
+            pos: 0,
+            phantom: PhantomData,
+        }
     }
 }
 
-pub trait NumberedSet<T: ElemType> {
-    fn get<'a>(&'a self, num: Num<T>) -> &'a T::Type;
+pub struct ElemEnumerator<'e, D, E>
+    where E: Elements<D> + 'e,
+          D: FiniteDomain
+{
+    elems: &'e E,
+    pos: usize,
+    phantom: PhantomData<D>,
 }
 
-pub struct Universe<'a, T, M, S>
-    where T: ElemType + 'a,
-          M: PartialMapping<'a, T::Type, Num<T>>,
-          S: NumberedSet<T>
+impl<'e, D, E> Iterator for ElemEnumerator<'e, D, E>
+    where E: Elements<D> + 'e,
+          D: FiniteDomain + 'e
 {
-    pub mapping: M,
-    pub set: S,
-    pub phantom: PhantomData<&'a T>,
+    type Item = (Num<D>, &'e D::Type);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.elems.count() {
+            return None;
+        } else {
+            let num = to_num(self.pos);
+            self.pos += 1;
+            return Some((num, &self.elems[num]));
+        }
+    }
+}
+
+pub struct Subset<'d, D: 'd, M, E>
+    where M: PartialDict<'d, D, Num<D>>,
+          E: Elements<D>,
+          D: FiniteDomain
+{
+    pub dict: M,
+    pub elems: E,
+    pub phantom: PhantomData<&'d D>,
+}
+
+impl<'d, D: 'd, M, E> Subset<'d, D, M, E>
+    where M: PartialDict<'d, D, Num<D>>,
+          E: Elements<D>,
+          D: FiniteDomain,
+{
+    pub fn from_elem_vec(vec: Vec<D::Type>) -> Self {
+        let elems = E::from_vec(vec);
+        let dict = M::construct(&elems, |num, _| Some(num));
+
+        return Subset {
+            dict: dict,
+            elems: elems,
+            phantom: PhantomData,
+        };
+    }
 }
