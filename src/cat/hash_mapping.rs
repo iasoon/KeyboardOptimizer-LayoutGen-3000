@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use cat::universe::*;
+use cat::domain::*;
 use cat::mapping::*;
 
 use std::fmt::Display;

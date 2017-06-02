@@ -1,25 +1,15 @@
 use std::marker::PhantomData;
-use std::collections::HashMap;
 use std::ops::Index;
-
-use cat::mapping::*;
-use cat::table::*;
 
 pub trait Domain {
     type Type;
 }
 
-pub trait FiniteDomain : Domain {
-    // TODO
-}
+pub trait FiniteDomain : Domain {}
 
 pub struct Num<D: FiniteDomain> {
     num: usize,
     phantom: PhantomData<D>,
-}
-
-impl Domain for String {
-    type Type = String;
 }
 
 impl<D: FiniteDomain> Clone for Num<D> {
@@ -31,7 +21,11 @@ impl<D: FiniteDomain> Clone for Num<D> {
     }
 }
 
-impl<D: FiniteDomain> Copy for Num<D> {}
+impl<D: FiniteDomain> Domain for Num<D> {
+    type Type = Num<D>;
+}
+
+impl<D: FiniteDomain> FiniteDomain for Num<D> {}
 
 pub fn from_num<D: FiniteDomain>(num: Num<D>) -> usize {
     num.num
@@ -43,6 +37,9 @@ pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {
         phantom: PhantomData,
     }
 }
+
+
+impl<D: FiniteDomain> Copy for Num<D> {}
 
 pub trait Elements<D: FiniteDomain> : Index<Num<D>, Output = D::Type> {
     fn from_vec(vec: Vec<D::Type>) -> Self;
@@ -82,32 +79,5 @@ impl<'e, D, E> Iterator for ElemEnumerator<'e, D, E>
             self.pos += 1;
             return Some((num, &self.elems[num]));
         }
-    }
-}
-
-pub struct Subset<'d, D: 'd, M, E>
-    where M: PartialDict<'d, D, Num<D>>,
-          E: Elements<D>,
-          D: FiniteDomain
-{
-    pub dict: M,
-    pub elems: E,
-    pub phantom: PhantomData<&'d D>,
-}
-
-impl<'d, D: 'd, M, E> Subset<'d, D, M, E>
-    where M: PartialDict<'d, D, Num<D>>,
-          E: Elements<D>,
-          D: FiniteDomain,
-{
-    pub fn from_elem_vec(vec: Vec<D::Type>) -> Self {
-        let elems = E::from_vec(vec);
-        let dict = M::construct(&elems, |num, _| Some(num));
-
-        return Subset {
-            dict: dict,
-            elems: elems,
-            phantom: PhantomData,
-        };
     }
 }

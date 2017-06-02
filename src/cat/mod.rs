@@ -1,4 +1,5 @@
-mod universe;
+mod domain;
+mod subset;
 mod table;
 mod example;
 mod mapping;

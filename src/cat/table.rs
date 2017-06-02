@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 
-use cat::universe::*;
+use cat::domain::*;
+use cat::mapping::*;
 
 pub struct Table<D: FiniteDomain, T> {
     elems: Vec<T>,
@@ -21,6 +22,20 @@ impl<D: FiniteDomain, T> Table<D, T> {
     }
 }
 
+impl<'t, D: FiniteDomain, T: 't> Mapping<'t, 't, Num<D>, &'t T> for Table<D, T> {
+    fn map(&'t self, num: Num<D>) -> &'t T {
+        let idx = from_num(num);
+        return &self.elems[idx];
+    }
+}
+
+impl <'t, D: FiniteDomain, T: 't> Dict<'t, D, T> for Table<D, T> {
+    fn get_mut(&'t mut self, num: Num<D>) -> &'t mut T {
+        let idx = from_num(num);
+        return &mut self.elems[idx];
+    }
+}
+
 impl<D: FiniteDomain> Elements<D> for Table<D, D::Type> {
     fn from_vec(vec: Vec<D::Type>) -> Self {
         Self::from_vec(vec)
@@ -29,9 +44,6 @@ impl<D: FiniteDomain> Elements<D> for Table<D, D::Type> {
     fn count(&self) -> usize {
         self.elems.len()
     }
-    // fn get<'t>(&'t self, num: Num<D>) -> &'t D::Type {
-    //     &self[num]
-    // }
 }
 
 impl<D: FiniteDomain, T> Index<Num<D>> for Table<D, T> {
@@ -42,10 +54,3 @@ impl<D: FiniteDomain, T> Index<Num<D>> for Table<D, T> {
         return &self.elems[idx];
     }
 }
-
-// impl<K: ElemType, V> IndexMut<Num<K>> for Table<K, V> {
-//     fn index_mut<'a>(&'a mut self, idx: Num<K>) -> &'a mut V {
-//         let num = from_num(idx);
-//         return &mut self.elems[num];
-//     }
-// }

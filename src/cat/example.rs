@@ -1,10 +1,12 @@
-use cat::universe::*;
+use cat::domain::*;
 use cat::mapping::*;
 use cat::table::*;
 use cat::hash_mapping::*;
-use std::marker::PhantomData;
+use cat::subset::*;
 
+use std::marker::PhantomData;
 use std::collections::HashMap;
+
 
 pub struct Token;
 
