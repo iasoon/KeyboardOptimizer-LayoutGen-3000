@@ -6,7 +6,7 @@ pub trait Mapping<'m, 't, D: Domain, T: 't>
 }
 
 
-pub trait Dict<'t, D: FiniteDomain, T: 't> : Mapping<'t, 't, Num<D>, &'t T>
+pub trait Dict<'t, D: FiniteDomain, T: 't + ?Sized> : Mapping<'t, 't, Num<D>, &'t T>
 {
     fn get(&'t self, elem: Num<D>) -> &'t T {
         self.map(elem)
