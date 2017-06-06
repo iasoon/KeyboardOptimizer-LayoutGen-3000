@@ -24,7 +24,7 @@ impl <'t, D, T: 't> Mapping<'t, 't, Num<D>, &'t [T]> for SeqTable<D, T>
     }
 }
 
-impl<'t, D, T: 't> Dict<'t, D, [T]> for SeqTable<D, T>
+impl<'t, D, T: 't> Dict<'t, Num<D>, [T]> for SeqTable<D, T>
     where D: FiniteDomain,
 {
     fn get_mut(&'t mut self, num: Num<D>) -> &'t mut [T] {

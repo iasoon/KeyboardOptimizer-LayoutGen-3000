@@ -29,20 +29,10 @@ impl<'t, D: FiniteDomain, T: 't> Mapping<'t, 't, Num<D>, &'t T> for Table<D, T> 
     }
 }
 
-impl <'t, D: FiniteDomain, T: 't> Dict<'t, D, T> for Table<D, T> {
+impl <'t, D: FiniteDomain, T: 't> Dict<'t, Num<D>, T> for Table<D, T> {
     fn get_mut(&'t mut self, num: Num<D>) -> &'t mut T {
         let idx = from_num(num);
         return &mut self.elems[idx];
-    }
-}
-
-impl<D: FiniteDomain> Elements<D> for Table<D, D::Type> {
-    fn from_vec(vec: Vec<D::Type>) -> Self {
-        Self::from_vec(vec)
-    }
-
-    fn count(&self) -> usize {
-        self.elems.len()
     }
 }
 

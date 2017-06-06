@@ -33,19 +33,4 @@ impl<'t, D, T: 't> PartialDict<'t, D, T> for HashMapping<D, T>
             self.hash_map.remove(&elem);
         }
     }
-
-    fn construct<E, F>(elems: &E, mut fun: F) -> Self
-        where E: Elements<D>,
-              D: FiniteDomain,
-              F: FnMut(Num<D>, &D::Type) -> Option<T>,
-              Self: Sized
-    {
-        let mut map = HashMap::with_capacity(elems.count());
-        for (num, elem) in elems.enumerate() {
-            if let Some(value) = fun(num, elem) {
-                map.insert(elem.clone(), value);
-            }
-        }
-        return HashMapping { hash_map: map };
-    }
 }
