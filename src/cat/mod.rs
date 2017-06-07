@@ -1,5 +1,6 @@
 mod domain;
 mod mapping;
+mod composed;
 
 mod seq;
 mod seq_table;
