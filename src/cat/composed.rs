@@ -13,11 +13,10 @@ struct Pre<'m, 'x, 't, S, X, T, M, D>
 {
     mapping: M,
     dict: D,
-    p: PhantomData<&'x ()>,
-    phantom_x: PhantomData<X>,
     phantom_s: PhantomData<S>,
-    phantom_t: PhantomData<&'t T>,
     phantom_m: PhantomData<&'m M>,
+    phantom_x: PhantomData<&'x X::Type>,
+    phantom_t: PhantomData<&'t T>,
 }
 
 impl<'m, 'x, 't: 'm, S, X, T, M, D> Mapping<'t, 't, S, &'t T> for Pre<'m, 'x, 't, S, X, T, M, D>
