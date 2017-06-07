@@ -3,28 +3,29 @@ use std::marker::PhantomData;
 use cat::domain::*;
 use cat::mapping::*;
 
-struct Pre<'m, 't, S, X, T, M, D>
-    where M: Mapping<'m, 't, S, X::Type> + 'm,
+struct Pre<'m, 'x, 't, S, X, T, M, D>
+    where M: Mapping<'m, 'x, S, X::Type> + 'm,
           D: Dict<'t, X, T> + 't,
           S: Domain,
           X: Domain,
-          X::Type: 't,
+          X::Type: 'x,
           T: 't
 {
     mapping: M,
     dict: D,
+    p: PhantomData<&'x ()>,
     phantom_x: PhantomData<X>,
     phantom_s: PhantomData<S>,
     phantom_t: PhantomData<&'t T>,
     phantom_m: PhantomData<&'m M>,
 }
 
-impl<'m, 't: 'm, S, X, T, M, D> Mapping<'t, 't, S, &'t T> for Pre<'m, 't, S, X, T, M, D>
-    where M: Mapping<'m, 't, S, X::Type> + 'm,
+impl<'m, 'x, 't: 'm, S, X, T, M, D> Mapping<'t, 't, S, &'t T> for Pre<'m, 'x, 't, S, X, T, M, D>
+    where M: Mapping<'m, 'x, S, X::Type> + 'm,
           D: Dict<'t, X, T> + 't,
           S: Domain,
           X: Domain,
-          X::Type: 't,
+          X::Type: 'x,
           T: 't
 {
     fn map(&'t self, elem: S::Type) -> &'t T {
@@ -33,8 +34,8 @@ impl<'m, 't: 'm, S, X, T, M, D> Mapping<'t, 't, S, &'t T> for Pre<'m, 't, S, X, 
     }
 }
 
-impl<'m, 't: 'm, S, X, T, M, D> Dict<'t, S, T> for Pre<'m, 't, S, X, T, M, D>
-    where M: Mapping<'m, 't, S, X::Type> + 'm,
+impl<'m, 'x, 't: 'm, S, X, T, M, D> Dict<'t, S, T> for Pre<'m, 'x, 't, S, X, T, M, D>
+    where M: Mapping<'m, 'x, S, X::Type> + 'm,
           D: Dict<'t, X, T> + 't,
           S: Domain,
           X: Domain,
