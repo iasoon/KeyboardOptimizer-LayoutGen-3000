@@ -21,4 +21,8 @@ pub fn test<'t>() {
         .iter()
         .map(|s| s.to_string())
         .collect();
+    let tokens: Table<Token, String> = Table::from_vec(token_names);
+    for (num, token) in tokens.enumerate() {
+        println!("{}: {}", num.as_usize(), token);
+    }
 }
