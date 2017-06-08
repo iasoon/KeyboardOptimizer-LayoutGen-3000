@@ -40,6 +40,10 @@ pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {
     }
 }
 
+pub trait HasCount<D: FiniteDomain> {
+    fn count(&self) -> Count<D>;
+}
+
 pub struct Count<D: FiniteDomain> {
     count: usize,
     phantom: PhantomData<D>,

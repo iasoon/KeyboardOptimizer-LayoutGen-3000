@@ -32,3 +32,11 @@ impl<'t, D, T: 't> Dict<'t, Num<D>, [T]> for SeqTable<D, T>
         return &mut self.elems[offset..offset+self.seq_len];
     }
 }
+
+impl<D, T> HasCount<D> for SeqTable<D, T>
+    where D: FiniteDomain
+{
+    fn count(&self) -> Count<D> {
+        return to_count(self.elems.len() / self.seq_len);
+    }
+}

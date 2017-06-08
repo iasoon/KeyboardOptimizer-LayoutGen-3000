@@ -29,10 +29,16 @@ impl<'t, D: FiniteDomain, T: 't> Mapping<'t, 't, Num<D>, &'t T> for Table<D, T> 
     }
 }
 
-impl <'t, D: FiniteDomain, T: 't> Dict<'t, Num<D>, T> for Table<D, T> {
+impl<'t, D: FiniteDomain, T: 't> Dict<'t, Num<D>, T> for Table<D, T> {
     fn get_mut(&'t mut self, num: Num<D>) -> &'t mut T {
         let idx = from_num(num);
         return &mut self.elems[idx];
+    }
+}
+
+impl<D: FiniteDomain, T> HasCount<D> for Table<D, T> {
+    fn count(&self) -> Count<D> {
+        return to_count(self.elems.len());
     }
 }
 
