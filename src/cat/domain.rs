@@ -29,8 +29,10 @@ impl<D: FiniteDomain> Domain for Num<D> {
 
 impl<D: FiniteDomain> FiniteDomain for Num<D> {}
 
-pub fn from_num<D: FiniteDomain>(num: Num<D>) -> usize {
-    num.num
+impl<D: FiniteDomain> Num<D> {
+    pub fn as_usize(&self) -> usize {
+        self.num
+    }
 }
 
 pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {
@@ -49,6 +51,12 @@ pub struct Count<D: FiniteDomain> {
     phantom: PhantomData<D>,
 }
 
+impl<D: FiniteDomain> Count<D> {
+    pub fn as_usize(&self) -> usize {
+        self.count
+    }
+}
+
 impl<D: FiniteDomain> Clone for Count<D> {
     fn clone(&self) -> Self {
         Count {
@@ -59,10 +67,6 @@ impl<D: FiniteDomain> Clone for Count<D> {
 }
 
 impl<D: FiniteDomain> Copy for Count<D> {}
-
-pub fn from_count<D: FiniteDomain>(count: Count<D>) -> usize {
-    count.count
-}
 
 pub fn to_count<D: FiniteDomain>(count: usize) -> Count<D> {
     Count {

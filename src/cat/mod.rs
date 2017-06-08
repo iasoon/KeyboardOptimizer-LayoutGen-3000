@@ -5,6 +5,7 @@ mod composed;
 mod seq;
 mod seq_table;
 mod table;
+mod enumerator;
 
 mod hash_mapping;
 

@@ -26,29 +26,3 @@ pub trait Dict<'t, D: Domain, T: 't + ?Sized> : Mapping<'t, 't, D, &'t T>
 
     fn get_mut(&'t mut self, elem: D::Type) -> &'t mut T;
 }
-
-// pub struct ElemEnumerator<'e, D, E>
-//     where E: Dict<'e, Num<D>, D> + 'e,
-//           D: FiniteDomain + 'e
-// {
-//     elems: &'e E,
-//     pos: usize,
-//     phantom: PhantomData<D>,
-// }
-
-// impl<'e, D, E> Iterator for ElemEnumerator<'e, D, E>
-//     where E: Dict<'e, Num<D>, D>,
-//           D: FiniteDomain + 'e
-// {
-//     type Item = (Num<D>, &'e D::Type);
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.pos >= self.elems.count() {
-//             return None;
-//         } else {
-//             let num = to_num(self.pos);
-//             self.pos += 1;
-//             return Some((num, &self.elems[num]));
-//         }
-//     }
-// }

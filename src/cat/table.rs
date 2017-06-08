@@ -10,7 +10,7 @@ pub struct Table<D: FiniteDomain, T> {
 }
 
 impl<D: FiniteDomain, T> Table<D, T> {
-    fn from_vec(vec: Vec<T>) -> Self {
+    pub fn from_vec(vec: Vec<T>) -> Self {
         Table {
             elems: vec,
             phantom: PhantomData,
@@ -24,29 +24,18 @@ impl<D: FiniteDomain, T> Table<D, T> {
 
 impl<'t, D: FiniteDomain, T: 't> Mapping<'t, 't, Num<D>, &'t T> for Table<D, T> {
     fn map(&'t self, num: Num<D>) -> &'t T {
-        let idx = from_num(num);
-        return &self.elems[idx];
+        return &self.elems[num.as_usize()];
     }
 }
 
 impl<'t, D: FiniteDomain, T: 't> Dict<'t, Num<D>, T> for Table<D, T> {
     fn get_mut(&'t mut self, num: Num<D>) -> &'t mut T {
-        let idx = from_num(num);
-        return &mut self.elems[idx];
+        return &mut self.elems[num.as_usize()];
     }
 }
 
 impl<D: FiniteDomain, T> HasCount<D> for Table<D, T> {
     fn count(&self) -> Count<D> {
         return to_count(self.elems.len());
-    }
-}
-
-impl<D: FiniteDomain, T> Index<Num<D>> for Table<D, T> {
-    type Output = T;
-
-    fn index<'t>(&'t self, num: Num<D>) -> &'t T {
-        let idx = from_num(num);
-        return &self.elems[idx];
     }
 }

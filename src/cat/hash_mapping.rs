@@ -13,6 +13,17 @@ pub struct HashMapping<D, T>
     hash_map: HashMap<D::Type, T>,
 }
 
+impl<D, T> HashMapping<D, T>
+    where D::Type: Hash + Eq,
+          D: Domain
+{
+    pub fn empty() -> Self {
+        HashMapping {
+            hash_map: HashMap::new(),
+        }
+    }
+}
+
 impl<'t, D, T: 't> Mapping<'t, 't, D, Option<&'t T>> for HashMapping<D, T>
     where D::Type: Hash + Eq,
           D: Domain

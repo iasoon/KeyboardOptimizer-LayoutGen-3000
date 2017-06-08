@@ -57,7 +57,7 @@ impl<D: FiniteDomain> SeqIter<D> {
         for i in (0..self.idxs.len()).rev() {
             self.idxs[i] += 1;
 
-            if i > 0 && self.idxs[i] >= from_count(self.count) {
+            if i > 0 && self.idxs[i] >= self.count.as_usize() {
                 self.idxs[i] = 0;
             } else {
                 return;
@@ -70,7 +70,7 @@ impl<D: FiniteDomain> Iterator for SeqIter<D> {
     type Item = Vec<Num<D>>;
 
     fn next(&mut self) -> Option<Vec<Num<D>>> {
-        if self.idxs[0] > from_count(self.count) {
+        if self.idxs[0] > self.count.as_usize() {
             return None;
         } else {
             let item = self.idxs.iter().map(|&num| to_num(num)).collect();
@@ -92,8 +92,7 @@ impl<'s1, 's2, D, I1, I2> Mapping<'s1, 's2, Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D
           D: FiniteDomain + 's1 + 's2
 {
     fn map(&'s1 self, seq: I1) -> Num<Seq<'s2, D, I2>> {
-        let count = from_count(self.count);
-        let num = seq.into_iter().fold(0, |acc, num| acc * count + from_num(num));
+        let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
         return to_num(num);
     }
 }
