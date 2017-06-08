@@ -16,13 +16,32 @@ impl Domain for Token {
 
 impl FiniteDomain for Token {}
 
+struct TokenSet {
+    elems: Table<Token, String>,
+    index: HashMapping<Token, Num<Token>>,
+}
+
+impl TokenSet {
+    fn from_vec(vec: Vec<String>) -> Self {
+        let elems: Table<Token, String> = Table::from_vec(vec);
+        let mut index = HashMapping::empty();
+        for (num, token) in elems.enumerate() {
+            index.set(token.clone(), Some(num));
+        }
+        return TokenSet {
+            elems: elems,
+            index: index,
+        }
+    }
+}
+
 pub fn test<'t>() {
     let token_names: Vec<String> = vec!["hoi", "test", "hallo"]
         .iter()
         .map(|s| s.to_string())
         .collect();
-    let tokens: Table<Token, String> = Table::from_vec(token_names);
-    for (num, token) in tokens.enumerate() {
+    let tokens = TokenSet::from_vec(token_names);
+    for (num, token) in tokens.elems.enumerate() {
         println!("{}: {}", num.as_usize(), token);
     }
 }
