@@ -3,6 +3,10 @@ use std::marker::PhantomData;
 use cat::domain::*;
 use cat::mapping::*;
 
+/// A sequence of values.
+/// Since it is not possible to parametrically fixate a length for these
+/// sequences, impls for this type are a bit liberal and instead rely on
+/// programmer discipline.
 pub struct Seq<'e, D, I>
     where I: IntoIterator<Item = D::Type>,
           D: Domain + 'e
@@ -18,6 +22,9 @@ impl<'e, D, I> Domain for Seq<'e, D, I>
     type Type = I;
 }
 
+/// This implementation is purposely left a bit vague; for the domain of
+/// sequences to be finite, one should constrain it, for example by using a
+/// fixed length, or a maximum length.
 impl<'e, D, I> FiniteDomain for Seq<'e, D, I>
     where I: IntoIterator<Item = D::Type>,
           D: FiniteDomain + 'e
@@ -32,6 +39,7 @@ impl<'e, D> Seq<'e, D, Vec<D::Type>>
     }
 }
 
+/// Enumerates, in order, all seqs over this domain with given length.
 pub struct SeqIter<D: FiniteDomain> {
     idxs: Vec<usize>,
     count: Count<D>,
@@ -73,7 +81,7 @@ impl<D: FiniteDomain> Iterator for SeqIter<D> {
 }
 
 
-/// Maps a seq to its number
+/// Maps a seq to its number, for the corresponding fixed-length Seq domain.
 pub struct SeqNum<D: FiniteDomain> {
     count: Count<D>,
 }
