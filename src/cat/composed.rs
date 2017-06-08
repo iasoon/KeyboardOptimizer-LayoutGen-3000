@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use cat::domain::*;
 use cat::mapping::*;
 
-struct Pre<'m, 'x, 't, S, X, T, M, D>
+/// Precomposition of a Mapping with a Dict
+/// i.e. first apply mapping, then lookup in dict
+pub struct Pre<'m, 'x, 't, S, X, T, M, D>
     where M: Mapping<'m, 'x, S, X::Type> + 'm,
           D: Dict<'t, X, T> + 't,
           S: Domain,

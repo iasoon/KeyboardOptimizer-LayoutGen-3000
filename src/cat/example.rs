@@ -2,6 +2,7 @@ use cat::domain::*;
 use cat::mapping::*;
 use cat::table::*;
 use cat::hash_mapping::*;
+use cat::seq::*;
 
 use std::marker::PhantomData;
 use std::collections::HashMap;
