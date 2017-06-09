@@ -22,22 +22,12 @@ impl<D, T> HashMapping<D, T>
             hash_map: HashMap::new(),
         }
     }
-}
 
-impl<'t, D, T: 't> Mapping<'t, 't, D, Option<&'t T>> for HashMapping<D, T>
-    where D::Type: Hash + Eq,
-          D: Domain
-{
-    fn map(&'t self, elem: D::Type) -> Option<&'t T> {
+    pub fn map<'t>(&'t self, elem: D::Type) -> Option<&'t T> {
         self.hash_map.get(&elem)
     }
-}
 
-impl<'t, D, T: 't> PartialDict<'t, D, T> for HashMapping<D, T>
-    where D::Type: Hash + Eq + Clone,
-          D: Domain, D::Type: Display,
-{
-    fn set(&mut self, elem: D::Type, value: Option<T>) {
+    pub fn set(&mut self, elem: D::Type, value: Option<T>) {
         if let Some(t) = value {
             self.hash_map.insert(elem, t);
         } else {

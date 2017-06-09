@@ -22,14 +22,12 @@ impl<D: FiniteDomain, T> Table<D, T> {
     }
 }
 
-impl<'t, D: FiniteDomain, T: 't> Mapping<'t, 't, Num<D>, &'t T> for Table<D, T> {
-    fn map(&'t self, num: Num<D>) -> &'t T {
+impl<D: FiniteDomain, T> Dict<Num<D>, T> for Table<D, T> {
+    fn get<'t>(&'t self, num: Num<D>) -> &'t T {
         return &self.elems[num.as_usize()];
     }
-}
 
-impl<'t, D: FiniteDomain, T: 't> Dict<'t, Num<D>, T> for Table<D, T> {
-    fn get_mut(&'t mut self, num: Num<D>) -> &'t mut T {
+    fn get_mut<'t>(&'t mut self, num: Num<D>) -> &'t mut T {
         return &mut self.elems[num.as_usize()];
     }
 }

@@ -70,7 +70,7 @@ impl<D: FiniteDomain> Iterator for SeqIter<D> {
     type Item = Vec<Num<D>>;
 
     fn next(&mut self) -> Option<Vec<Num<D>>> {
-        if self.idxs[0] > self.count.as_usize() {
+        if self.idxs[0] >= self.count.as_usize() {
             return None;
         } else {
             let item = self.idxs.iter().map(|&num| to_num(num)).collect();
@@ -86,12 +86,20 @@ pub struct SeqNum<D: FiniteDomain> {
     count: Count<D>,
 }
 
-impl<'s1, 's2, D, I1, I2> Mapping<'s1, 's2, Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D, I2>>> for SeqNum<D>
+impl<D: FiniteDomain> SeqNum<D> {
+    pub fn new(count: Count<D>) -> Self {
+        SeqNum {
+            count: count,
+        }
+    }
+}
+
+impl<'s1, 's2, D, I1, I2> Mapping<Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D, I2>>> for SeqNum<D>
     where I1: IntoIterator<Item = Num<D>> + 's1,
           I2: IntoIterator<Item = D::Type> + 's2,
           D: FiniteDomain + 's1 + 's2
 {
-    fn map(&'s1 self, seq: I1) -> Num<Seq<'s2, D, I2>> {
+    fn map(&self, seq: I1) -> Num<Seq<'s2, D, I2>> {
         let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
         return to_num(num);
     }

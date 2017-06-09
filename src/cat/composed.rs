@@ -5,45 +5,48 @@ use cat::mapping::*;
 
 /// Precomposition of a Mapping with a Dict
 /// i.e. first apply mapping, then lookup in dict
-pub struct Pre<'m, 'x, 't, S, X, T, M, D>
-    where M: Mapping<'m, 'x, S, X::Type> + 'm,
-          D: Dict<'t, X, T> + 't,
+pub struct Pre<S, X, T, M, D>
+    where M: Mapping<S, X::Type>,
+          D: Dict<X, T>,
           S: Domain,
-          X: Domain,
-          X::Type: 'x,
-          T: 't
+          X: Domain
 {
     mapping: M,
     dict: D,
     phantom_s: PhantomData<S>,
-    phantom_m: PhantomData<&'m M>,
-    phantom_x: PhantomData<&'x X::Type>,
-    phantom_t: PhantomData<&'t T>,
+    phantom_x: PhantomData<X>,
+    phantom_t: PhantomData<T>,
 }
 
-impl<'m, 'x, 't: 'm, S, X, T, M, D> Mapping<'t, 't, S, &'t T> for Pre<'m, 'x, 't, S, X, T, M, D>
-    where M: Mapping<'m, 'x, S, X::Type> + 'm,
-          D: Dict<'t, X, T> + 't,
+impl<S, X, T, M, D> Pre<S, X, T, M, D>
+    where M: Mapping<S, X::Type>,
+          D: Dict<X, T>,
           S: Domain,
-          X: Domain,
-          X::Type: 'x,
-          T: 't
+          X: Domain
 {
-    fn map(&'t self, elem: S::Type) -> &'t T {
-        let d = self.mapping.map(elem);
-        return self.dict.get(d);
+    pub fn new(mapping: M, dict: D) -> Self {
+        Pre {
+            mapping: mapping,
+            dict: dict,
+            phantom_s: PhantomData,
+            phantom_x: PhantomData,
+            phantom_t: PhantomData,
+        }
     }
 }
 
-impl<'m, 'x, 't: 'm, S, X, T, M, D> Dict<'t, S, T> for Pre<'m, 'x, 't, S, X, T, M, D>
-    where M: Mapping<'m, 'x, S, X::Type> + 'm,
-          D: Dict<'t, X, T> + 't,
+impl<S, X, T, M, D> Dict<S, T> for Pre<S, X, T, M, D>
+    where M: Mapping<S, X::Type>,
+          D: Dict<X, T>,
           S: Domain,
-          X: Domain,
-          X::Type: 't,
-          T: 't
+          X: Domain
 {
-    fn get_mut(&'t mut self, elem: S::Type) -> &'t mut T {
+    fn get<'t>(&'t self, elem: S::Type) -> &'t T {
+        let d = self.mapping.map(elem);
+        return self.dict.get(d);
+    }
+
+    fn get_mut<'t>(&'t mut self, elem: S::Type) -> &'t mut T {
         let d = self.mapping.map(elem);
         return self.dict.get_mut(d);
     }
