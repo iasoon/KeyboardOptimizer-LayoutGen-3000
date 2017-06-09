@@ -3,6 +3,7 @@ use cat::mapping::*;
 use cat::table::*;
 use cat::hash_mapping::*;
 use cat::seq::*;
+use cat::composed;
 
 use std::marker::PhantomData;
 use std::collections::HashMap;
@@ -41,7 +42,17 @@ pub fn test<'t>() {
         .map(|s| s.to_string())
         .collect();
     let tokens = TokenSet::from_vec(token_names);
-    for (num, token) in tokens.elems.enumerate() {
-        println!("{}: {}", num.as_usize(), token);
-    }
+
+    let table: Table<Seq<Token, Vec<String>>, Option<String>> = Table::from_vec(
+        Seq::iter(tokens.elems.count(), 3).map(|_| None).collect()
+    );
+    let mut seq_table = composed::Pre::new(SeqNum::new(tokens.elems.count()), table);
+    let seq: Vec<Num<Token>> = vec!["hoi", "hoi", "test"]
+        .into_iter()
+        .map(|token| tokens.index.map(token.to_string()).unwrap())
+        .cloned()
+        .collect();
+
+    *seq_table.get_mut(seq.clone()) = Some("haha".to_string());
+    println!("{:?}", seq_table.get(seq.clone()));
 }
