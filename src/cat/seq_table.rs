@@ -15,24 +15,19 @@ pub struct SeqIter<'e, D: Domain + 'e> {
     pos: usize,
 }
 
-// impl <'t, D, T: 't> Mapping<'t, 't, Num<D>, &'t [T]> for SeqTable<D, T>
-//     where D: FiniteDomain
-// {
-//     fn map(&'t self, num: Num<D>) -> &'t [T] {
-//         let offset = num.as_usize() * self.seq_len;
-//         return &self.elems[offset..offset+self.seq_len];
-//     }
-// }
+impl<D, T> Dict<Num<D>, [T]> for SeqTable<D, T>
+    where D: FiniteDomain,
+{
+    fn get<'t>(&'t self, num: Num<D>) -> &'t [T] {
+        let offset = num.as_usize() * self.seq_len;
+        return &self.elems[offset..offset+self.seq_len];
+    }
 
-// impl<'t, D, T: 't> Dict<'t, Num<D>, [T]> for SeqTable<D, T>
-//     where D: FiniteDomain,
-// {
-//     fn get_mut<'t>(&'this mut self, num: Num<D>) -> &'t mut [T]
-//     {
-//         let offset = num.as_usize() * self.seq_len;
-//         return &mut self.elems[offset..offset+self.seq_len];
-//     }
-// }
+    fn get_mut<'t>(&'t mut self, num: Num<D>) -> &'t mut [T] {
+        let offset = num.as_usize() * self.seq_len;
+        return &mut self.elems[offset..offset+self.seq_len];
+    }
+}
 
 impl<D, T> HasCount<D> for SeqTable<D, T>
     where D: FiniteDomain
