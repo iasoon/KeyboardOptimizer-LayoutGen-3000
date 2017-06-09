@@ -22,3 +22,9 @@ pub trait Dict<D: Domain, T: ?Sized> {
     fn get<'t>(&'t self, elem: D::Type) -> &'t T;
     fn get_mut<'t>(&'t mut self, elem: D::Type) -> &'t mut T;
 }
+
+impl<'a, D: Domain, T> Mapping<D, &'a T> for &'a Dict<D, T> {
+    fn map(&self, elem: D::Type) -> &'a T {
+        self.get(elem)
+    }
+}
