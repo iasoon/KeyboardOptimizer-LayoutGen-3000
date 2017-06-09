@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::borrow::Borrow;
 
 use cat::domain::*;
 use cat::mapping::*;
@@ -23,7 +24,10 @@ impl<D, T> HashMapping<D, T>
         }
     }
 
-    pub fn map<'t>(&'t self, elem: D::Type) -> Option<&'t T> {
+    pub fn get<'t, Q>(&'t self, elem: &Q) -> Option<&'t T>
+        where D::Type: Borrow<Q>,
+              Q: Hash + Eq + ?Sized
+    {
         self.hash_map.get(&elem)
     }
 

@@ -6,7 +6,8 @@ use cat::seq::*;
 use cat::composed;
 
 use std::marker::PhantomData;
-use std::collections::HashMap;
+use std::borrow::Borrow;
+use std::hash::Hash;
 
 
 pub struct Token;
@@ -34,6 +35,15 @@ impl TokenSet {
             index: index,
         }
     }
+
+    // TODO: maybe return an option type here?
+    fn num_seq<'q, I, Q: 'q + ?Sized>(&self, iterable: I) -> Vec<Num<Token>>
+        where I: IntoIterator<Item = &'q Q>,
+              String: Borrow<Q>,
+              Q: Hash + Eq
+    {
+        iterable.into_iter().map(|token| self.index.get(token).unwrap()).cloned().collect()
+    }
 }
 
 pub fn test<'t>() {
@@ -47,12 +57,8 @@ pub fn test<'t>() {
         Seq::iter(tokens.elems.count(), 3).map(|_| None).collect()
     );
     let mut seq_table = composed::Pre::new(SeqNum::new(tokens.elems.count()), table);
-    let seq: Vec<Num<Token>> = vec!["hoi", "hoi", "test"]
-        .into_iter()
-        .map(|token| tokens.index.map(token.to_string()).unwrap())
-        .cloned()
-        .collect();
+    let seq = vec!["hoi", "hoi", "test"];
 
-    *seq_table.get_mut(seq.clone()) = Some("haha".to_string());
-    println!("{:?}", seq_table.get(seq.clone()));
+    *seq_table.get_mut(tokens.num_seq(seq.clone())) = Some("haha".to_string());
+    println!("{:?}", seq_table.get(tokens.num_seq(seq)));
 }
