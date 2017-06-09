@@ -3,7 +3,7 @@ use cat::mapping::*;
 use cat::table::*;
 use cat::hash_mapping::*;
 use cat::seq::*;
-use cat::composed;
+use cat::composed::*;
 
 use std::marker::PhantomData;
 use std::borrow::Borrow;
@@ -56,7 +56,7 @@ pub fn test<'t>() {
     let table: Table<Seq<Token, Vec<String>>, Option<String>> = Table::from_vec(
         Seq::iter(tokens.elems.count(), 3).map(|_| None).collect()
     );
-    let mut seq_table = composed::Pre::new(SeqNum::new(tokens.elems.count()), table);
+    let mut seq_table = ComposedDict::new(SeqNum::new(tokens.elems.count()), table);
     let seq = vec!["hoi", "hoi", "test"];
 
     *seq_table.get_mut(tokens.num_seq(seq.clone())) = Some("haha".to_string());
