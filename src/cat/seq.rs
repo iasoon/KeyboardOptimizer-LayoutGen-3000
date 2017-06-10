@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use cat::domain::*;
 use cat::mapping::*;
+use cat::has_count::*;
 
 /// A sequence of values.
 /// Since it is not possible to parametrically fixate a length for these

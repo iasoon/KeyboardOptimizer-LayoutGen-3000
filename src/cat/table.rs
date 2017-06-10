@@ -3,6 +3,7 @@ use std::ops::{Index, IndexMut};
 
 use cat::domain::*;
 use cat::mapping::*;
+use cat::has_count::*;
 
 pub struct Table<D: FiniteDomain, T> {
     elems: Vec<T>,

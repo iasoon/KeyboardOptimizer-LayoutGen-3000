@@ -3,16 +3,12 @@ use std::marker::PhantomData;
 use cat::domain::*;
 use cat::mapping::*;
 use cat::seq::*;
+use cat::has_count::*;
 
 pub struct SeqTable<D: FiniteDomain, T> {
     elems: Vec<T>,
     seq_len: usize,
     phantom: PhantomData<D>,
-}
-
-pub struct SeqIter<'e, D: Domain + 'e> {
-    slice: &'e [D::Type],
-    pos: usize,
 }
 
 impl<D, T> Dict<Num<D>, [T]> for SeqTable<D, T>
