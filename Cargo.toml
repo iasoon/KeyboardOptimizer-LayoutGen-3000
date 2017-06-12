@@ -7,7 +7,7 @@ authors = ["Ilion Iasoon Beyst"]
 rand = "*"
 error-chain = "*"
 nom = "^2.2"
-serde = "0.8"
+serde = "^1.0.0"
 serde_derive = "0.8"
 serde_json = "0.8"
 
