@@ -1,4 +1,6 @@
 use std::io::Read;
+use std::fs::File;
+use std::path::Path;
 use byteorder::{ReadBytesExt, NetworkEndian};
 
 use cat::{FiniteDomain, Table};
@@ -9,6 +11,13 @@ error_chain! {
         Io(::std::io::Error);
         Utf8(::std::string::FromUtf8Error);
     }
+}
+
+fn read_u8<R>(stream: &mut R) -> Result<u8>
+    where R: Read
+{
+    let num = try!(stream.read_u8());
+    return Ok(num);
 }
 
 fn read_u16<R>(stream: &mut R) -> Result<u16>
@@ -28,7 +37,7 @@ fn read_f64<R>(stream: &mut R) -> Result<f64>
 fn read_string<R>(stream: &mut R) -> Result<String>
     where R: Read
 {
-    let n_bytes = try!(read_u16(stream));
+    let n_bytes = try!(read_u8(stream));
     let mut buf = vec![0x0; n_bytes as usize];
     try!(stream.read_exact(buf.as_mut_slice()));
     let string = try!(String::from_utf8(buf));
@@ -67,4 +76,10 @@ fn read_config<R>(stream: &mut R) -> Result<KbDef>
         layers: layers,
         tokens: tokens,
     })
+}
+
+pub fn parse(path: &Path) -> Result<KbDef>
+{
+    let mut file = File::open(path)?;
+    return read_config(&mut file);
 }
