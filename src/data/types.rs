@@ -1,4 +1,5 @@
-use cat::{Domain, FiniteDomain, Num, Table};
+use cat;
+use cat::*;
 
 /// A key on the keyboard.
 pub struct Key;
@@ -40,6 +41,37 @@ impl Domain for Loc {
 }
 
 impl FiniteDomain for Loc {}
+
+pub struct LocNum {
+    pub key_count: Count<Key>,
+    pub layer_count: Count<Layer>,
+}
+
+impl HasCount<Loc> for LocNum {
+    fn count(&self) -> Count<Loc> {
+        let count = self.key_count.as_usize() * self.layer_count.as_usize();
+        return cat::internal::to_count(count);
+    }
+}
+
+impl Mapping<Loc, Num<Loc>> for LocNum {
+    fn apply(&self, loc: Loc) -> Num<Loc> {
+        let layer_offset = loc.layer_num.as_usize() * self.key_count.as_usize();
+        let num = layer_offset + loc.key_num.as_usize();
+        return cat::internal::to_num(num);
+    }
+}
+
+impl Mapping<Num<Loc>, Loc> for LocNum {
+    fn apply(&self, num: Num<Loc>) -> Loc {
+        let layer_num = num.as_usize() / self.layer_count.as_usize();
+        let key_num = num.as_usize() % self.key_count.as_usize();
+        return Loc {
+            key_num: cat::internal::to_num(key_num),
+            layer_num: cat::internal::to_num(layer_num),
+        }
+    }
+}
 
 
 /// A token that can be moved freely.
