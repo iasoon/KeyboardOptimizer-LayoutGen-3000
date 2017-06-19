@@ -42,12 +42,12 @@ impl<S, X, T, M, D> Dict<S, T> for ComposedDict<S, X, T, M, D>
           X: Domain
 {
     fn get<'t>(&'t self, elem: S::Type) -> &'t T {
-        let d = self.mapping.map(elem);
+        let d = self.mapping.apply(elem);
         return self.dict.get(d);
     }
 
     fn get_mut<'t>(&'t mut self, elem: S::Type) -> &'t mut T {
-        let d = self.mapping.map(elem);
+        let d = self.mapping.apply(elem);
         return self.dict.get_mut(d);
     }
 }

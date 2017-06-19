@@ -100,7 +100,7 @@ impl<'s1, 's2, D, I1, I2> Mapping<Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D, I2>>> fo
           I2: IntoIterator<Item = D::Type> + 's2,
           D: FiniteDomain + 's1 + 's2
 {
-    fn map(&self, seq: I1) -> Num<Seq<'s2, D, I2>> {
+    fn apply(&self, seq: I1) -> Num<Seq<'s2, D, I2>> {
         let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
         return to_num(num);
     }

@@ -4,7 +4,7 @@ use cat::domain::*;
 /// A mapping from a domain to a value
 pub trait Mapping<D: Domain, T>
 {
-    fn map(&self, elem: D::Type) -> T;
+    fn apply(&self, elem: D::Type) -> T;
 }
 
 /// A mapping that stores its values
@@ -15,7 +15,7 @@ pub trait Dict<D: Domain, T: ?Sized> {
 }
 
 impl<'a, D: Domain, T> Mapping<D, &'a T> for &'a Dict<D, T> {
-    fn map(&self, elem: D::Type) -> &'a T {
+    fn apply(&self, elem: D::Type) -> &'a T {
         self.get(elem)
     }
 }
