@@ -1,9 +1,11 @@
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
+use std::fmt;
 
 use cat::domain::*;
 use cat::mapping::*;
 use cat::has_count::*;
+use cat::ops::*;
 
 pub struct Table<D: FiniteDomain, T> {
     elems: Vec<T>,
@@ -37,4 +39,22 @@ impl<D: FiniteDomain, T> HasCount<D> for Table<D, T> {
     fn count(&self) -> Count<D> {
         return to_count(self.elems.len());
     }
+}
+
+impl<D: FiniteDomain, T> fmt::Debug for Table<D, T>
+    where T: fmt::Debug
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.elems)
+    }
+}
+
+impl<D: FiniteDomain, T, V> Map<T, V, Table<D, V>> for Table<D, T>
+{
+    fn map<'t, F>(&'t self, mut fun: F) -> Table<D, V>
+        where F: FnMut(&'t T) -> V
+    {
+        Table::from_vec(self.elems.iter().map(fun).collect())
+    }
+
 }

@@ -8,6 +8,8 @@ mod seq;
 mod seq_table;
 mod table;
 
+pub mod ops;
+
 pub use self::domain::{Domain, FiniteDomain, Num};
 pub use self::has_count::{HasCount, Count, ElemEnumerator};
 pub use self::mapping::{Mapping, Dict};
