@@ -26,14 +26,14 @@ impl<'a> LocData<'a> {
 #[derive(Deserialize)]
 struct FreeData<'a> {
     token: &'a str,
-    locs: Vec<LocData<'a>>,
+    allowed_locs: Vec<LocData<'a>>,
 }
 
 #[derive(Deserialize)]
 struct LockData<'a> {
     #[serde(borrow)]
     elems: HashMap<&'a str, &'a str>,
-    keys: Vec<&'a str>,
+    allowed_keys: Vec<&'a str>,
 }
 
 #[derive(Deserialize)]
