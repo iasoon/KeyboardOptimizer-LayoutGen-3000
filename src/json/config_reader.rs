@@ -7,6 +7,8 @@ use json::elements::Elements;
 use json::errors::*;
 
 pub struct ConfigReader<'a> {
+    pub elements: &'a Elements,
+
     key_map: HashMap<&'a str, Num<Key>>,
     layer_map: HashMap<&'a str, Num<Layer>>,
     token_map: HashMap<&'a str, Num<Token>>,
@@ -19,11 +21,13 @@ fn mk_name_map<'a, D>(table: &'a Table<D, String>) -> HashMap<&'a str, Num<D>>
 }
 
 impl<'a> ConfigReader<'a> {
-    pub fn build(elements: &'a Elements) -> ConfigReader<'a> {
+    pub fn new(elements: &'a Elements) -> ConfigReader<'a> {
         ConfigReader {
             key_map: mk_name_map(&elements.keys),
             layer_map: mk_name_map(&elements.layers),
             token_map: mk_name_map(&elements.tokens),
+
+            elements: elements,
         }
     }
 
