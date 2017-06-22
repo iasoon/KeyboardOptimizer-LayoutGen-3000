@@ -47,28 +47,36 @@ pub struct LocNum {
     pub layer_count: Count<Layer>,
 }
 
+impl LocNum {
+    fn as_product(&self) -> ProductNum<Layer, Key> {
+        ProductNum {
+            major_count: self.layer_count,
+            minor_count: self.key_count,
+        }
+    }
+}
+
 impl HasCount<Loc> for LocNum {
     fn count(&self) -> Count<Loc> {
-        let count = self.key_count.as_usize() * self.layer_count.as_usize();
-        return cat::internal::to_count(count);
+        cat::internal::to_count(self.as_product().count().as_usize())
     }
 }
 
 impl Mapping<Loc, Num<Loc>> for LocNum {
     fn apply(&self, loc: Loc) -> Num<Loc> {
-        let layer_offset = loc.layer_num.as_usize() * self.key_count.as_usize();
-        let num = layer_offset + loc.key_num.as_usize();
-        return cat::internal::to_num(num);
+        let num: Num<Product<Layer, Key>> = self.as_product().apply(
+            (loc.layer_num, loc.key_num));
+        return cat::internal::to_num(num.as_usize());
     }
 }
 
 impl Mapping<Num<Loc>, Loc> for LocNum {
     fn apply(&self, num: Num<Loc>) -> Loc {
-        let layer_num = num.as_usize() / self.layer_count.as_usize();
-        let key_num = num.as_usize() % self.key_count.as_usize();
+        let prod_num = cat::internal::to_num(num.as_usize());
+        let (layer_num, key_num) = self.as_product().apply(prod_num);
         return Loc {
-            key_num: cat::internal::to_num(key_num),
-            layer_num: cat::internal::to_num(layer_num),
+            key_num: cat::internal::to_num(key_num.as_usize()),
+            layer_num: cat::internal::to_num(layer_num.as_usize()),
         }
     }
 }
