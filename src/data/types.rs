@@ -127,3 +127,68 @@ impl Domain for Assignment {
 }
 
 impl FiniteDomain for Assignment {}
+
+pub struct AssignmentNum {
+    pub free_count: Count<Free>,
+    pub lock_count: Count<Lock>,
+    pub key_count: Count<Key>,
+    pub layer_count: Count<Layer>,
+}
+
+impl AssignmentNum {
+    fn loc_num(&self) -> LocNum {
+        LocNum {
+            key_count: self.key_count,
+            layer_count: self.layer_count,
+        }
+    }
+
+    fn free_product(&self) -> ProductNum<Free, Loc> {
+        ProductNum {
+            major_count: self.free_count,
+            minor_count: self.loc_num().count(),
+        }
+    }
+
+    fn lock_product(&self) -> ProductNum<Lock, Key> {
+        ProductNum {
+            major_count: self.lock_count,
+            minor_count: self.key_count,
+        }
+    }
+}
+
+impl HasCount<Assignment> for AssignmentNum {
+    fn count(&self) -> Count<Assignment> {
+        let free_count = self.free_product().count().as_usize();
+        let lock_count = self.lock_product().count().as_usize();
+        return cat::internal::to_count(free_count + lock_count);
+    }
+}
+
+impl Mapping<Assignment, Num<Assignment>> for AssignmentNum {
+    fn apply(&self, assignment: Assignment) -> Num<Assignment> {
+        match assignment {
+            Assignment::Free { free_num, loc_num } => {
+                let num: Num<Product<Free, Loc>>
+                    = self.free_product().apply((free_num, loc_num));
+                cat::internal::to_num(num.as_usize())
+            },
+            Assignment::Lock { lock_num, key_num } => {
+                let num: Num<Product<Lock, Key>>
+                    = self.lock_product().apply((lock_num, key_num));
+                let offset = self.free_product().count();
+                cat::internal::to_num(offset.as_usize() + num.as_usize())
+            }
+        }
+    }
+}
+
+/// Marker type for disambiguating between possible and allowed assignments.
+pub struct AllowedAssignment;
+
+impl Domain for AllowedAssignment {
+    type Type = Assignment;
+}
+
+impl FiniteDomain for AllowedAssignment {}
