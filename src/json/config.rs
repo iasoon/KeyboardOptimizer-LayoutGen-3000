@@ -31,6 +31,7 @@ impl<'a> ConfigData<'a> {
 
             frees: groups.frees,
             locks: groups.locks,
+            assignments: groups.assignments,
         })
     }
 }

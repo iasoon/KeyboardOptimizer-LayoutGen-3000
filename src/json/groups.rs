@@ -4,7 +4,7 @@ use serde::Deserialize;
 use cat;
 use cat::*;
 use cat::ops::*;
-use data::{Key, Layer, Token, Loc, LocNum, Free, Lock, Assignment};
+use data::*;
 
 use json::errors::*;
 use json::config_reader::ConfigReader;
@@ -98,5 +98,5 @@ impl<'a> GroupsData<'a> {
 pub struct Groups {
     pub frees: Table<Free, Num<Token>>,
     pub locks: Table<Lock, Table<Layer, Option<Num<Token>>>>,
-    pub assignments: Table<Assignment, Assignment>,
+    pub assignments: Table<AllowedAssignment, Assignment>,
 }

@@ -8,4 +8,6 @@ pub struct KbDef {
 
     pub frees: Table<Free, Num<Token>>,
     pub locks: Table<Lock, Table<Layer, Option<Num<Token>>>>,
+
+    pub assignments: Table<AllowedAssignment, Assignment>,
 }
