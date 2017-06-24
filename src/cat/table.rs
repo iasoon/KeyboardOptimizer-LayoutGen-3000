@@ -58,3 +58,15 @@ impl<D: FiniteDomain, T, V> Map<T, V, Table<D, V>> for Table<D, T>
     }
 
 }
+
+impl<D: FiniteDomain, T> MapMut<T> for Table<D, T>
+{
+    fn map_mut<'t, F>(&'t mut self, mut fun: F)
+        where F: FnMut(&'t mut T)
+    {
+        for elem in self.elems.iter_mut() {
+            fun(elem);
+        }
+    }
+
+}
