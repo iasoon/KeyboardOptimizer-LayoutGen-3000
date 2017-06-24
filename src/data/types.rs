@@ -109,6 +109,12 @@ impl Domain for Lock {
 impl FiniteDomain for Lock {}
 
 
+/// Union type for free and locked groups.
+pub enum Group {
+    Free(Num<Free>),
+    Lock(Num<Lock>),
+}
+
 /// An assignment either assigns a free token to a location, or a locked group
 /// to a key.
 pub enum Assignment {
