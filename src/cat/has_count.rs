@@ -6,14 +6,24 @@ use cat::mapping::*;
 pub trait HasCount<D: FiniteDomain> {
     fn count(&self) -> Count<D>;
 
-    fn enumerate<'t>(&'t self) -> ElemEnumerator<'t, D, Self>
-        where Self: Dict<Num<D>, D::Type> + Sized
+    fn enumerate<'t, T>(&'t self) -> ElemEnumerator<'t, D, T, Self>
+        where Self: Dict<Num<D>, T> + Sized
     {
         ElemEnumerator {
-            elems: self,
+            mapping: self,
             pos: 0,
-            phantom: PhantomData,
+            phantom_d: PhantomData,
+            phantom_t: PhantomData,
         }
+    }
+}
+
+impl<'h, D, H> HasCount<D> for &'h H
+    where H: HasCount<D> + 'h,
+          D: FiniteDomain
+{
+    fn count(&self) -> Count<D> {
+        return self.count();
     }
 }
 
@@ -46,28 +56,29 @@ pub fn to_count<D: FiniteDomain>(count: usize) -> Count<D> {
     }
 }
 
-pub struct ElemEnumerator<'e, D, E>
-    where E: Dict<Num<D>, D::Type> + 'e,
-          D: FiniteDomain + 'e
+pub struct ElemEnumerator<'t, D, T, M>
+    where M: Dict<Num<D>, T> + HasCount<D> + 't,
+          D: FiniteDomain,
 {
-    elems: &'e E,
+    mapping: &'t M,
     pos: usize,
-    phantom: PhantomData<D>,
+    phantom_d: PhantomData<D>,
+    phantom_t: PhantomData<T>,
 }
 
-impl<'e, D, E> Iterator for ElemEnumerator<'e, D, E>
-    where E: Dict<Num<D>, D::Type> + HasCount<D>,
-          D: FiniteDomain + 'e
+impl<'t, D, T: 't, M> Iterator for ElemEnumerator<'t, D, T, M>
+    where M: Dict<Num<D>, T> + HasCount<D> + 't,
+          D: FiniteDomain
 {
-    type Item = (Num<D>, &'e D::Type);
+    type Item = (Num<D>, &'t T);
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= self.elems.count().as_usize() {
+    fn next(&mut self) -> Option<(Num<D>, &'t T)> {
+        if self.pos >= self.mapping.count().as_usize() {
             return None;
         } else {
             let num = to_num(self.pos);
             self.pos += 1;
-            return Some((num, self.elems.get(num)));
+            return Some((num, self.mapping.get(num)));
         }
     }
 }
