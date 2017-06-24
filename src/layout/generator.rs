@@ -1,266 +1,226 @@
-use utils::{Countable, LookupTable, BoundedSubset, SubsetCursor};
-use model::{KbDef, TokenId, LockId, FreeId, KeyId, Loc};
-
 use rand::{thread_rng, Rng};
 use std::vec::Vec;
+use std::mem;
 
-type Keymap = LookupTable<Loc, Option<TokenId>>;
+use data::*;
+use cat::*;
+use cat::ops::*;
+use errors::*;
+
+use layout::assignable::Assignable;
 
 pub struct Generator<'a> {
     kb_def: &'a KbDef,
+
+    frees: Table<Free, Subset<Loc>>,
+    locks: Table<Lock, Subset<Key>>,
+
     stack: Vec<Step>,
-    unassigned: Vec<Unassigned>,
-    pub keymap: Keymap,
 }
 
-fn mk_unassigned(kb_def: &KbDef) -> Vec<Unassigned> {
-    let mut rng = thread_rng();
-    LockId::enumerate(kb_def.locks.elem_count())
-        .map(|lock_id| {
-            let mut keys: Vec<KeyId> = KeyId::enumerate(kb_def.keys.elem_count()).collect();
-            rng.shuffle(keys.as_mut());
-            Unassigned::Lock(UnassignedLock {
-                lock_id: lock_id,
-                keys: BoundedSubset::from_vec(kb_def.keys.elem_count(), keys),
-            })
-        })
-        .collect()
+struct Step {
+    assignment: Assignment,
+    pos: usize,
+}
+
+impl<'a> Assignable for Generator<'a> {
+    fn assign_token(&mut self, _: Num<Token>, loc_num: Num<Loc>) {
+        let kb_def = &self.kb_def;
+
+        // handle frees
+        self.frees.map_mut(|locs| {
+            locs.remove(loc_num);
+        });
+
+        // handle locks
+        let loc: Loc = self.kb_def.loc_num().apply(loc_num);
+        self.locks.map_mut_with_key(|lock_num, keys| {
+            // check whether assigned loc and lock overlap
+            if kb_def.locks.get(lock_num).get(loc.layer_num).is_some() {
+                keys.remove(loc.key_num);
+            }
+        });
+    }
 }
 
 impl<'a> Generator<'a> {
-    pub fn new(kb_def: &'a KbDef) -> Self {
-        Generator {
-            stack: Vec::with_capacity(kb_def.groups.elem_count().count()),
-            unassigned: mk_unassigned(kb_def),
-            keymap: LookupTable::new(kb_def.loc_data(), None),
-            kb_def: kb_def,
-        }
-    }
-
-    pub fn generate(kb_def: &KbDef) -> Keymap {
-        let mut gen = Generator::new(kb_def);
-        gen.backtrack();
-        return gen.keymap;
-    }
-
-    fn backtrack(&mut self) {
-        self.descend();
-
-        while self.next() && self.unassigned.len() > 0 {
-            self.assign();
-            self.descend();
-        }
-
-        if self.unassigned.len() > 0 {
-            panic!("Something went wrong");
-        }
-
-        self.assign();
-    }
-
-    fn descend(&mut self) {
-        // TODO: pick smarter
-        if let Some(unassigned) = self.unassigned.pop() {
-            self.stack.push(unassigned.to_step());
-        }
-    }
-
-    fn next(&mut self) -> bool {
-        while self.stack.len() > 0 {
-            let mut step = self.stack.pop().unwrap();
-            step.unassign(self);
-
-            while step.next() {
-                if step.valid(self) {
-                    self.stack.push(step);
-                    return true;
+    fn generate(&mut self) -> Result<()> {
+        if let Some(initial_group) = self.next_group() {
+            // initial step, 'root node'
+            self.step(initial_group, 0);
+            while self.next() {
+                if let Some(group) = self.next_group() {
+                    // descend
+                    self.step(group, 0);
+                } else {
+                    // no groups remaining; generation complete
+                    return Ok(());
                 }
             }
+            bail!("Layout generation failed. Check constraints for conflicts.")
+        }
+        // no groups exist
+        Ok(())
+    }
 
-            // ascend
-            self.unassigned.push(step.to_unassigned());
+    fn next_group(&self) -> Option<Group> {
+        unimplemented!()
+    }
+
+    fn step(&mut self, group: Group, pos: usize) {
+        self.frees.map_mut(|locs| locs.set_restore_point());
+        self.locks.map_mut(|keys| keys.set_restore_point());
+        let assignment = self.get_assignment(group, pos);
+        self.assign(self.kb_def, assignment);
+        self.stack.push(Step {
+            pos: pos,
+            assignment: assignment,
+        });
+    }
+
+    fn get_assignment(&self, group: Group, pos: usize) -> Assignment {
+        match group {
+            Group::Free(free_num) => {
+                Assignment::Free {
+                    free_num: free_num,
+                    loc_num: self.frees.get(free_num).get(pos),
+                }
+            },
+            Group::Lock(lock_num) => {
+                Assignment::Lock {
+                    lock_num: lock_num,
+                    key_num: self.locks.get(lock_num).get(pos),
+                }
+            }
+        }
+    }
+
+
+    /// Undo last step and return it.
+    fn pop(&mut self) -> Option<Step> {
+        if let Some(step) = self.stack.pop() {
+            self.frees.map_mut(|locs| locs.restore());
+            self.locks.map_mut(|keys| keys.restore());
+            return Some(step);
+        } else {
+            return None;
+        }
+    }
+
+    /// Go to next node.
+    fn next(&mut self) -> bool {
+        while let Some(step) = self.pop() {
+            let group = assignment_group(self.kb_def, step.assignment);
+            if self.group_count(group) > step.pos + 1 {
+                self.step(group, step.pos + 1);
+                return true;
+            }
         }
         return false;
     }
 
-    fn assign(&mut self) {
-        let step = self.stack.pop().unwrap();
-        step.assign(self);
-        self.stack.push(step);
-    }
-
-    // perform a move in the backtracking tree
-    fn do_move<A: Move>(&mut self, action: A) {
-        action.keymap(&self.kb_def, &mut self.keymap);
-
-        for unassigned in self.unassigned.iter_mut() {
-            match unassigned {
-                &mut Unassigned::Lock(ref mut unassigned_lock) => {
-                    action.unassigned_lock(&self.kb_def, unassigned_lock);
-                }
-                &mut Unassigned::Free(_) => unimplemented!(),
+    /// How many assignments remain available for given group
+    fn group_count(&self, group: Group) -> usize {
+        match group {
+            Group::Free(free_id) => {
+                self.frees.get(free_id).size()
+            },
+            Group::Lock(lock_id) => {
+                self.locks.get(lock_id).size()
             }
         }
     }
 }
 
-enum Step {
-    Lock {
-        id: LockId,
-        cursor: SubsetCursor<KeyId>,
-    },
-    Free {
-        id: FreeId,
-        cursor: SubsetCursor<Loc>,
-    },
+fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
+    match assignment {
+        Assignment::Free { free_num, loc_num: _} => {
+            Group::Free(free_num)
+        },
+        Assignment::Lock { lock_num, key_num: _} => {
+            Group::Lock(lock_num)
+        }
+    }
 }
 
-impl Step {
-    fn unassign(&self, gen: &mut Generator) {
-        match self {
-            &Step::Lock { id, ref cursor } => {
-                if let Some(pos) = cursor.pos() {
-                    gen.do_move(UnassignLock {
-                        lock_id: id,
-                        key_id: pos,
-                    });
-                }
+struct Subset<D: FiniteDomain> {
+    // elements currently in this subset
+    elems: Vec<Num<D>>,
+    // maps an element to its index
+    idxs: Table<D, Option<usize>>,
+
+    // (elem, position elem was in)
+    // This position is used to restore elems to its original order
+    // (provided it was not otherwise modified)
+    removed: Vec<(Num<D>, usize)>,
+    // holds indices to restore to
+    restore_points: Vec<usize>,
+}
+
+impl<D: FiniteDomain> Subset<D> {
+    fn empty(universe: &Table<D, D::Type>) -> Self
+    {
+        Subset {
+            elems: Vec::with_capacity(universe.count().as_usize()),
+            idxs: universe.map(|_| None),
+            removed: Vec::with_capacity(universe.count().as_usize()),
+            restore_points: Vec::with_capacity(universe.count().as_usize()),
+        }
+    }
+
+    fn add(&mut self, mut elem: Num<D>, pos: usize) {
+        if self.idxs.get(elem).is_none() {
+            // swap elem and element in target position
+            if pos < self.elems.len() {
+                *self.idxs.get_mut(elem) = Some(pos);
+                mem::swap(&mut elem, &mut self.elems[pos]);
             }
-            &Step::Free { id, ref cursor } => {
-                unimplemented!();
+            // push elem to elems
+            *self.idxs.get_mut(elem) = Some(self.elems.len());
+            self.elems.push(elem);
+        }
+    }
+
+    fn get(&self, pos: usize) -> Num<D> {
+        return self.elems[pos];
+    }
+
+    fn remove(&mut self, elem: Num<D>) {
+        if let Some(idx) = self.idxs.get_mut(elem).take() {
+            self.elems.swap_remove(idx);
+            if idx < self.elems.len() {
+                *self.idxs.get_mut(self.elems[idx]) = Some(idx);
             }
+            self.removed.push((elem, idx));
         }
     }
 
-    fn valid(&self, gen: &Generator) -> bool {
-        match self {
-            &Step::Lock { id, ref cursor } => {
-                cursor.pos()
-                    .map_or(false, |pos| {
-                        gen.kb_def.locks[id].elems().all(|(layer_id, _)| {
-                            let loc = gen.kb_def.loc_data().loc(cursor.pos().unwrap(), layer_id);
-                            return gen.keymap[loc].is_none();
-                        })
-                    })
-            }
-            &Step::Free { id, ref cursor } => unimplemented!(),
-        }
+    /// save a restore point
+    fn set_restore_point(&mut self) {
+        let len = self.removed.len();
+        self.restore_points.push(len);
     }
 
-    fn assign(&self, gen: &mut Generator) {
-        match self {
-            &Step::Lock { id, ref cursor } => {
-                gen.do_move(AssignLock {
-                    lock_id: id,
-                    key_id: cursor.pos().unwrap(),
-                });
-            }
-            &Step::Free { id, ref cursor } => unimplemented!(),
-        }
-    }
-
-    fn next(&mut self) -> bool {
-        match self {
-            &mut Step::Lock { id, ref mut cursor } => cursor.next(),
-            &mut Step::Free { id, ref mut cursor } => cursor.next(),
-        }
-    }
-
-    fn to_unassigned(self) -> Unassigned {
-        match self {
-            Step::Lock { id, cursor } => {
-                Unassigned::Lock(UnassignedLock {
-                    lock_id: id,
-                    keys: cursor.subset,
-                })
-            }
-            Step::Free { id, cursor } => {
-                Unassigned::Free(UnassignedFree {
-                    free_id: id,
-                    locs: cursor.subset,
-                })
-            }
-        }
-    }
-}
-
-
-trait Move {
-    fn keymap(&self, kb_def: &KbDef, keymap: &mut Keymap) {}
-    fn unassigned_lock(&self, kb_def: &KbDef, unassigned: &mut UnassignedLock) {}
-}
-
-struct AssignLock {
-    lock_id: LockId,
-    key_id: KeyId,
-}
-
-impl Move for AssignLock {
-    fn keymap(&self, kb_def: &KbDef, keymap: &mut Keymap) {
-        for (layer_id, token_id) in kb_def.locks[self.lock_id].elems() {
-            let loc = kb_def.loc_data().loc(self.key_id, layer_id);
-            keymap[loc] = Some(token_id);
-        }
-    }
-
-    fn unassigned_lock(&self, kb_def: &KbDef, unassigned: &mut UnassignedLock) {
-        if kb_def.locks[self.lock_id].overlaps(&kb_def.locks[unassigned.lock_id]) {
-            unassigned.keys.remove(self.key_id);
-        }
-    }
-}
-
-struct UnassignLock {
-    lock_id: LockId,
-    key_id: KeyId,
-}
-
-impl Move for UnassignLock {
-    fn keymap(&self, kb_def: &KbDef, keymap: &mut Keymap) {
-        for (layer_id, token_id) in kb_def.locks[self.lock_id].elems() {
-            let loc = kb_def.loc_data().loc(self.key_id, layer_id);
-            keymap[loc] = None;
-        }
-    }
-
-    fn unassigned_lock(&self, kb_def: &KbDef, unassigned: &mut UnassignedLock) {
-        if kb_def.locks[self.lock_id].overlaps(&kb_def.locks[unassigned.lock_id]) {
-            unassigned.keys.add(self.key_id);
-        }
-    }
-}
-
-enum Unassigned {
-    Lock(UnassignedLock),
-    Free(UnassignedFree),
-}
-
-impl Unassigned {
-    fn to_step(self) -> Step {
-        match self {
-            Unassigned::Lock(unassigned_lock) => {
-                Step::Lock {
-                    id: unassigned_lock.lock_id,
-                    cursor: unassigned_lock.keys.cursor(),
-                }
-            }
-            Unassigned::Free(unassigned_free) => {
-                Step::Free {
-                    id: unassigned_free.free_id,
-                    cursor: unassigned_free.locs.cursor(),
-                }
+    /// revert subset to last restore point
+    fn restore(&mut self) {
+        if let Some(target) = self.restore_points.pop() {
+            while self.removed.len() > target {
+                let (elem, idx) = self.removed.pop().unwrap();
+                self.add(elem, idx);
             }
         }
     }
-}
 
+    fn size(&self) -> usize {
+        self.elems.len()
+    }
 
-struct UnassignedLock {
-    lock_id: LockId,
-    keys: BoundedSubset<KeyId>,
-}
-
-struct UnassignedFree {
-    free_id: FreeId,
-    locs: BoundedSubset<Loc>,
+    fn shuffle(&mut self) {
+        let mut rng = thread_rng();
+        rng.shuffle(self.elems.as_mut_slice());
+        // fix index
+        for (idx, &elem) in self.elems.iter().enumerate() {
+            *self.idxs.get_mut(elem) = Some(idx);
+        }
+    }
 }

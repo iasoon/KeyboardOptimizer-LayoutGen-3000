@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cat::{Num, Table, FiniteDomain, HasCount};
+use cat::*;
 use data::{Key, Layer, Token};
 
 use json::elements::Elements;

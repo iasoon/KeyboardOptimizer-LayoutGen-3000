@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 use std::fmt;
 
+use cat;
 use cat::domain::*;
 use cat::mapping::*;
 use cat::has_count::*;
@@ -66,6 +67,18 @@ impl<D: FiniteDomain, T> MapMut<T> for Table<D, T>
     {
         for elem in self.elems.iter_mut() {
             fun(elem);
+        }
+    }
+
+}
+
+impl<D: FiniteDomain, T> MapMutWithKey<Num<D>, T> for Table<D, T>
+{
+    fn map_mut_with_key<'t, F>(&'t mut self, mut fun: F)
+        where F: FnMut(Num<D>, &'t mut T)
+    {
+        for (num, elem) in self.elems.iter_mut().enumerate() {
+            fun(cat::internal::to_num(num), elem);
         }
     }
 

@@ -110,6 +110,7 @@ impl FiniteDomain for Lock {}
 
 
 /// Union type for free and locked groups.
+#[derive(Copy, Clone)]
 pub enum Group {
     Free(Num<Free>),
     Lock(Num<Lock>),
@@ -117,6 +118,7 @@ pub enum Group {
 
 /// An assignment either assigns a free token to a location, or a locked group
 /// to a key.
+#[derive(Copy, Clone)]
 pub enum Assignment {
     Free {
         free_num: Num<Free>,

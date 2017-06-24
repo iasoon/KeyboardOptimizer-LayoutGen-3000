@@ -9,3 +9,9 @@ pub trait MapMut<T> {
         where F: FnMut(&'t mut T),
               T: 't;
 }
+
+pub trait MapMutWithKey<K, T> {
+    fn map_mut_with_key<'t, F>(&'t mut self, fun: F)
+        where F: FnMut(K, &'t mut T),
+              T: 't;
+}

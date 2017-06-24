@@ -1,4 +1,4 @@
-use cat::{Domain, FiniteDomain, Table, Num};
+use cat::*;
 use data::types::*;
 
 pub struct KbDef {
@@ -10,4 +10,13 @@ pub struct KbDef {
     pub locks: Table<Lock, Table<Layer, Option<Num<Token>>>>,
 
     pub assignments: Table<AllowedAssignment, Assignment>,
+}
+
+impl KbDef {
+    pub fn loc_num(&self) -> LocNum {
+        LocNum {
+            key_count: self.keys.count(),
+            layer_count: self.layers.count(),
+        }
+    }
 }
