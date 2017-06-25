@@ -1,29 +1,34 @@
 use std::marker::PhantomData;
 
-use cat::domain::*;
-use cat::mapping::*;
+use cat::*;
+use cat::ops::*;
+use cat::internal::*;
 
 pub trait HasCount<D: FiniteDomain> {
     fn count(&self) -> Count<D>;
+
+    fn nums(&self) -> Enumerator<D> {
+        Enumerator {
+            count: self.count(),
+            pos: 0,
+        }
+    }
+
+    fn map_nums<T, F>(&self, fun: F) -> Table<D, T>
+        where F: FnMut(Num<D>) -> T
+    {
+        Table::from_vec(self.nums().map(fun).collect())
+    }
+
 
     fn enumerate<'t, T>(&'t self) -> ElemEnumerator<'t, D, T, Self>
         where Self: Dict<Num<D>, T> + Sized
     {
         ElemEnumerator {
+            enumerator: self.nums(),
             mapping: self,
-            pos: 0,
-            phantom_d: PhantomData,
             phantom_t: PhantomData,
         }
-    }
-}
-
-impl<'h, D, H> HasCount<D> for &'h H
-    where H: HasCount<D> + 'h,
-          D: FiniteDomain
-{
-    fn count(&self) -> Count<D> {
-        return self.count();
     }
 }
 
@@ -56,13 +61,35 @@ pub fn to_count<D: FiniteDomain>(count: usize) -> Count<D> {
     }
 }
 
+pub struct Enumerator<D>
+    where D: FiniteDomain
+{
+    count: Count<D>,
+    pos: usize,
+}
+
+impl<D> Iterator for Enumerator<D>
+    where D: FiniteDomain
+{
+    type Item = Num<D>;
+
+    fn next(&mut self) -> Option<Num<D>> {
+        if self.pos >= self.count.as_usize() {
+            return None;
+        } else {
+            let num = to_num(self.pos);
+            self.pos += 1;
+            return Some(num);
+        }
+    }
+}
+
 pub struct ElemEnumerator<'t, D, T, M>
     where M: Dict<Num<D>, T> + HasCount<D> + 't,
           D: FiniteDomain,
 {
     mapping: &'t M,
-    pos: usize,
-    phantom_d: PhantomData<D>,
+    enumerator: Enumerator<D>,
     phantom_t: PhantomData<T>,
 }
 
@@ -73,12 +100,8 @@ impl<'t, D, T: 't, M> Iterator for ElemEnumerator<'t, D, T, M>
     type Item = (Num<D>, &'t T);
 
     fn next(&mut self) -> Option<(Num<D>, &'t T)> {
-        if self.pos >= self.mapping.count().as_usize() {
-            return None;
-        } else {
-            let num = to_num(self.pos);
-            self.pos += 1;
-            return Some((num, self.mapping.get(num)));
-        }
+        self.enumerator.next().map(|num| {
+            (num, self.mapping.get(num))
+        })
     }
 }
