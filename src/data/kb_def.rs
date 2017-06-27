@@ -19,4 +19,11 @@ impl KbDef {
             layer_count: self.layers.count(),
         }
     }
+
+    pub fn group_num(&self) -> GroupNum {
+        GroupNum {
+            free_count: self.frees.count(),
+            lock_count: self.locks.count(),
+        }
+    }
 }

@@ -116,6 +116,50 @@ pub enum Group {
     Lock(Num<Lock>),
 }
 
+impl Domain for Group {
+    type Type = Group;
+}
+
+impl FiniteDomain for Group {}
+
+pub struct GroupNum {
+    pub free_count: Count<Free>,
+    pub lock_count: Count<Lock>,
+}
+
+impl Mapping<Num<Group>, Group> for GroupNum {
+    fn apply(&self, num: Num<Group>) -> Group {
+        if num.as_usize() < self.free_count.as_usize() {
+            Group::Free(cat::internal::to_num(num.as_usize()))
+        } else {
+            let lock_num = num.as_usize() - self.free_count.as_usize();
+            Group::Lock(cat::internal::to_num(lock_num))
+        }
+    }
+}
+
+impl Mapping<Group, Num<Group>> for GroupNum {
+    fn apply(&self, group: Group) -> Num<Group> {
+        match group {
+            Group::Free(free_num) => {
+                cat::internal::to_num(free_num.as_usize())
+            },
+            Group::Lock(lock_num) => {
+                let num = self.free_count.as_usize() + lock_num.as_usize();
+                cat::internal::to_num(num)
+            }
+        }
+    }
+}
+
+impl HasCount<Group> for GroupNum {
+    fn count(&self) -> Count<Group> {
+        let count = self.free_count.as_usize() + self.lock_count.as_usize();
+        return cat::internal::to_count(count);
+    }
+}
+
+
 /// An assignment either assigns a free token to a location, or a locked group
 /// to a key.
 #[derive(Copy, Clone)]
