@@ -81,12 +81,18 @@ impl<'a> Generator<'a> {
     /// perform a step: descend one level in the backtracking tree.
     fn step(&mut self, group: Group, pos: usize) {
         let assignment = self.get_assignment(group, pos);
-        // TODO: assign
+
+        // update stack
         self.stack.push(Step {
             pos: pos,
             assignment: assignment,
             blocked_idx: self.blocked.len(),
         });
+
+        // remove conflicts
+        for a in overlaps(self.kb_def, assignment).into_iter() {
+            self.remove_assignment(a);
+        }
     }
 
     /// Undo last step, and return its group and position.
@@ -112,6 +118,17 @@ impl<'a> Generator<'a> {
         }
     }
 
+    /// Make this assignment unavailable.
+    fn remove_assignment(&mut self, assignment: Assignment) {
+        match assignment {
+            Assignment::Free { free_num, loc_num } => {
+                self.frees.get_mut(free_num).remove(loc_num);
+            },
+            Assignment::Lock { lock_num, key_num } => {
+                self.locks.get_mut(lock_num).remove(key_num);
+            }
+        }
+    }
 
     fn get_assignment(&self, group: Group, pos: usize) -> Assignment {
         match group {
@@ -153,6 +170,57 @@ impl<'a> Generator<'a> {
             }
         }
     }
+}
+
+fn overlaps(kb_def: &KbDef, assignment: Assignment) -> Vec<Assignment> {
+    match assignment {
+        Assignment::Free { free_num: _, loc_num } => {
+            return free_overlaps(kb_def, loc_num);
+        },
+        Assignment::Lock { lock_num, key_num } => {
+            return lock_overlaps(kb_def, lock_num, key_num);
+        }
+    }
+}
+
+fn free_overlaps(kb_def: &KbDef, loc_num: Num<Loc>) -> Vec<Assignment> {
+    let loc: Loc = kb_def.loc_num().apply(loc_num);
+    kb_def.assignments.enumerate()
+        .map(|(_, &assignment)| assignment)
+        .filter(|&assignment| {
+        match assignment {
+            Assignment::Free { free_num: _, loc_num: other_loc_num } => {
+                return loc_num == other_loc_num;
+            },
+            Assignment::Lock { lock_num, key_num } => {
+                let entry = kb_def.locks.get(lock_num).get(loc.layer_num);
+                return key_num == loc.key_num && entry.is_some();
+            }
+        }
+    }).collect()
+}
+
+fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>)
+                 -> Vec<Assignment>
+{
+    let lock = kb_def.locks.get(lock_num);
+    kb_def.assignments.enumerate()
+        .map(|(_, &assignment)| assignment)
+        .filter(|&assignment| {
+            match assignment {
+                Assignment::Free { free_num: _, loc_num } => {
+                    let loc: Loc = kb_def.loc_num().apply(loc_num);
+                    key_num == loc.key_num && lock.get(loc.layer_num).is_some()
+                },
+                Assignment::Lock { lock_num: loc2_num, key_num: key2_num } => {
+                    let locks_overlap = kb_def.locks.get(loc2_num).enumerate()
+                        .any(|(layer_num, value)| {
+                            value.is_some() && lock.get(layer_num).is_some()
+                        });
+                    return key_num == key2_num && locks_overlap;
+                }
+            }
+        }).collect()
 }
 
 fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
