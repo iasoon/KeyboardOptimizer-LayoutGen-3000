@@ -17,15 +17,21 @@ pub struct Generator<'a> {
 
     frees: Table<Free, NumSubset<Loc>>,
     locks: Table<Lock, NumSubset<Key>>,
+    unassigned: Subset<Group, GroupTable<Option<usize>>>,
 
-    groups: Subset<Group, GroupTable<Option<usize>>>,
-
+    /// The stack describes the path taken to get to the current position.
     stack: Vec<Step>,
+
+    /// FIFO stack of (blocked assignment, position) pairs.
+    /// Position information is needed to restore assignment sets to their
+    /// original order.
+    blocked: Vec<(Assignment, usize)>,
 }
 
 struct Step {
     assignment: Assignment,
     pos: usize,
+    blocked_idx: usize,
 }
 
 impl<'a> Assignable for Generator<'a> {
@@ -72,15 +78,40 @@ impl<'a> Generator<'a> {
         unimplemented!()
     }
 
+    /// perform a step: descend one level in the backtracking tree.
     fn step(&mut self, group: Group, pos: usize) {
-        // TODO: set restore point
         let assignment = self.get_assignment(group, pos);
-        self.assign(self.kb_def, assignment);
+        // TODO: assign
         self.stack.push(Step {
             pos: pos,
             assignment: assignment,
+            blocked_idx: self.blocked.len(),
         });
     }
+
+    /// Undo last step, and return its group and position.
+    fn pop(&mut self) -> Option<(Group, usize)> {
+        self.stack.pop().map(|step| {
+            while self.blocked.len() > step.blocked_idx {
+                let (assignment, pos) = self.blocked.pop().unwrap();
+                self.add_assignment(assignment, pos);
+            }
+            unimplemented!()
+        })
+    }
+
+    /// Register an assignment as available.
+    fn add_assignment(&mut self, assignment: Assignment, pos: usize) {
+        match assignment {
+            Assignment::Free { free_num, loc_num } => {
+                self.frees.get_mut(free_num).add(loc_num, pos);
+            },
+            Assignment::Lock { lock_num, key_num } => {
+                self.locks.get_mut(lock_num).add(key_num, pos);
+            }
+        }
+    }
+
 
     fn get_assignment(&self, group: Group, pos: usize) -> Assignment {
         match group {
@@ -100,22 +131,11 @@ impl<'a> Generator<'a> {
     }
 
 
-    /// Undo last step and return it.
-    fn pop(&mut self) -> Option<Step> {
-        if let Some(step) = self.stack.pop() {
-            // TODO: restore
-            return Some(step);
-        } else {
-            return None;
-        }
-    }
-
     /// Go to next node.
     fn next(&mut self) -> bool {
-        while let Some(step) = self.pop() {
-            let group = assignment_group(self.kb_def, step.assignment);
-            if self.group_count(group) > step.pos + 1 {
-                self.step(group, step.pos + 1);
+        while let Some((group, pos)) = self.pop() {
+            if self.group_count(group) > pos + 1 {
+                self.step(group, pos + 1);
                 return true;
             }
         }
