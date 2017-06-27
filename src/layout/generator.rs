@@ -9,11 +9,16 @@ use errors::*;
 
 use layout::assignable::Assignable;
 
+type GroupTable<T> = ComposedDict<Group, Num<Group>, T,
+                                  GroupNum, Table<Group, T>>;
+
 pub struct Generator<'a> {
     kb_def: &'a KbDef,
 
-    frees: Table<Free, Subset<Loc>>,
-    locks: Table<Lock, Subset<Key>>,
+    frees: Table<Free, NumSubset<Loc>>,
+    locks: Table<Lock, NumSubset<Key>>,
+
+    groups: Subset<Group, GroupTable<Option<usize>>>,
 
     stack: Vec<Step>,
 }
@@ -68,8 +73,7 @@ impl<'a> Generator<'a> {
     }
 
     fn step(&mut self, group: Group, pos: usize) {
-        self.frees.map_mut(|locs| locs.set_restore_point());
-        self.locks.map_mut(|keys| keys.set_restore_point());
+        // TODO: set restore point
         let assignment = self.get_assignment(group, pos);
         self.assign(self.kb_def, assignment);
         self.stack.push(Step {
@@ -99,8 +103,7 @@ impl<'a> Generator<'a> {
     /// Undo last step and return it.
     fn pop(&mut self) -> Option<Step> {
         if let Some(step) = self.stack.pop() {
-            self.frees.map_mut(|locs| locs.restore());
-            self.locks.map_mut(|keys| keys.restore());
+            // TODO: restore
             return Some(step);
         } else {
             return None;
@@ -143,36 +146,37 @@ fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
     }
 }
 
-struct Subset<D: FiniteDomain> {
-    // elements currently in this subset
-    elems: Vec<Num<D>>,
-    // maps an element to its index
-    idxs: Table<D, Option<usize>>,
+type NumSubset<D> = Subset<Num<D>, Table<D, Option<usize>>>;
 
-    // (elem, position elem was in)
-    // This position is used to restore elems to its original order
-    // (provided it was not otherwise modified)
-    removed: Vec<(Num<D>, usize)>,
-    // holds indices to restore to
-    restore_points: Vec<usize>,
+struct Subset<D, M>
+    where M: Dict<D, Option<usize>>,
+          D: FiniteDomain
+{
+    // elements currently in this subset
+    elems: Vec<D::Type>,
+    // maps an element to its index
+    idxs: M,
 }
 
-impl<D: FiniteDomain> Subset<D> {
-    fn empty(universe: &Table<D, D::Type>) -> Self
+impl<D, M> Subset<D, M>
+    where M: Dict<D, Option<usize>>,
+          D::Type: Copy,
+          D: FiniteDomain
+{
+    fn new(dict: M) -> Self
+        where M: HasCount<D>
     {
         Subset {
-            elems: Vec::with_capacity(universe.count().as_usize()),
-            idxs: universe.map(|_| None),
-            removed: Vec::with_capacity(universe.count().as_usize()),
-            restore_points: Vec::with_capacity(universe.count().as_usize()),
+            elems: Vec::with_capacity(dict.count().as_usize()),
+            idxs: dict,
         }
     }
 
-    fn add(&mut self, mut elem: Num<D>, pos: usize) {
+    fn add(&mut self, mut elem: D::Type, pos: usize) {
         if self.idxs.get(elem).is_none() {
             // swap elem and element in target position
             if pos < self.elems.len() {
-                *self.idxs.get_mut(elem) = Some(pos);
+                *self.idxs.get_mut(elem.clone()) = Some(pos);
                 mem::swap(&mut elem, &mut self.elems[pos]);
             }
             // push elem to elems
@@ -181,32 +185,15 @@ impl<D: FiniteDomain> Subset<D> {
         }
     }
 
-    fn get(&self, pos: usize) -> Num<D> {
+    fn get(&self, pos: usize) -> D::Type {
         return self.elems[pos];
     }
 
-    fn remove(&mut self, elem: Num<D>) {
+    fn remove(&mut self, elem: D::Type) {
         if let Some(idx) = self.idxs.get_mut(elem).take() {
             self.elems.swap_remove(idx);
             if idx < self.elems.len() {
                 *self.idxs.get_mut(self.elems[idx]) = Some(idx);
-            }
-            self.removed.push((elem, idx));
-        }
-    }
-
-    /// save a restore point
-    fn set_restore_point(&mut self) {
-        let len = self.removed.len();
-        self.restore_points.push(len);
-    }
-
-    /// revert subset to last restore point
-    fn restore(&mut self) {
-        if let Some(target) = self.restore_points.pop() {
-            while self.removed.len() > target {
-                let (elem, idx) = self.removed.pop().unwrap();
-                self.add(elem, idx);
             }
         }
     }
