@@ -37,6 +37,14 @@ impl<D: FiniteDomain> Num<D> {
     }
 }
 
+impl<D: FiniteDomain> PartialEq for Num<D> {
+    fn eq(&self, other: &Num<D>) -> bool {
+        self.as_usize() == other.as_usize()
+    }
+}
+
+impl<D: FiniteDomain> Eq for Num<D> {}
+
 pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {
     Num {
         num: num,
