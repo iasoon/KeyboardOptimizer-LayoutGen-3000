@@ -5,7 +5,7 @@ use cat::mapping::*;
 
 /// Precomposition of a Mapping with a Dict
 /// i.e. first apply mapping, then lookup in dict
-pub struct ComposedDict<S, X, T, M, D>
+pub struct ComposedDict<S, X, T: ?Sized, M, D>
     where M: Mapping<S, X::Type>,
           D: Dict<X, T>,
           S: Domain,
@@ -18,7 +18,7 @@ pub struct ComposedDict<S, X, T, M, D>
     phantom_t: PhantomData<T>,
 }
 
-impl<S, X, T, M, D> ComposedDict<S, X, T, M, D>
+impl<S, X, T: ?Sized, M, D> ComposedDict<S, X, T, M, D>
     where M: Mapping<S, X::Type>,
           D: Dict<X, T>,
           S: Domain,
