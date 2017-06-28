@@ -84,7 +84,7 @@ impl<'a> Generator<'a> {
     pub fn generate(&mut self) -> Result<Keymap> {
         self.reset();
         self.shuffle();
-        self.search();
+        try!(self.construct());
         return Ok(self.extract_keymap());
     }
 
@@ -108,11 +108,17 @@ impl<'a> Generator<'a> {
         }
     }
 
-    fn search(&mut self) {
-        // TODO: backtrack
+    fn construct(&mut self) -> Result<()> {
         while let Some(group) = self.next_group() {
-            self.step(group, 0);
+            if self.group_count(group) > 0 {
+                // descend
+                self.step(group, 0);
+            } else {
+                // backtrack
+                try!(self.next_node());
+            }
         }
+        Ok(())
     }
 
     // which group to assign next
@@ -122,16 +128,15 @@ impl<'a> Generator<'a> {
             .min_by_key(|&group| self.group_count(group))
     }
 
-    /// Go to next node.
-    // TODO: backtracking is not functional yet
-    fn next(&mut self) -> bool {
+    /// Go to next node in the backtracking tree.
+    fn next_node(&mut self) -> Result<()> {
         while let Some((group, pos)) = self.pop() {
             if self.group_count(group) > pos + 1 {
                 self.step(group, pos + 1);
-                return true;
+                return Ok(())
             }
         }
-        return false;
+        bail!("layout space exhaustively searched")
     }
 
     /// perform a step: descend one level in the backtracking tree.
