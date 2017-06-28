@@ -81,7 +81,14 @@ impl<'a> Generator<'a> {
         return generator;
     }
 
-    pub fn get_keymap(&self) -> Keymap {
+    pub fn generate(&mut self) -> Result<Keymap> {
+        self.reset();
+        self.shuffle();
+        self.search();
+        return Ok(self.extract_keymap());
+    }
+
+    fn extract_keymap(&self) -> Keymap {
         let mut keymap = self.kb_def.loc_num().map_nums(|_| None);
         for step in self.stack.iter() {
             keymap.assign(self.kb_def, step.assignment);
@@ -89,12 +96,23 @@ impl<'a> Generator<'a> {
         return keymap;
     }
 
-    pub fn generate(&mut self) -> Result<()> {
+
+    fn shuffle(&mut self) {
+        self.frees.map_mut(|locs| locs.shuffle());
+        self.locks.map_mut(|keys| keys.shuffle());
+    }
+
+    fn reset(&mut self) {
+        while self.stack.len() > 0 {
+            self.pop();
+        }
+    }
+
+    fn search(&mut self) {
         // TODO: backtrack
         while let Some(group) = self.next_group() {
             self.step(group, 0);
         }
-        Ok(())
     }
 
     // which group to assign next
@@ -166,13 +184,16 @@ impl<'a> Generator<'a> {
 
     /// Make this assignment unavailable.
     fn remove_assignment(&mut self, assignment: Assignment) {
-        match assignment {
+        let idx = match assignment {
             Assignment::Free { free_num, loc_num } => {
-                self.frees.get_mut(free_num).remove(loc_num);
+                self.frees.get_mut(free_num).remove(loc_num)
             }
             Assignment::Lock { lock_num, key_num } => {
-                self.locks.get_mut(lock_num).remove(key_num);
+                self.locks.get_mut(lock_num).remove(key_num)
             }
+        };
+        if let Some(num) = idx {
+            self.blocked.push((assignment, num));
         }
     }
 
@@ -308,12 +329,16 @@ impl<D, M> Subset<D, M>
         self.elems.iter().cloned()
     }
 
-    fn remove(&mut self, elem: D::Type) {
+    // returns index the element used to have
+    fn remove(&mut self, elem: D::Type) -> Option<usize> {
         if let Some(idx) = self.idxs.get_mut(elem).take() {
             self.elems.swap_remove(idx);
             if idx < self.elems.len() {
                 *self.idxs.get_mut(self.elems[idx]) = Some(idx);
             }
+            return Some(idx);
+        } else {
+            return None;
         }
     }
 
