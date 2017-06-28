@@ -11,12 +11,14 @@ mod config;
 mod config_reader;
 mod elements;
 mod groups;
+mod keymap;
 
 use data::KbDef;
 use std::fs::File;
 use std::io::Read;
 use serde_json;
 
+pub use self::keymap::Keymap;
 use self::config::ConfigData;
 
 pub fn parse_config(path: &str) -> errors::Result<KbDef> {

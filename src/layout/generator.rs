@@ -7,13 +7,12 @@ use cat::*;
 use cat::ops::*;
 use errors::*;
 
-use layout::assignable::Assignable;
+use layout::*;
 
 // TODO: try to generalize this pattern
 // abstract away Num<D> <-> D isomorphism, and its composition with a
 // D -> T table.
-type GroupTable<T> = ComposedDict<Group, Num<Group>, T,
-                                  GroupNum, Table<Group, T>>;
+type GroupTable<T> = ComposedDict<Group, Num<Group>, T, GroupNum, Table<Group, T>>;
 
 
 pub struct Generator<'a> {
@@ -42,21 +41,25 @@ impl<'a> Generator<'a> {
     // TODO: eww.
     pub fn new(kb_def: &'a KbDef) -> Self {
         let mut generator = Generator {
-            frees: kb_def.frees.map(|_| Subset {
-                elems: Vec::with_capacity(kb_def.loc_num().count().as_usize()),
-                idxs: kb_def.loc_num().map_nums(|_| None)
+            frees: kb_def.frees.map(|_| {
+                Subset {
+                    elems: Vec::with_capacity(kb_def.loc_num().count().as_usize()),
+                    idxs: kb_def.loc_num().map_nums(|_| None),
+                }
             }),
 
-            locks: kb_def.locks.map(|_| Subset {
-                elems: Vec::with_capacity(kb_def.keys.count().as_usize()),
-                idxs: kb_def.keys.map_nums(|_| None)
+            locks: kb_def.locks.map(|_| {
+                Subset {
+                    elems: Vec::with_capacity(kb_def.keys.count().as_usize()),
+                    idxs: kb_def.keys.map_nums(|_| None),
+                }
             }),
 
             unassigned: Subset {
                 elems: Vec::with_capacity(kb_def.group_num().count().as_usize()),
                 idxs: kb_def.group_num()
                     .map_nums(|_| None)
-                    .compose(kb_def.group_num())
+                    .compose(kb_def.group_num()),
             },
 
             stack: Vec::with_capacity(kb_def.group_num().count().as_usize()),
@@ -76,6 +79,14 @@ impl<'a> Generator<'a> {
         }
 
         return generator;
+    }
+
+    pub fn get_keymap(&self) -> Keymap {
+        let mut keymap = self.kb_def.loc_num().map_nums(|_| None);
+        for step in self.stack.iter() {
+            keymap.assign(self.kb_def, step.assignment);
+        }
+        return keymap;
     }
 
     pub fn generate(&mut self) -> Result<()> {
@@ -146,7 +157,7 @@ impl<'a> Generator<'a> {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
                 self.frees.get_mut(free_num).add(loc_num, pos);
-            },
+            }
             Assignment::Lock { lock_num, key_num } => {
                 self.locks.get_mut(lock_num).add(key_num, pos);
             }
@@ -158,7 +169,7 @@ impl<'a> Generator<'a> {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
                 self.frees.get_mut(free_num).remove(loc_num);
-            },
+            }
             Assignment::Lock { lock_num, key_num } => {
                 self.locks.get_mut(lock_num).remove(key_num);
             }
@@ -172,7 +183,7 @@ impl<'a> Generator<'a> {
                     free_num: free_num,
                     loc_num: self.frees.get(free_num).get(pos),
                 }
-            },
+            }
             Group::Lock(lock_num) => {
                 Assignment::Lock {
                     lock_num: lock_num,
@@ -185,12 +196,8 @@ impl<'a> Generator<'a> {
     /// How many assignments remain available for given group
     fn group_count(&self, group: Group) -> usize {
         match group {
-            Group::Free(free_id) => {
-                self.frees.get(free_id).size()
-            },
-            Group::Lock(lock_id) => {
-                self.locks.get(lock_id).size()
-            }
+            Group::Free(free_id) => self.frees.get(free_id).size(),
+            Group::Lock(lock_id) => self.locks.get(lock_id).size(),
         }
     }
 }
@@ -199,7 +206,7 @@ fn overlaps(kb_def: &KbDef, assignment: Assignment) -> Vec<Assignment> {
     match assignment {
         Assignment::Free { free_num: _, loc_num } => {
             return free_overlaps(kb_def, loc_num);
-        },
+        }
         Assignment::Lock { lock_num, key_num } => {
             return lock_overlaps(kb_def, lock_num, key_num);
         }
@@ -208,53 +215,51 @@ fn overlaps(kb_def: &KbDef, assignment: Assignment) -> Vec<Assignment> {
 
 fn free_overlaps(kb_def: &KbDef, loc_num: Num<Loc>) -> Vec<Assignment> {
     let loc: Loc = kb_def.loc_num().apply(loc_num);
-    kb_def.assignments.enumerate()
+    kb_def.assignments
+        .enumerate()
         .map(|(_, &assignment)| assignment)
         .filter(|&assignment| {
-        match assignment {
-            Assignment::Free { free_num: _, loc_num: other_loc_num } => {
-                return loc_num == other_loc_num;
-            },
-            Assignment::Lock { lock_num, key_num } => {
-                let entry = kb_def.locks.get(lock_num).get(loc.layer_num);
-                return key_num == loc.key_num && entry.is_some();
+            match assignment {
+                Assignment::Free { free_num: _, loc_num: other_loc_num } => {
+                    return loc_num == other_loc_num;
+                }
+                Assignment::Lock { lock_num, key_num } => {
+                    let entry = kb_def.locks.get(lock_num).get(loc.layer_num);
+                    return key_num == loc.key_num && entry.is_some();
+                }
             }
-        }
-    }).collect()
+        })
+        .collect()
 }
 
-fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>)
-                 -> Vec<Assignment>
-{
+fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>) -> Vec<Assignment> {
     let lock = kb_def.locks.get(lock_num);
-    kb_def.assignments.enumerate()
+    kb_def.assignments
+        .enumerate()
         .map(|(_, &assignment)| assignment)
         .filter(|&assignment| {
             match assignment {
                 Assignment::Free { free_num: _, loc_num } => {
                     let loc: Loc = kb_def.loc_num().apply(loc_num);
                     key_num == loc.key_num && lock.get(loc.layer_num).is_some()
-                },
+                }
                 Assignment::Lock { lock_num: loc2_num, key_num: key2_num } => {
-                    let locks_overlap = kb_def.locks.get(loc2_num).enumerate()
-                        .any(|(layer_num, value)| {
-                            value.is_some() && lock.get(layer_num).is_some()
-                        });
+                    let locks_overlap = kb_def.locks
+                        .get(loc2_num)
+                        .enumerate()
+                        .any(|(layer_num, value)| value.is_some() && lock.get(layer_num).is_some());
                     return key_num == key2_num && locks_overlap;
                 }
             }
-        }).collect()
+        })
+        .collect()
 }
 
 // TODO: move to Assignment
 fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
     match assignment {
-        Assignment::Free { free_num, loc_num: _} => {
-            Group::Free(free_num)
-        },
-        Assignment::Lock { lock_num, key_num: _} => {
-            Group::Lock(lock_num)
-        }
+        Assignment::Free { free_num, loc_num: _ } => Group::Free(free_num),
+        Assignment::Lock { lock_num, key_num: _ } => Group::Lock(lock_num),
     }
 }
 
