@@ -9,13 +9,17 @@ use errors::*;
 
 use layout::assignable::Assignable;
 
+// TODO: try to generalize this pattern
+// abstract away Num<D> <-> D isomorphism, and its composition with a
+// D -> T table.
 type GroupTable<T> = ComposedDict<Group, Num<Group>, T,
                                   GroupNum, Table<Group, T>>;
+
 
 pub struct Generator<'a> {
     kb_def: &'a KbDef,
 
-    frees: Table<Free, NumSubset<Loc>>,
+    frees: Table<Free, Subset<Num<Loc>, Table<Loc, Option<usize>>>>,
     locks: Table<Lock, NumSubset<Key>>,
     unassigned: Subset<Group, GroupTable<Option<usize>>>,
 
@@ -34,27 +38,46 @@ struct Step {
     blocked_idx: usize,
 }
 
-impl<'a> Assignable for Generator<'a> {
-    fn assign_token(&mut self, _: Num<Token>, loc_num: Num<Loc>) {
-        let kb_def = &self.kb_def;
-
-        // handle frees
-        self.frees.map_mut(|locs| {
-            locs.remove(loc_num);
-        });
-
-        // handle locks
-        let loc: Loc = self.kb_def.loc_num().apply(loc_num);
-        self.locks.map_mut_with_key(|lock_num, keys| {
-            // check whether assigned loc and lock overlap
-            if kb_def.locks.get(lock_num).get(loc.layer_num).is_some() {
-                keys.remove(loc.key_num);
-            }
-        });
-    }
-}
-
 impl<'a> Generator<'a> {
+    // TODO: eww.
+    fn new(kb_def: &'a KbDef) -> Self {
+        let mut generator = Generator {
+            frees: kb_def.frees.map(|_| Subset {
+                elems: Vec::with_capacity(kb_def.loc_num().count().as_usize()),
+                idxs: kb_def.loc_num().map_nums(|_| None)
+            }),
+
+            locks: kb_def.locks.map(|_| Subset {
+                elems: Vec::with_capacity(kb_def.keys.count().as_usize()),
+                idxs: kb_def.keys.map_nums(|_| None)
+            }),
+
+            unassigned: Subset {
+                elems: Vec::with_capacity(kb_def.group_num().count().as_usize()),
+                idxs: kb_def.group_num()
+                    .map_nums(|_| None)
+                    .compose(kb_def.group_num())
+            },
+
+            stack: Vec::with_capacity(kb_def.group_num().count().as_usize()),
+            blocked: Vec::with_capacity(kb_def.assignments.count().as_usize()),
+
+            kb_def: kb_def,
+        };
+
+        // add all groups as unassigned
+        for group_num in kb_def.group_num().nums() {
+            let group = kb_def.group_num().apply(group_num);
+            generator.unassigned.add(group, 0);
+        }
+
+        for (_, &assignment) in kb_def.assignments.enumerate() {
+            generator.add_assignment(assignment, 0);
+        }
+
+        return generator;
+    }
+
     fn generate(&mut self) -> Result<()> {
         if let Some(initial_group) = self.next_group() {
             // initial step, 'root node'
@@ -251,11 +274,9 @@ impl<D, M> Subset<D, M>
           D::Type: Copy,
           D: FiniteDomain
 {
-    fn new(dict: M) -> Self
-        where M: HasCount<D>
-    {
+    fn empty(count: Count<D>, dict: M) -> Self {
         Subset {
-            elems: Vec::with_capacity(dict.count().as_usize()),
+            elems: Vec::with_capacity(count.as_usize()),
             idxs: dict,
         }
     }
