@@ -40,7 +40,7 @@ struct Step {
 
 impl<'a> Generator<'a> {
     // TODO: eww.
-    fn new(kb_def: &'a KbDef) -> Self {
+    pub fn new(kb_def: &'a KbDef) -> Self {
         let mut generator = Generator {
             frees: kb_def.frees.map(|_| Subset {
                 elems: Vec::with_capacity(kb_def.loc_num().count().as_usize()),
@@ -78,32 +78,39 @@ impl<'a> Generator<'a> {
         return generator;
     }
 
-    fn generate(&mut self) -> Result<()> {
-        if let Some(initial_group) = self.next_group() {
-            // initial step, 'root node'
-            self.step(initial_group, 0);
-            while self.next() {
-                if let Some(group) = self.next_group() {
-                    // descend
-                    self.step(group, 0);
-                } else {
-                    // no groups remaining; generation complete
-                    return Ok(());
-                }
-            }
-            bail!("Layout generation failed. Check constraints for conflicts.")
+    pub fn generate(&mut self) -> Result<()> {
+        // TODO: backtrack
+        while let Some(group) = self.next_group() {
+            self.step(group, 0);
         }
-        // no groups exist
         Ok(())
     }
 
+    // which group to assign next
     fn next_group(&self) -> Option<Group> {
-        unimplemented!()
+        self.unassigned
+            .iter()
+            .min_by_key(|&group| self.group_count(group))
+    }
+
+    /// Go to next node.
+    // TODO: backtracking is not functional yet
+    fn next(&mut self) -> bool {
+        while let Some((group, pos)) = self.pop() {
+            if self.group_count(group) > pos + 1 {
+                self.step(group, pos + 1);
+                return true;
+            }
+        }
+        return false;
     }
 
     /// perform a step: descend one level in the backtracking tree.
     fn step(&mut self, group: Group, pos: usize) {
         let assignment = self.get_assignment(group, pos);
+
+        // assign group
+        self.unassigned.remove(group);
 
         // update stack
         self.stack.push(Step {
@@ -121,11 +128,16 @@ impl<'a> Generator<'a> {
     /// Undo last step, and return its group and position.
     fn pop(&mut self) -> Option<(Group, usize)> {
         self.stack.pop().map(|step| {
+            let group = assignment_group(self.kb_def, step.assignment);
+            // unassign group
+            self.unassigned.add(group, 0);
+            // unblock assignments
             while self.blocked.len() > step.blocked_idx {
                 let (assignment, pos) = self.blocked.pop().unwrap();
                 self.add_assignment(assignment, pos);
             }
-            unimplemented!()
+            // return position
+            (group, step.pos)
         })
     }
 
@@ -168,18 +180,6 @@ impl<'a> Generator<'a> {
                 }
             }
         }
-    }
-
-
-    /// Go to next node.
-    fn next(&mut self) -> bool {
-        while let Some((group, pos)) = self.pop() {
-            if self.group_count(group) > pos + 1 {
-                self.step(group, pos + 1);
-                return true;
-            }
-        }
-        return false;
     }
 
     /// How many assignments remain available for given group
@@ -246,6 +246,7 @@ fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>)
         }).collect()
 }
 
+// TODO: move to Assignment
 fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
     match assignment {
         Assignment::Free { free_num, loc_num: _} => {
@@ -296,6 +297,10 @@ impl<D, M> Subset<D, M>
 
     fn get(&self, pos: usize) -> D::Type {
         return self.elems[pos];
+    }
+
+    fn iter<'a>(&'a self) -> impl Iterator<Item = D::Type> + 'a {
+        self.elems.iter().cloned()
     }
 
     fn remove(&mut self, elem: D::Type) {
