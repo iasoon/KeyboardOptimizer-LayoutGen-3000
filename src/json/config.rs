@@ -29,6 +29,7 @@ impl<'a> ConfigData<'a> {
         }
 
         let token_group = try!(token_group(&elements, &groups));
+        let assignment_map = assignment_map(&elements, &groups);
         Ok(KbDef {
             keys: elements.keys,
             layers: elements.layers,
@@ -38,7 +39,9 @@ impl<'a> ConfigData<'a> {
             locks: groups.locks,
 
             assignments: groups.assignments,
+
             token_group: token_group,
+            assignment_map: assignment_map,
         })
     }
 }
@@ -69,4 +72,22 @@ fn token_group(elements: &Elements, groups: &Groups)
         }
     })
 
+}
+
+type AssignmentTable<T> = ComposedDict<Assignment, Num<Assignment>, T,
+                                       AssignmentNum, Table<Assignment, T>>;
+fn assignment_map(elements: &Elements, groups: &Groups)
+                   -> AssignmentTable<Option<Num<AllowedAssignment>>>
+{
+    let num = AssignmentNum {
+        free_count: groups.frees.count(),
+        lock_count: groups.locks.count(),
+        key_count: elements.keys.count(),
+        layer_count: elements.layers.count(),
+    };
+    let mut map = num.map_nums(|_| None).compose(num);
+    for (assignment_num, &assignment) in groups.assignments.enumerate() {
+        *map.get_mut(assignment) = Some(assignment_num);
+    }
+    return map;
 }

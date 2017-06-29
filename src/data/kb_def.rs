@@ -1,6 +1,10 @@
 use cat::*;
 use data::types::*;
 
+// TODO: get rid of this horrendous type
+type AssignmentTable<T> = ComposedDict<Assignment, Num<Assignment>, T,
+                                       AssignmentNum, Table<Assignment, T>>;
+
 pub struct KbDef {
     pub keys: Table<Key, String>,
     pub layers: Table<Layer, String>,
@@ -12,6 +16,7 @@ pub struct KbDef {
     pub assignments: Table<AllowedAssignment, Assignment>,
 
     pub token_group: Table<Token, Group>,
+    pub assignment_map: AssignmentTable<Option<Num<AllowedAssignment>>>,
 }
 
 impl KbDef {
