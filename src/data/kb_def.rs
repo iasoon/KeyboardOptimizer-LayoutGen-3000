@@ -10,6 +10,8 @@ pub struct KbDef {
     pub locks: Table<Lock, Table<Layer, Option<Num<Token>>>>,
 
     pub assignments: Table<AllowedAssignment, Assignment>,
+
+    pub token_group: Table<Token, Group>,
 }
 
 impl KbDef {
