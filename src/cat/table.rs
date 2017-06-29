@@ -24,6 +24,18 @@ impl<D: FiniteDomain, T> Table<D, T> {
     pub fn iter<'t>(&'t self) -> impl Iterator<Item = (Num<D>, &'t T)> {
         self.elems.iter().enumerate().map(|(num, item)| (to_num(num), item))
     }
+
+    // TODO: generalize this function
+    pub fn map_res_with_idx<'t, F, R, E>(&'t self, mut fun: F) -> Result<Table<D, R>, E>
+        where F: FnMut(Num<D>, &'t T) -> Result<R, E>
+    {
+        let mut elems = Vec::with_capacity(self.elems.len());
+        for (num, elem) in self.enumerate() {
+            let res = try!(fun(num, elem));
+            elems.push(res);
+        }
+        Ok(Table::from_vec(elems))
+    }
 }
 
 impl<D: FiniteDomain, T> Dict<Num<D>, T> for Table<D, T> {
