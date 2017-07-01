@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
-use cat::domain::*;
-use cat::mapping::*;
+use cat::types::*;
 
 /// General composition struct.
 /// A: First object to be composed

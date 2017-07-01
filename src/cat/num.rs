@@ -1,13 +1,6 @@
+use cat::types::*;
+
 use std::marker::PhantomData;
-use std::ops::Index;
-
-use cat::mapping::Dict;
-
-pub trait Domain {
-    type Type;
-}
-
-pub trait FiniteDomain: Domain {}
 
 pub struct Num<D: FiniteDomain> {
     num: usize,
