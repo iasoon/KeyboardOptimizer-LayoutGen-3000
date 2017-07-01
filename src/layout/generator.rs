@@ -12,7 +12,7 @@ use layout::*;
 pub struct Generator<'a> {
     kb_def: &'a KbDef,
 
-    frees: Table<Free, Subset<Num<Loc>, Table<Loc, Option<usize>>>>,
+    frees: Table<Free, NumSubset<Loc>>,
     locks: Table<Lock, NumSubset<Key>>,
     unassigned: Subset<Group, ElemTable<Group, GroupNum, Option<usize>>>,
 
