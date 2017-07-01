@@ -18,8 +18,10 @@ pub use self::composed::Composed;
 pub use self::seq::{Seq, SeqIter, SeqNum};
 pub use self::product::{Product, ProductNum};
 
+
 pub use self::table::Table;
 pub use self::seq_table::SeqTable;
+pub type ElemTable<D, M, T> = Composed<M, Num<D>, Table<D, T>>;
 
 // export functions that should usually not be used
 pub mod internal {

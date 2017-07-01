@@ -9,18 +9,12 @@ use errors::*;
 
 use layout::*;
 
-// TODO: try to generalize this pattern
-// abstract away Num<D> <-> D isomorphism, and its composition with a
-// D -> T table.
-type GroupTable<T> = Composed<GroupNum, Num<Group>, Table<Group, T>>;
-
-
 pub struct Generator<'a> {
     kb_def: &'a KbDef,
 
     frees: Table<Free, Subset<Num<Loc>, Table<Loc, Option<usize>>>>,
     locks: Table<Lock, NumSubset<Key>>,
-    unassigned: Subset<Group, GroupTable<Option<usize>>>,
+    unassigned: Subset<Group, ElemTable<Group, GroupNum, Option<usize>>>,
 
     /// The stack describes the path taken to get to the current position.
     stack: Vec<Step>,

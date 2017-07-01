@@ -1,8 +1,7 @@
 use cat::*;
 use data::types::*;
 
-// TODO: get rid of this horrendous type
-type AssignmentTable<T> = Composed<AssignmentNum, Num<Assignment>, Table<Assignment, T>>;
+type AssignmentTable<T> = ElemTable<Assignment, AssignmentNum, T>;
 
 pub struct KbDef {
     pub keys: Table<Key, String>,
