@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use cat::domain::*;
-use cat::composed::ComposedDict;
+use cat::composed::Composed;
 
 /// A mapping from a domain to a value
 pub trait Mapping<D: Domain, T>
@@ -15,11 +15,11 @@ pub trait Dict<D: Domain, T: ?Sized> {
     fn get<'t>(&'t self, elem: D::Type) -> &'t T;
     fn get_mut<'t>(&'t mut self, elem: D::Type) -> &'t mut T;
 
-    fn compose<S, M>(self, mapping: M) -> ComposedDict<S, D, T, M, Self>
+    fn compose<S, M>(self, mapping: M) -> Composed<M, D, Self>
         where M: Mapping<S, D::Type>,
               Self: Sized,
               S: Domain
     {
-        ComposedDict::new(mapping, self)
+        Composed::new(mapping, self)
     }
 }

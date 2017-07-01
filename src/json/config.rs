@@ -74,8 +74,7 @@ fn token_group(elements: &Elements, groups: &Groups)
 
 }
 
-type AssignmentTable<T> = ComposedDict<Assignment, Num<Assignment>, T,
-                                       AssignmentNum, Table<Assignment, T>>;
+type AssignmentTable<T> = Composed<AssignmentNum, Num<Assignment>, Table<Assignment, T>>;
 fn assignment_map(elements: &Elements, groups: &Groups)
                    -> AssignmentTable<Option<Num<AllowedAssignment>>>
 {

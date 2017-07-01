@@ -2,8 +2,7 @@ use cat::*;
 use data::types::*;
 
 // TODO: get rid of this horrendous type
-type AssignmentTable<T> = ComposedDict<Assignment, Num<Assignment>, T,
-                                       AssignmentNum, Table<Assignment, T>>;
+type AssignmentTable<T> = Composed<AssignmentNum, Num<Assignment>, Table<Assignment, T>>;
 
 pub struct KbDef {
     pub keys: Table<Key, String>,

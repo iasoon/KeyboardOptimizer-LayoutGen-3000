@@ -3,51 +3,42 @@ use std::marker::PhantomData;
 use cat::domain::*;
 use cat::mapping::*;
 
-/// Precomposition of a Mapping with a Dict
-/// i.e. first apply mapping, then lookup in dict
-pub struct ComposedDict<S, X, T: ?Sized, M, D>
-    where M: Mapping<S, X::Type>,
-          D: Dict<X, T>,
-          S: Domain,
-          X: Domain
+/// General composition struct.
+/// A: First object to be composed
+/// D: Intermediary domain: A maps to this, B maps from this
+/// B: Second object to be composed
+pub struct Composed<A, D, B>
 {
-    mapping: M,
-    dict: D,
-    phantom_s: PhantomData<S>,
-    phantom_x: PhantomData<X>,
-    phantom_t: PhantomData<T>,
+    fst: A,
+    phantom_d: PhantomData<D>,
+    snd: B,
 }
 
-impl<S, X, T: ?Sized, M, D> ComposedDict<S, X, T, M, D>
-    where M: Mapping<S, X::Type>,
-          D: Dict<X, T>,
-          S: Domain,
-          X: Domain
+impl<A, D, B> Composed<A, D, B>
+    where D: Domain,
 {
-    pub fn new(mapping: M, dict: D) -> Self {
-        ComposedDict {
-            mapping: mapping,
-            dict: dict,
-            phantom_s: PhantomData,
-            phantom_x: PhantomData,
-            phantom_t: PhantomData,
+    pub fn new(fst: A, snd: B) -> Self {
+        Composed {
+            fst: fst,
+            phantom_d: PhantomData,
+            snd: snd,
         }
     }
 }
 
-impl<S, X, T, M, D> Dict<S, T> for ComposedDict<S, X, T, M, D>
+impl<S, T, X, M, D> Dict<S, T> for Composed<M, X, D>
     where M: Mapping<S, X::Type>,
           D: Dict<X, T>,
+          X: Domain,
           S: Domain,
-          X: Domain
 {
     fn get<'t>(&'t self, elem: S::Type) -> &'t T {
-        let d = self.mapping.apply(elem);
-        return self.dict.get(d);
+        let d = self.fst.apply(elem);
+        return self.snd.get(d);
     }
 
     fn get_mut<'t>(&'t mut self, elem: S::Type) -> &'t mut T {
-        let d = self.mapping.apply(elem);
-        return self.dict.get_mut(d);
+        let d = self.fst.apply(elem);
+        return self.snd.get_mut(d);
     }
 }
