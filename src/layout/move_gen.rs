@@ -1,68 +1,64 @@
-use layout::{Layout, Assignment, AssignmentResolver};
-use model::{KbDef, LockId, KeyId};
-use utils::{Enumerator, LookupTable};
+use data::*;
+use cat::*;
 
-pub struct Moves<'a> {
-    layout: &'a Layout<'a>,
+use layout::*;
 
-    enumerator: Enumerator<(LockId, KeyId)>,
-    assignment_used: LookupTable<(LockId, KeyId), bool>,
+pub struct MoveBuilder<'a> {
+    kb_def: &'a KbDef,
+
+    keymap: &'a Keymap,
+    token_map: &'a TokenMap,
+
+    assignment_used: &'a mut ElemTable<Assignment, AssignmentNum, bool>,
+    assignments: Vec<Assignment>,
 }
 
-impl<'a> Moves<'a> {
-    pub fn new(layout: &'a Layout) -> Self {
-        let data = (layout.kb_def.locks.elem_count(), layout.kb_def.keys.elem_count());
-        Moves {
-            layout: layout,
-
-            enumerator: Enumerator::new(data.clone()),
-            assignment_used: LookupTable::new(data, false),
+impl<'a> MoveBuilder<'a> {
+    fn build(mut self) -> Vec<Assignment> {
+        let mut pos = 0;
+        while pos < self.assignments.len() {
+            let assignment = self.assignments[pos];
+            self.assign(self.kb_def, assignment);
+            pos += 1;
         }
+        return self.assignments;
     }
 
-    fn generate_move(&mut self, lock_id: LockId, key_id: KeyId) -> Vec<Assignment> {
-        let mv = self.mk_move(lock_id, key_id);
-        self.visit_move(&mv);
-        return mv;
+    fn queue_assignment(&mut self, assignment: Assignment) {
+        *self.assignment_used.get_mut(assignment) = true;
+        self.assignments.push(assignment);
     }
 
-    fn mk_move(&self, lock_id: LockId, key_id: KeyId) -> Vec<Assignment> {
-        let mut resolver = AssignmentResolver::new(&self.layout.keymap,
-                                                   &self.layout.token_map,
-                                                   self.layout.kb_def);
-        resolver.assign_lock(lock_id, key_id);
-        return resolver.resolve();
-    }
-
-    fn visit_move(&mut self, assignments: &Vec<Assignment>) {
-        for &assignment in assignments.iter() {
-            if let Assignment::Lock { lock_id, key_id } = assignment {
-                self.assignment_used[(lock_id, key_id)] = true;
+    /// Get assignment that will move token_num to loc_num
+    fn get_assignment(&self, token_num: Num<Token>, loc_num: Num<Loc>)
+                      -> Assignment
+    {
+        match self.kb_def.token_group.get(token_num) {
+            &Group::Free(free_num) => {
+                Assignment::Free {
+                    free_num: free_num,
+                    loc_num: loc_num,
+                }
+            },
+            &Group::Lock(lock_num) => {
+                let loc: Loc = self.kb_def.loc_num().apply(loc_num);
+                Assignment::Lock {
+                    lock_num: lock_num,
+                    key_num: loc.key_num,
+                }
             }
         }
     }
-
-    fn assignment_valid(&self, lock_id: LockId, key_id: KeyId) -> bool {
-        !self.assignment_used[(lock_id, key_id)] && !self.assignment_fulfilled(lock_id, key_id)
-    }
-
-    fn assignment_fulfilled(&self, lock_id: LockId, key_id: KeyId) -> bool {
-        let group_id = self.layout.kb_def.lock_group[lock_id];
-        return self.layout.group_map[group_id] == key_id;
-    }
 }
 
+impl<'a> Assignable for MoveBuilder<'a> {
+    fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {
+        if let &Some(replaced) = self.keymap.get(loc_num) {
+            let assignment = self.get_assignment(replaced, loc_num);
 
-impl<'a> Iterator for Moves<'a> {
-    type Item = Vec<Assignment>;
-
-    fn next(&mut self) -> Option<Vec<Assignment>> {
-        while let Some((lock_id, key_id)) = self.enumerator.next() {
-
-            if self.assignment_valid(lock_id, key_id) {
-                return Some(self.generate_move(lock_id, key_id));
+            if !self.assignment_used.get(assignment) {
+                self.queue_assignment(assignment);
             }
         }
-        return None;
     }
 }
