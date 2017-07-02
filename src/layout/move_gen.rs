@@ -6,6 +6,7 @@ use layout::*;
 /// In order to generate correct moves, all lock-assignments should be visited
 /// first, then all free-assignments. The easiest way to accomplish this is to
 /// make sure that AllowedAssignments are ordered in this way.
+/// See further below for more information.
 pub struct MoveGen<'a> {
     kb_def: &'a KbDef,
     keymap: &'a Keymap,
@@ -97,8 +98,12 @@ impl<'a> MoveBuilder<'a> {
 
     /// Get assignment that will move token_num to loc_num.
     /// When swapping a free with a lock, free tokens should never change layer,
-    /// as this opens doors to all kinds of difficult situations.
-    /// This method assumes that this never happens.
+    /// as this opens doors to all kinds of situations that are difficult to
+    /// deal with.
+    /// It is both faster and easier to just create valid situations, instead
+    /// of creating problems and then trying to solve them.
+    /// In short, this method assumes a free token never changes layers when
+    /// swapping with a lock.
     fn get_assignment(&self, token_num: Num<Token>, loc_num: Num<Loc>)
                       -> Assignment
     {
