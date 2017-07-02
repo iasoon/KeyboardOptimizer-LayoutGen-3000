@@ -3,15 +3,26 @@ use cat::*;
 
 use layout::*;
 
+/// In order to generate correct moves, all lock-assignments should be visited
+/// first, then all free-assignments. The easiest way to accomplish this is to
+/// make sure that AllowedAssignments are ordered in this way.
 pub struct MoveGen<'a> {
     kb_def: &'a KbDef,
     keymap: &'a Keymap,
     assignment_used: ElemTable<Assignment, AssignmentNum, bool>,
+
+    enumerator: Enumerator<AllowedAssignment>,
 }
 
 impl<'a> MoveGen<'a> {
     fn next_assignment(&mut self) -> Option<Assignment> {
-        unimplemented!()
+        while let Some(assignment_num) = self.enumerator.next() {
+            let &assignment = self.kb_def.assignments.get(assignment_num);
+            if !self.assignment_used.get(assignment) {
+                return Some(assignment);
+            }
+        }
+        return None;
     }
 
     fn next_move(&mut self) -> Option<Vec<Assignment>> {

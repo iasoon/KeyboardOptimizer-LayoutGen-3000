@@ -12,7 +12,7 @@ mod table;
 pub mod ops;
 
 pub use self::types::*;
-pub use self::has_count::{HasCount, Count, ElemEnumerator};
+pub use self::has_count::{HasCount, Count, Enumerator, ElemEnumerator};
 pub use self::num::Num;
 pub use self::composed::Composed;
 pub use self::seq::{Seq, SeqIter, SeqNum};
