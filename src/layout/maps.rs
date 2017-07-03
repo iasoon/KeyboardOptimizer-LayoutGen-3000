@@ -4,6 +4,7 @@ use cat::*;
 use layout::assignable::Assignable;
 
 pub type Keymap = Table<Loc, Option<Num<Token>>>;
+pub type TokenMap = Table<Token, Num<Loc>>;
 
 impl Assignable for Keymap {
     fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {
