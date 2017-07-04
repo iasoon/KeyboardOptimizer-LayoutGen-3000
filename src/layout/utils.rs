@@ -18,6 +18,15 @@ pub struct IndexedList<D, I>
 impl<D> IndexedList<Num<D>, Table<D, Option<usize>>>
     where D: FiniteDomain
 {
+
+    pub fn complete(count: Count<D>) -> Self {
+        IndexedList {
+            elems: count.nums().collect(),
+            // nums are yielded in order
+            idxs: count.map_nums(|num| Some(num.as_usize())),
+        }
+    }
+
     pub fn empty(count: Count<D>) -> Self {
         let index = count.map_nums(|_| None);
         IndexedList {
@@ -45,8 +54,20 @@ impl<D, I> IndexedList<D, I>
         }
     }
 
+    pub fn next(&self) -> Option<D::Type> {
+        if self.elems.len() > 0 {
+            Some(self.get(0))
+        } else {
+            None
+        }
+    }
+
     pub fn get(&self, pos: usize) -> D::Type {
         return self.elems[pos];
+    }
+
+    pub fn contains(&self, elem: D::Type) -> bool {
+        self.idxs.get(elem).is_some()
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = D::Type> + 'a {

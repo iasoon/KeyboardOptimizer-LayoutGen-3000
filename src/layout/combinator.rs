@@ -1,10 +1,11 @@
-use model::*;
-use utils::{LookupTable, BoundedSubset};
-use layout::mk_keymap;
+use data::*;
+use cat::*;
 
-#[derive(Debug)]
+use layout::utils::Subset;
+use layout::maps::*;
+
 pub struct Cycle {
-    tokens: Vec<TokenId>,
+    tokens: Vec<Num<Token>>,
 }
 
 impl Cycle {
@@ -30,11 +31,6 @@ impl Cycle {
 //     self.keymaps[1].cycle_swap(loc_a, token_id);
 // }
 
-type Keymap = LookupTable<Loc, Option<TokenId>>;
-pub type TokenMap = LookupTable<TokenId, Loc>;
-
-type TokenSet = BoundedSubset<TokenId>;
-
 pub struct LayoutPair<'a> {
     keymaps: [Keymap; 2],
     token_maps: [&'a TokenMap; 2],
@@ -42,30 +38,26 @@ pub struct LayoutPair<'a> {
 }
 
 impl<'a> LayoutPair<'a> {
-    pub fn new(fst_map: &'a TokenMap, snd_map: &'a TokenMap, kb_def: &'a KbDef) -> Self {
-        LayoutPair {
-            keymaps: [mk_keymap(fst_map, kb_def), mk_keymap(snd_map, kb_def)],
-            token_maps: [fst_map, snd_map],
-            kb_def: kb_def,
-        }
-    }
-
-    fn differing_tokens(&self) -> TokenSet {
-        let mut token_set = self.kb_def.tokens.subset();
-        for token_id in self.kb_def.tokens.ids() {
-            if self.token_maps[0][token_id] == self.token_maps[1][token_id] {
-                token_set.remove(token_id);
+    fn differing_tokens(&self) -> Subset<Token> {
+        let mut token_set = Subset::complete(self.kb_def.tokens.count());
+        for token_num in self.kb_def.tokens.nums() {
+            let fst = self.token_maps[0].get(token_num);
+            let snd = self.token_maps[1].get(token_num);
+            if fst == snd {
+                token_set.remove(token_num);
             }
         }
         return token_set;
     }
 
-    fn cycle_next(&self, token_id: TokenId) -> Option<TokenId> {
-        self.keymaps[1][self.token_maps[0][token_id]]
+    fn cycle_next(&self, token_num: Num<Token>) -> Option<Num<Token>> {
+        let loc_num = *self.token_maps[0].get(token_num);
+        return *self.keymaps[1].get(loc_num);
     }
 
-    fn cycle_prev(&self, token_id: TokenId) -> Option<TokenId> {
-        self.keymaps[0][self.token_maps[1][token_id]]
+    fn cycle_prev(&self, token_num: Num<Token>) -> Option<Num<Token>> {
+        let loc_num = *self.token_maps[1].get(token_num);
+        return *self.keymaps[0].get(loc_num);
     }
 
     pub fn cycles<'b: 'a>(&'b self) -> Cycles<'b> {
@@ -78,14 +70,14 @@ impl<'a> LayoutPair<'a> {
 
 struct Cycles<'a> {
     layout_pair: &'a LayoutPair<'a>,
-    unvisited: TokenSet,
+    unvisited: Subset<Token>,
 }
 
 impl<'a> Iterator for Cycles<'a> {
     type Item = Cycle;
 
     fn next(&mut self) -> Option<Cycle> {
-        self.unvisited.first().map(|start| {
+        self.unvisited.next().map(|start| {
             CycleBuilder::new(&self.layout_pair, &mut self.unvisited).mk_cycle(start)
         })
     }
@@ -93,13 +85,13 @@ impl<'a> Iterator for Cycles<'a> {
 
 struct CycleBuilder<'a> {
     layout_pair: &'a LayoutPair<'a>,
-    unvisited: &'a mut TokenSet,
-    cycle: Vec<TokenId>,
+    unvisited: &'a mut Subset<Token>,
+    cycle: Vec<Num<Token>>,
     pos: usize,
 }
 
 impl<'a> CycleBuilder<'a> {
-    fn new(layout_pair: &'a LayoutPair, unvisited: &'a mut TokenSet) -> Self {
+    fn new(layout_pair: &'a LayoutPair, unvisited: &'a mut Subset<Token>) -> Self {
         CycleBuilder {
             layout_pair: layout_pair,
             unvisited: unvisited,
@@ -108,7 +100,7 @@ impl<'a> CycleBuilder<'a> {
         }
     }
 
-    fn mk_cycle(mut self, start: TokenId) -> Cycle {
+    fn mk_cycle(mut self, start: Num<Token>) -> Cycle {
         self.visit_group(start);
         self.build();
         return Cycle { tokens: self.cycle };
@@ -116,39 +108,41 @@ impl<'a> CycleBuilder<'a> {
 
     fn build(&mut self) {
         while self.pos < self.cycle.len() {
-            let token_id = self.cycle[self.pos];
-            self.visit_neighbours(token_id);
+            let token_num = self.cycle[self.pos];
+            self.visit_neighbours(token_num);
             self.pos += 1;
         }
     }
 
-    fn visit_neighbours(&mut self, token_id: TokenId) {
-        if let Some(t) = self.layout_pair.cycle_next(token_id) {
+    fn visit_neighbours(&mut self, token_num: Num<Token>) {
+        if let Some(t) = self.layout_pair.cycle_next(token_num) {
             self.visit_group(t);
         }
-        if let Some(t) = self.layout_pair.cycle_prev(token_id) {
+        if let Some(t) = self.layout_pair.cycle_prev(token_num) {
             self.visit_group(t);
         }
     }
 
-    fn visit_group(&mut self, token_id: TokenId) {
-        let group_id = self.layout_pair.kb_def.token_group[token_id];
-        match self.layout_pair.kb_def.groups[group_id] {
-            Group::Free(_) => self.visit_token(token_id),
-            Group::Locked(lock_id) => self.visit_lock(lock_id),
+    fn visit_group(&mut self, token_num: Num<Token>) {
+        match self.layout_pair.kb_def.token_group.get(token_num) {
+            &Group::Free(_) => self.visit_token(token_num),
+            &Group::Lock(lock_num) => self.visit_lock(lock_num),
         }
     }
 
-    fn visit_lock(&mut self, lock_id: LockId) {
-        for token_id in self.layout_pair.kb_def.locks[lock_id].members() {
-            self.visit_token(token_id);
+    fn visit_lock(&mut self, lock_num: Num<Lock>) {
+        let lock = self.layout_pair.kb_def.locks.get(lock_num);
+        for (_, &value) in lock.enumerate() {
+            if let Some(token_num) = value {
+                self.visit_token(token_num);
+            }
         }
     }
 
-    fn visit_token(&mut self, token_id: TokenId) {
-        if self.unvisited.contains(token_id) {
-            self.cycle.push(token_id);
-            self.unvisited.remove(token_id);
+    fn visit_token(&mut self, token_num: Num<Token>) {
+        if self.unvisited.contains(token_num) {
+            self.cycle.push(token_num);
+            self.unvisited.remove(token_num);
         }
     }
 }
