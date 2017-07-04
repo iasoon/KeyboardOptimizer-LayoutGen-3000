@@ -43,6 +43,14 @@ impl<D: FiniteDomain> Count<D> {
     }
 }
 
+impl<D> HasCount<D> for Count<D>
+    where D: FiniteDomain
+{
+    fn count(&self) -> Count<D> {
+        self.clone()
+    }
+}
+
 impl<D: FiniteDomain> Clone for Count<D> {
     fn clone(&self) -> Self {
         Count {

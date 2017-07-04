@@ -37,20 +37,8 @@ impl<'a> Generator<'a> {
     // find a proper way to initialize subsets, and make fields private.
     pub fn new(kb_def: &'a KbDef) -> Self {
         let mut generator = Generator {
-            frees: kb_def.frees.map(|_| {
-                Subset {
-                    elems: Vec::with_capacity(kb_def.loc_num().count().as_usize()),
-                    idxs: kb_def.loc_num().map_nums(|_| None),
-                }
-            }),
-
-            locks: kb_def.locks.map(|_| {
-                Subset {
-                    elems: Vec::with_capacity(kb_def.keys.count().as_usize()),
-                    idxs: kb_def.keys.map_nums(|_| None),
-                }
-            }),
-
+            frees: kb_def.frees.map(|_| Subset::empty(kb_def.loc_num().count())),
+            locks: kb_def.locks.map(|_| Subset::empty(kb_def.keys.count())),
             unassigned: IndexedList {
                 elems: Vec::with_capacity(kb_def.group_num().count().as_usize()),
                 idxs: kb_def.group_num()

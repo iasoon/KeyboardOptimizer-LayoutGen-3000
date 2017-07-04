@@ -18,10 +18,10 @@ pub struct IndexedList<D, I>
 impl<D> IndexedList<Num<D>, Table<D, Option<usize>>>
     where D: FiniteDomain
 {
-    pub fn empty(universe: Table<D, D::Type>) -> Self {
-        let index = universe.map(|_| None);
+    pub fn empty(count: Count<D>) -> Self {
+        let index = count.map_nums(|_| None);
         IndexedList {
-            elems: Vec::with_capacity(universe.count().as_usize()),
+            elems: Vec::with_capacity(count.as_usize()),
             idxs: index,
         }
     }
@@ -73,7 +73,10 @@ impl<D, I> IndexedList<D, I>
     pub fn shuffle(&mut self) {
         let mut rng = thread_rng();
         rng.shuffle(self.elems.as_mut_slice());
-        // fix index
+        self.fix_index();
+    }
+
+    fn fix_index(&mut self) {
         for (idx, &elem) in self.elems.iter().enumerate() {
             *self.idxs.get_mut(elem) = Some(idx);
         }
