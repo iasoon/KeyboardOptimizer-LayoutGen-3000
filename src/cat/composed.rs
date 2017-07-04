@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use cat::types::*;
+use cat::has_count::*;
 
 /// General composition struct.
 /// A: First object to be composed

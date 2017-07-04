@@ -1,6 +1,4 @@
-use rand::{thread_rng, Rng};
 use std::vec::Vec;
-use std::mem;
 
 use data::*;
 use cat::*;
@@ -8,13 +6,16 @@ use cat::ops::*;
 use errors::*;
 
 use layout::*;
+use layout::utils::{Subset, IndexedList};
 
 pub struct Generator<'a> {
     kb_def: &'a KbDef,
 
-    frees: Table<Free, NumSubset<Loc>>,
-    locks: Table<Lock, NumSubset<Key>>,
-    unassigned: Subset<Group, ElemTable<Group, GroupNum, Option<usize>>>,
+    frees: Table<Free, Subset<Loc>>,
+    locks: Table<Lock, Subset<Key>>,
+    // TODO: abstract away this pattern
+    // (ElemTable<D, D->Num<D>, T>)
+    unassigned: IndexedList<Group, ElemTable<Group, GroupNum, Option<usize>>>,
 
     /// The stack describes the path taken to get to the current position.
     stack: Vec<Step>,
@@ -33,6 +34,7 @@ struct Step {
 
 impl<'a> Generator<'a> {
     // TODO: eww.
+    // find a proper way to initialize subsets, and make fields private.
     pub fn new(kb_def: &'a KbDef) -> Self {
         let mut generator = Generator {
             frees: kb_def.frees.map(|_| {
@@ -49,7 +51,7 @@ impl<'a> Generator<'a> {
                 }
             }),
 
-            unassigned: Subset {
+            unassigned: IndexedList {
                 elems: Vec::with_capacity(kb_def.group_num().count().as_usize()),
                 idxs: kb_def.group_num()
                     .map_nums(|_| None)
@@ -280,77 +282,5 @@ fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
     match assignment {
         Assignment::Free { free_num, loc_num: _ } => Group::Free(free_num),
         Assignment::Lock { lock_num, key_num: _ } => Group::Lock(lock_num),
-    }
-}
-
-type NumSubset<D> = Subset<Num<D>, Table<D, Option<usize>>>;
-
-struct Subset<D, M>
-    where M: Dict<D, Option<usize>>,
-          D: FiniteDomain
-{
-    // elements currently in this subset
-    elems: Vec<D::Type>,
-    // maps an element to its index
-    idxs: M,
-}
-
-impl<D, M> Subset<D, M>
-    where M: Dict<D, Option<usize>>,
-          D::Type: Copy,
-          D: FiniteDomain
-{
-    fn empty(count: Count<D>, dict: M) -> Self {
-        Subset {
-            elems: Vec::with_capacity(count.as_usize()),
-            idxs: dict,
-        }
-    }
-
-    fn add(&mut self, mut elem: D::Type, pos: usize) {
-        if self.idxs.get(elem).is_none() {
-            // swap elem and element in target position
-            if pos < self.elems.len() {
-                *self.idxs.get_mut(elem.clone()) = Some(pos);
-                mem::swap(&mut elem, &mut self.elems[pos]);
-            }
-            // push elem to elems
-            *self.idxs.get_mut(elem) = Some(self.elems.len());
-            self.elems.push(elem);
-        }
-    }
-
-    fn get(&self, pos: usize) -> D::Type {
-        return self.elems[pos];
-    }
-
-    fn iter<'a>(&'a self) -> impl Iterator<Item = D::Type> + 'a {
-        self.elems.iter().cloned()
-    }
-
-    // returns index the element used to have
-    fn remove(&mut self, elem: D::Type) -> Option<usize> {
-        if let Some(idx) = self.idxs.get_mut(elem).take() {
-            self.elems.swap_remove(idx);
-            if idx < self.elems.len() {
-                *self.idxs.get_mut(self.elems[idx]) = Some(idx);
-            }
-            return Some(idx);
-        } else {
-            return None;
-        }
-    }
-
-    fn size(&self) -> usize {
-        self.elems.len()
-    }
-
-    fn shuffle(&mut self) {
-        let mut rng = thread_rng();
-        rng.shuffle(self.elems.as_mut_slice());
-        // fix index
-        for (idx, &elem) in self.elems.iter().enumerate() {
-            *self.idxs.get_mut(elem) = Some(idx);
-        }
     }
 }
