@@ -29,10 +29,12 @@ pub struct ProductNum<Maj, Min>
     pub minor_count: Count<Min>,
 }
 
-impl<Maj, Min> Mapping<Product<Maj, Min>, Num<Product<Maj, Min>>> for ProductNum<Maj, Min>
+impl<Maj, Min> Mapping<Product<Maj, Min>> for ProductNum<Maj, Min>
     where Maj: FiniteDomain,
           Min: FiniteDomain
 {
+    type Target = Num<Product<Maj, Min>>;
+
     fn apply(&self, elem: (Num<Maj>, Num<Min>)) -> Num<Product<Maj, Min>> {
         let (maj_num, min_num) = elem;
         let maj_component = self.minor_count.as_usize() * maj_num.as_usize();
@@ -41,10 +43,12 @@ impl<Maj, Min> Mapping<Product<Maj, Min>, Num<Product<Maj, Min>>> for ProductNum
     }
 }
 
-impl<Maj, Min> Mapping<Num<Product<Maj, Min>>, (Num<Maj>, Num<Min>)> for ProductNum<Maj, Min>
+impl<Maj, Min> Mapping<Num<Product<Maj, Min>>> for ProductNum<Maj, Min>
     where Maj: FiniteDomain,
           Min: FiniteDomain
 {
+    type Target = Product<Maj, Min>;
+
     fn apply(&self, num: Num<Product<Maj, Min>>) -> (Num<Maj>, Num<Min>) {
         let maj_num = num.as_usize() / self.minor_count.as_usize();
         let min_num = num.as_usize() % self.minor_count.as_usize();

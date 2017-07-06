@@ -38,6 +38,7 @@ impl<D: FiniteDomain> PartialEq for Num<D> {
 
 impl<D: FiniteDomain> Eq for Num<D> {}
 
+
 pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {
     Num {
         num: num,

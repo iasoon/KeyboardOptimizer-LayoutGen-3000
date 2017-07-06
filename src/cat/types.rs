@@ -8,9 +8,11 @@ pub trait Domain {
 pub trait FiniteDomain: Domain {}
 
 /// A mapping from a domain to a value
-pub trait Mapping<D: Domain, T>
+pub trait Mapping<D: Domain>
 {
-    fn apply(&self, elem: D::Type) -> T;
+    type Target: Domain;
+
+    fn apply(&self, elem: D::Type) -> <Self::Target as Domain>::Type;
 }
 
 /// A mapping that stores its values
@@ -19,8 +21,8 @@ pub trait Dict<D: Domain, T: ?Sized> {
     fn get<'t>(&'t self, elem: D::Type) -> &'t T;
     fn get_mut<'t>(&'t mut self, elem: D::Type) -> &'t mut T;
 
-    fn compose<S, M>(self, mapping: M) -> Composed<M, D, Self>
-        where M: Mapping<S, D::Type>,
+    fn compose<S, M>(self, mapping: M) -> Composed<M, Self>
+        where M: Mapping<S, Target = D>,
               Self: Sized,
               S: Domain
     {

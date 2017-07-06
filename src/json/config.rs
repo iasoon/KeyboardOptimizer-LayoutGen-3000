@@ -74,7 +74,7 @@ fn token_group(elements: &Elements, groups: &Groups)
 
 }
 
-type AssignmentTable<T> = Composed<AssignmentNum, Num<Assignment>, Table<Assignment, T>>;
+type AssignmentTable<T> = Composed<AssignmentNum, Table<Assignment, T>>;
 fn assignment_map(elements: &Elements, groups: &Groups)
                    -> AssignmentTable<Option<Num<AllowedAssignment>>>
 {

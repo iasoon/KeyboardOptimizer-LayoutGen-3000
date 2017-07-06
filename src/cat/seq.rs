@@ -7,32 +7,25 @@ use cat::internal::to_num;
 /// Since it is not possible to parametrically fixate a length for these
 /// sequences, impls for this type are a bit liberal and instead rely on
 /// programmer discipline.
-pub struct Seq<'e, D, I>
-    where I: IntoIterator<Item = D::Type>,
-          D: Domain + 'e
-{
-    phantom_d: PhantomData<&'e D>,
-    phantom_i: PhantomData<I>,
+pub struct Seq<D> {
+    phantom: PhantomData<D>,
 }
 
-impl<'e, D, I> Domain for Seq<'e, D, I>
-    where I: IntoIterator<Item = D::Type>,
-          D: Domain + 'e
+impl<D> Domain for Seq<D>
+    where D: Domain
 {
-    type Type = I;
+    type Type = Vec<D>;
 }
 
 /// This implementation is purposely left a bit vague; for the domain of
 /// sequences to be finite, one should constrain it, for example by using a
 /// fixed length, or a maximum length.
-impl<'e, D, I> FiniteDomain for Seq<'e, D, I>
-    where I: IntoIterator<Item = D::Type>,
-          D: FiniteDomain + 'e
-{
-}
+impl<D> FiniteDomain for Seq<D>
+    where D: FiniteDomain
+{}
 
-impl<'e, D> Seq<'e, D, Vec<D::Type>>
-    where D: FiniteDomain + 'e
+impl<D> Seq<D>
+    where D: FiniteDomain
 {
     pub fn iter(count: Count<D>, len: usize) -> SeqIter<D> {
         SeqIter::new(count, len)
@@ -81,26 +74,26 @@ impl<D: FiniteDomain> Iterator for SeqIter<D> {
 }
 
 
-/// Maps a seq to its number, for the corresponding fixed-length Seq domain.
+// /// Maps a seq to its number, for the corresponding fixed-length Seq domain.
 pub struct SeqNum<D: FiniteDomain> {
     count: Count<D>,
 }
 
-impl<D: FiniteDomain> SeqNum<D> {
-    pub fn new(count: Count<D>) -> Self {
-        SeqNum {
-            count: count,
-        }
-    }
-}
+// impl<D: FiniteDomain> SeqNum<D> {
+//     pub fn new(count: Count<D>) -> Self {
+//         SeqNum {
+//             count: count,
+//         }
+//     }
+// }
 
-impl<'s1, 's2, D, I1, I2> Mapping<Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D, I2>>> for SeqNum<D>
-    where I1: IntoIterator<Item = Num<D>> + 's1,
-          I2: IntoIterator<Item = D::Type> + 's2,
-          D: FiniteDomain + 's1 + 's2
-{
-    fn apply(&self, seq: I1) -> Num<Seq<'s2, D, I2>> {
-        let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
-        return to_num(num);
-    }
-}
+// impl<'s1, 's2, D, I1, I2> Mapping<Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D, I2>>> for SeqNum<D>
+//     where I1: IntoIterator<Item = Num<D>> + 's1,
+//           I2: IntoIterator<Item = D::Type> + 's2,
+//           D: FiniteDomain + 's1 + 's2
+// {
+//     fn apply(&self, seq: I1) -> Num<Seq<'s2, D, I2>> {
+//         let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
+//         return to_num(num);
+//     }
+// }

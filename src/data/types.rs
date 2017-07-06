@@ -62,7 +62,9 @@ impl HasCount<Loc> for LocNum {
     }
 }
 
-impl Mapping<Loc, Num<Loc>> for LocNum {
+impl Mapping<Loc> for LocNum {
+    type Target = Num<Loc>;
+
     fn apply(&self, loc: Loc) -> Num<Loc> {
         let num: Num<Product<Layer, Key>> = self.as_product().apply(
             (loc.layer_num, loc.key_num));
@@ -70,7 +72,8 @@ impl Mapping<Loc, Num<Loc>> for LocNum {
     }
 }
 
-impl Mapping<Num<Loc>, Loc> for LocNum {
+impl Mapping<Num<Loc>> for LocNum {
+    type Target = Loc;
     fn apply(&self, num: Num<Loc>) -> Loc {
         let prod_num = cat::internal::to_num(num.as_usize());
         let (layer_num, key_num) = self.as_product().apply(prod_num);
@@ -127,7 +130,8 @@ pub struct GroupNum {
     pub lock_count: Count<Lock>,
 }
 
-impl Mapping<Num<Group>, Group> for GroupNum {
+impl Mapping<Num<Group>> for GroupNum {
+    type Target = Group;
     fn apply(&self, num: Num<Group>) -> Group {
         if num.as_usize() < self.free_count.as_usize() {
             Group::Free(cat::internal::to_num(num.as_usize()))
@@ -138,7 +142,9 @@ impl Mapping<Num<Group>, Group> for GroupNum {
     }
 }
 
-impl Mapping<Group, Num<Group>> for GroupNum {
+impl Mapping<Group> for GroupNum {
+    type Target = Num<Group>;
+
     fn apply(&self, group: Group) -> Num<Group> {
         match group {
             Group::Free(free_num) => {
@@ -218,7 +224,9 @@ impl HasCount<Assignment> for AssignmentNum {
     }
 }
 
-impl Mapping<Assignment, Num<Assignment>> for AssignmentNum {
+impl Mapping<Assignment> for AssignmentNum {
+    type Target = Num<Assignment>;
+
     fn apply(&self, assignment: Assignment) -> Num<Assignment> {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
