@@ -224,7 +224,7 @@ fn overlaps(kb_def: &KbDef, assignment: Assignment) -> Vec<Assignment> {
 }
 
 fn free_overlaps(kb_def: &KbDef, loc_num: Num<Loc>) -> Vec<Assignment> {
-    let loc: Loc = kb_def.loc_num().apply(loc_num);
+    let loc = kb_def.loc_num().apply(loc_num);
     kb_def.assignments
         .enumerate()
         .map(|(_, &assignment)| assignment)
@@ -250,7 +250,7 @@ fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>) -> Vec<
         .filter(|&assignment| {
             match assignment {
                 Assignment::Free { free_num: _, loc_num } => {
-                    let loc: Loc = kb_def.loc_num().apply(loc_num);
+                    let loc = kb_def.loc_num().apply(loc_num);
                     key_num == loc.key_num && lock.get(loc.layer_num).is_some()
                 }
                 Assignment::Lock { lock_num: loc2_num, key_num: key2_num } => {

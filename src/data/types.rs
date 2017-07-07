@@ -66,8 +66,7 @@ impl Mapping<Loc> for LocNum {
     type Result = Num<Loc>;
 
     fn apply(&self, loc: Loc) -> Num<Loc> {
-        let num: Num<Product<Layer, Key>> = self.as_product().apply(
-            (loc.layer_num, loc.key_num));
+        let num = self.as_product().apply((loc.layer_num, loc.key_num));
         return cat::internal::to_num(num.as_usize());
     }
 }
@@ -230,13 +229,11 @@ impl Mapping<Assignment> for AssignmentNum {
     fn apply(&self, assignment: Assignment) -> Num<Assignment> {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
-                let num: Num<Product<Free, Loc>>
-                    = self.free_product().apply((free_num, loc_num));
+                let num = self.free_product().apply((free_num, loc_num));
                 cat::internal::to_num(num.as_usize())
             },
             Assignment::Lock { lock_num, key_num } => {
-                let num: Num<Product<Lock, Key>>
-                    = self.lock_product().apply((lock_num, key_num));
+                let num = self.lock_product().apply((lock_num, key_num));
                 let offset = self.free_product().count();
                 cat::internal::to_num(offset.as_usize() + num.as_usize())
             }

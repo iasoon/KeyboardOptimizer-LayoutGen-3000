@@ -187,7 +187,7 @@ impl<'a> MoveBuilder<'a> {
             ),
             &Group::Lock(lock_num) => {
                 let lock = self.kb_def.locks.get(lock_num);
-                let loc: Loc = self.kb_def.loc_num().apply(loc_num);
+                let loc = self.kb_def.loc_num().apply(loc_num);
                 // Swapping a locked token is only possible when it does not
                 // move layers.
                 if lock.get(loc.layer_num) == &Some(token_num) {
