@@ -63,7 +63,7 @@ impl HasCount<Loc> for LocNum {
 }
 
 impl Mapping<Loc> for LocNum {
-    type Target = Num<Loc>;
+    type Result = Num<Loc>;
 
     fn apply(&self, loc: Loc) -> Num<Loc> {
         let num: Num<Product<Layer, Key>> = self.as_product().apply(
@@ -73,7 +73,7 @@ impl Mapping<Loc> for LocNum {
 }
 
 impl Mapping<Num<Loc>> for LocNum {
-    type Target = Loc;
+    type Result = Loc;
     fn apply(&self, num: Num<Loc>) -> Loc {
         let prod_num = cat::internal::to_num(num.as_usize());
         let (layer_num, key_num) = self.as_product().apply(prod_num);
@@ -131,7 +131,7 @@ pub struct GroupNum {
 }
 
 impl Mapping<Num<Group>> for GroupNum {
-    type Target = Group;
+    type Result = Group;
     fn apply(&self, num: Num<Group>) -> Group {
         if num.as_usize() < self.free_count.as_usize() {
             Group::Free(cat::internal::to_num(num.as_usize()))
@@ -143,7 +143,7 @@ impl Mapping<Num<Group>> for GroupNum {
 }
 
 impl Mapping<Group> for GroupNum {
-    type Target = Num<Group>;
+    type Result = Num<Group>;
 
     fn apply(&self, group: Group) -> Num<Group> {
         match group {
@@ -225,7 +225,7 @@ impl HasCount<Assignment> for AssignmentNum {
 }
 
 impl Mapping<Assignment> for AssignmentNum {
-    type Target = Num<Assignment>;
+    type Result = Num<Assignment>;
 
     fn apply(&self, assignment: Assignment) -> Num<Assignment> {
         match assignment {

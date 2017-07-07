@@ -41,9 +41,9 @@ impl<'a> Generator<'a> {
             locks: kb_def.locks.map(|_| Subset::empty(kb_def.keys.count())),
             unassigned: IndexedList {
                 elems: Vec::with_capacity(kb_def.group_num().count().as_usize()),
-                idxs: kb_def.group_num()
-                    .map_nums(|_| None)
-                    .compose(kb_def.group_num()),
+                idxs: Composed::new(
+                    kb_def.group_num(),
+                    kb_def.group_num().map_nums(|_| None)),
             },
 
             stack: Vec::with_capacity(kb_def.group_num().count().as_usize()),

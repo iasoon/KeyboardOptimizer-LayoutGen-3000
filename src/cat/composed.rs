@@ -24,15 +24,15 @@ impl<A, B> Composed<A, B> {
 
 impl<S, T, M, D> Dict<S, T> for Composed<M, D>
     where M: Mapping<S>,
-          D: Dict<M::Target, T>,
+          D: Dict<M::Result, T>,
           S: Domain,
 {
-    fn get<'t>(&'t self, elem: S::Type) -> &'t T {
+    fn get<'t>(&'t self, elem: S) -> &'t T {
         let d = self.fst.apply(elem);
         return self.snd.get(d);
     }
 
-    fn get_mut<'t>(&'t mut self, elem: S::Type) -> &'t mut T {
+    fn get_mut<'t>(&'t mut self, elem: S) -> &'t mut T {
         let d = self.fst.apply(elem);
         return self.snd.get_mut(d);
     }

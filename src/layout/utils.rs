@@ -5,12 +5,11 @@ use cat::ops::*;
 
 pub type Subset<D> = IndexedList<Num<D>, Table<D, Option<usize>>>;
 
-pub struct IndexedList<D, I>
-    where I: Dict<D, Option<usize>>,
-          D: FiniteDomain
+pub struct IndexedList<T, I>
+    where I: Dict<T, Option<usize>>
 {
     // elements currently in this subset
-    pub elems: Vec<D::Type>,
+    pub elems: Vec<T>,
     // maps an element to its index
     pub idxs: I,
 }
@@ -36,12 +35,11 @@ impl<D> IndexedList<Num<D>, Table<D, Option<usize>>>
     }
 }
 
-impl<D, I> IndexedList<D, I>
-    where I: Dict<D, Option<usize>>,
-          D::Type: Copy,
-          D: FiniteDomain
+impl<T, I> IndexedList<T, I>
+    where I: Dict<T, Option<usize>>,
+          T: Copy,
 {
-    pub fn add(&mut self, mut elem: D::Type, pos: usize) {
+    pub fn add(&mut self, mut elem: T, pos: usize) {
         if self.idxs.get(elem).is_none() {
             // swap elem and element in target position
             if pos < self.elems.len() {
@@ -54,7 +52,7 @@ impl<D, I> IndexedList<D, I>
         }
     }
 
-    pub fn next(&self) -> Option<D::Type> {
+    pub fn next(&self) -> Option<T> {
         if self.elems.len() > 0 {
             Some(self.get(0))
         } else {
@@ -62,20 +60,20 @@ impl<D, I> IndexedList<D, I>
         }
     }
 
-    pub fn get(&self, pos: usize) -> D::Type {
+    pub fn get(&self, pos: usize) -> T {
         return self.elems[pos];
     }
 
-    pub fn contains(&self, elem: D::Type) -> bool {
+    pub fn contains(&self, elem: T) -> bool {
         self.idxs.get(elem).is_some()
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = D::Type> + 'a {
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = T> + 'a {
         self.elems.iter().cloned()
     }
 
     // returns index the element used to have
-    pub fn remove(&mut self, elem: D::Type) -> Option<usize> {
+    pub fn remove(&mut self, elem: T) -> Option<usize> {
         if let Some(idx) = self.idxs.get_mut(elem).take() {
             self.elems.swap_remove(idx);
             if idx < self.elems.len() {

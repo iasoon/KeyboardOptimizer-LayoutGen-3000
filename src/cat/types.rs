@@ -7,24 +7,22 @@ pub trait Domain {
 
 pub trait FiniteDomain: Domain {}
 
-/// A mapping from a domain to a value
-pub trait Mapping<D: Domain>
+pub trait Mapping<T>
 {
-    type Target: Domain;
+    type Result;
 
-    fn apply(&self, elem: D::Type) -> <Self::Target as Domain>::Type;
+    fn apply(&self, elem: T) -> Self::Result;
 }
 
 /// A mapping that stores its values
 /// A Dict is total; it has a value for each member of its domain.
-pub trait Dict<D: Domain, T: ?Sized> {
-    fn get<'t>(&'t self, elem: D::Type) -> &'t T;
-    fn get_mut<'t>(&'t mut self, elem: D::Type) -> &'t mut T;
+pub trait Dict<K, T: ?Sized> {
+    fn get<'t>(&'t self, elem: K) -> &'t T;
+    fn get_mut<'t>(&'t mut self, elem: K) -> &'t mut T;
 
     fn compose<S, M>(self, mapping: M) -> Composed<M, Self>
-        where M: Mapping<S, Target = D>,
-              Self: Sized,
-              S: Domain
+        where M: Mapping<S, Result = K>,
+              Self: Sized
     {
         Composed::new(mapping, self)
     }
