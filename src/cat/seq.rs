@@ -79,21 +79,22 @@ pub struct SeqNum<D: FiniteDomain> {
     count: Count<D>,
 }
 
-// impl<D: FiniteDomain> SeqNum<D> {
-//     pub fn new(count: Count<D>) -> Self {
-//         SeqNum {
-//             count: count,
-//         }
-//     }
-// }
+impl<D: FiniteDomain> SeqNum<D> {
+    pub fn new(count: Count<D>) -> Self {
+        SeqNum {
+            count: count,
+        }
+    }
+}
 
-// impl<'s1, 's2, D, I1, I2> Mapping<Seq<'s1, Num<D>, I1>, Num<Seq<'s2, D, I2>>> for SeqNum<D>
-//     where I1: IntoIterator<Item = Num<D>> + 's1,
-//           I2: IntoIterator<Item = D::Type> + 's2,
-//           D: FiniteDomain + 's1 + 's2
-// {
-//     fn apply(&self, seq: I1) -> Num<Seq<'s2, D, I2>> {
-//         let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
-//         return to_num(num);
-//     }
-// }
+impl<D, I> Mapping<I> for SeqNum<D>
+    where I: Iterator<Item = Num<D>>,
+          D: FiniteDomain
+{
+    type Result = Num<Seq<D>>;
+
+    fn apply(&self, seq: I) -> Num<Seq<D>> {
+        let num = seq.into_iter().fold(0, |acc, num| acc * self.count.as_usize() + num.as_usize());
+        return to_num(num);
+    }
+}
