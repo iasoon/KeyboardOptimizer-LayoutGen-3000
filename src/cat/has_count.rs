@@ -22,7 +22,8 @@ pub trait HasCount<D: FiniteDomain> {
 
 
     fn enumerate<'t, T>(&'t self) -> ElemEnumerator<'t, D, T, Self>
-        where Self: Dict<Num<D>, T> + Sized
+        where Self: Dict<Num<D>, T> + Sized,
+              T: ?Sized
     {
         ElemEnumerator {
             enumerator: self.nums(),
@@ -95,15 +96,17 @@ impl<D> Iterator for Enumerator<D>
 pub struct ElemEnumerator<'t, D, T, M>
     where M: Dict<Num<D>, T> + HasCount<D> + 't,
           D: FiniteDomain,
+          T: ?Sized
 {
     mapping: &'t M,
     enumerator: Enumerator<D>,
     phantom_t: PhantomData<T>,
 }
 
-impl<'t, D, T: 't, M> Iterator for ElemEnumerator<'t, D, T, M>
+impl<'t, D, T, M> Iterator for ElemEnumerator<'t, D, T, M>
     where M: Dict<Num<D>, T> + HasCount<D> + 't,
-          D: FiniteDomain
+          D: FiniteDomain,
+          T: 't + ?Sized
 {
     type Item = (Num<D>, &'t T);
 

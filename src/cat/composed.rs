@@ -24,8 +24,7 @@ impl<A, B> Composed<A, B> {
 
 impl<S, T, M, D> Dict<S, T> for Composed<M, D>
     where M: Mapping<S>,
-          D: Dict<M::Result, T>,
-          S: Domain,
+          D: Dict<M::Result, T>
 {
     fn get<'t>(&'t self, elem: S) -> &'t T {
         let d = self.fst.apply(elem);
