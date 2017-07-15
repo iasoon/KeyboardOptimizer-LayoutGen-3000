@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use cat::*;
-use cat::internal::to_num;
+use cat::internal::{to_num, to_count};
 
 /// A sequence of values.
 /// Since it is not possible to parametrically fixate a length for these
@@ -74,16 +74,28 @@ impl<D: FiniteDomain> Iterator for SeqIter<D> {
 }
 
 
-// /// Maps a seq to its number, for the corresponding fixed-length Seq domain.
+/// Maps a seq to its number in the domain of sequences of length len.
+/// Providing a sequence of a differing length to this mapping is a programmer
+/// error.
 pub struct SeqNum<D: FiniteDomain> {
     count: Count<D>,
+    len: usize,
 }
 
 impl<D: FiniteDomain> SeqNum<D> {
-    pub fn new(count: Count<D>) -> Self {
+    pub fn new(count: Count<D>, len: usize) -> Self {
         SeqNum {
             count: count,
+            len: len,
         }
+    }
+}
+
+impl<D> HasCount<Seq<D>> for SeqNum<D>
+    where D: FiniteDomain
+{
+    fn count(&self) -> Count<Seq<D>> {
+        to_count(self.count.as_usize().pow(self.len as u32))
     }
 }
 

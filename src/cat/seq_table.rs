@@ -9,6 +9,18 @@ pub struct SeqTable<D: FiniteDomain, T> {
     phantom: PhantomData<D>,
 }
 
+impl<D, T> SeqTable<D, T>
+    where D: FiniteDomain
+{
+    pub fn from_elem_vec(elems: Vec<T>, len: usize) -> Self {
+        SeqTable {
+            elems: elems,
+            seq_len: len,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<D, T> Dict<Num<D>, [T]> for SeqTable<D, T>
     where D: FiniteDomain,
 {

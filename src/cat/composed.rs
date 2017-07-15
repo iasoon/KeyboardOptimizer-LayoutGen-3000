@@ -36,3 +36,4 @@ impl<S, T, M, D> Dict<S, T> for Composed<M, D>
         return self.snd.get_mut(d);
     }
 }
+
