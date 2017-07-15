@@ -8,10 +8,11 @@ pub mod errors {
 }
 
 mod config;
-mod config_reader;
+mod reader;
 mod elements;
 mod groups;
 mod keymap;
+mod eval;
 
 use data::KbDef;
 use std::fs::File;
@@ -19,9 +20,9 @@ use std::io::Read;
 use serde_json;
 
 pub use self::keymap::Keymap;
-use self::config::ConfigData;
+use self::config::{Config, ConfigData};
 
-pub fn parse_config(path: &str) -> errors::Result<KbDef> {
+pub fn parse_config(path: &str) -> errors::Result<Config> {
     let mut file = File::open(path)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;

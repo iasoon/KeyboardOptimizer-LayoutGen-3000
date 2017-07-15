@@ -3,34 +3,45 @@ use serde::Deserialize;
 use data::*;
 use cat::*;
 use cat::ops::*;
+use eval::ngram_eval::NGramEval;
 
 use json::errors::*;
-use json::config_reader::ConfigReader;
+use json::reader::*;
 use json::elements::{Elements, ElementsData};
 use json::groups::{Groups, GroupsData};
+use json::eval::EvalData;
 
 #[derive(Deserialize)]
-pub struct ConfigData<'a> {
+pub struct ConfigData<'s> {
     elements: ElementsData,
     #[serde(borrow)]
-    groups: GroupsData<'a>,
+    groups: GroupsData<'s>,
+    #[serde(borrow)]
+    evaluator: EvalData<'s>,
 }
 
 
+pub struct Config {
+    kb_def: KbDef,
+    eval: NGramEval,
+}
+
 
 impl<'a> ConfigData<'a> {
-    pub fn read(self) -> Result<KbDef> {
+    pub fn read(self) -> Result<Config> {
         let elements = self.elements.read()?;
         let groups;
         {
             // use a new syntactic block here to contain this borrow
-            let reader = ConfigReader::new(&elements);
-            groups = self.groups.read(&reader)?
+            let reader = GroupsReader::new(&elements);
+            groups = reader.read(self.groups)?
         }
+
 
         let token_group = try!(token_group(&elements, &groups));
         let assignment_map = assignment_map(&elements, &groups);
-        Ok(KbDef {
+
+        let kb_def = KbDef {
             keys: elements.keys,
             layers: elements.layers,
             tokens: elements.tokens,
@@ -42,6 +53,17 @@ impl<'a> ConfigData<'a> {
 
             token_group: token_group,
             assignment_map: assignment_map,
+        };
+
+        let eval;
+        {
+            let reader = EvalReader::new(&kb_def);
+            eval = try!(reader.read(self.evaluator));
+        }
+
+        Ok(Config {
+            kb_def: kb_def,
+            eval: eval,
         })
     }
 }

@@ -7,7 +7,7 @@ use cat::ops::*;
 use data::*;
 
 use json::errors::*;
-use json::config_reader::ConfigReader;
+use json::reader::{Reader, ElemReader, GroupsReader};
 
 #[derive(Deserialize)]
 struct LocData<'a> {
@@ -15,11 +15,13 @@ struct LocData<'a> {
     layer: &'a str,
 }
 
-impl<'a> LocData<'a> {
-    fn read(self, reader: &ConfigReader) -> Result<Loc> {
+impl<'s> Reader<Loc> for ElemReader<'s> {
+    type Repr = &'s LocData<'s>;
+
+    fn read(&self, repr: Self::Repr) -> Result<Loc> {
         Ok(Loc {
-            key_num: reader.read_key(self.key)?,
-            layer_num: reader.read_layer(self.layer)?,
+            key_num: self.read(repr.key)?,
+            layer_num: self.read(repr.layer)?,
         })
     }
 }
@@ -45,44 +47,47 @@ pub struct GroupsData<'a> {
     locks: Vec<LockData<'a>>,
 }
 
-impl<'a> GroupsData<'a> {
-    pub fn read(self, reader: &ConfigReader) -> Result<Groups> {
+impl<'s> Reader<Groups> for GroupsReader<'s> {
+    type Repr = GroupsData<'s>;
+
+    fn read(&self, repr: Self::Repr) -> Result<Groups> {
         let loc_num = LocNum {
-            key_count: reader.elements.keys.count(),
-            layer_count: reader.elements.layers.count(),
+            key_count: self.elements.keys.count(),
+            layer_count: self.elements.layers.count(),
         };
 
         let mut assignments = Vec::new();
         // process frees
-        let mut frees = Vec::with_capacity(self.frees.len());
-        for (free_num, free_data) in self.frees.into_iter().enumerate() {
+        let mut frees = Vec::with_capacity(repr.frees.len());
+        for (free_num, free_data) in repr.frees.into_iter().enumerate() {
             // free
-            frees.push(reader.read_token(free_data.token)?);
+            frees.push(self.read(free_data.token)?);
             // assignments
             for loc_data in free_data.allowed_locs.into_iter() {
+                let loc: Loc = self.read(&loc_data)?;
                 assignments.push(Assignment::Free {
                     free_num: cat::internal::to_num(free_num),
-                    loc_num: loc_num.apply(loc_data.read(reader)?),
+                    loc_num: loc_num.apply(loc),
                 });
             }
         }
 
         // process locks
-        let mut locks = Vec::with_capacity(self.locks.len());
-        for (lock_num, lock_data) in self.locks.iter().enumerate() {
+        let mut locks = Vec::with_capacity(repr.locks.len());
+        for (lock_num, lock_data) in repr.locks.iter().enumerate() {
             // lock
-            let mut lock = reader.elements.layers.map(|_| None);
-            for (layer_name, token_name) in lock_data.elems.iter() {
-                let layer_num = reader.read_layer(layer_name)?;
-                let token_num = reader.read_token(token_name)?;
+            let mut lock = self.elements.layers.map(|_| None);
+            for (&layer_name, &token_name) in lock_data.elems.iter() {
+                let layer_num = self.read(layer_name)?;
+                let token_num = self.read(token_name)?;
                 *lock.get_mut(layer_num) = Some(token_num);
             }
             locks.push(lock);
             // assignments
-            for key_name in lock_data.allowed_keys.iter() {
+            for &key_name in lock_data.allowed_keys.iter() {
                 assignments.push(Assignment::Lock {
                     lock_num: cat::internal::to_num(lock_num),
-                    key_num: reader.read_key(key_name)?,
+                    key_num: self.read(key_name)?,
                 })
             }
         }
