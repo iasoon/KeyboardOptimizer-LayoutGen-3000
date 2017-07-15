@@ -15,7 +15,7 @@ pub struct Generator<'a> {
     locks: Table<Lock, Subset<Key>>,
     // TODO: abstract away this pattern
     // (ElemTable<D, D->Num<D>, T>)
-    unassigned: IndexedList<Group, ElemTable<Group, GroupNum, Option<usize>>>,
+    unassigned: IndexedList<Group, Composed<GroupNum, Table<Group,Option<usize>>>>,
 
     /// The stack describes the path taken to get to the current position.
     stack: Vec<Step>,

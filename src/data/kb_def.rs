@@ -1,8 +1,7 @@
 use cat::*;
 use data::types::*;
 
-type AssignmentTable<T> = ElemTable<Assignment, AssignmentNum, T>;
-
+type AssignmentTable<T> = Composed<AssignmentNum, Table<Assignment, T>>;
 pub struct KbDef {
     pub keys: Table<Key, String>,
     pub layers: Table<Layer, String>,
