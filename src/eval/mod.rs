@@ -1,3 +1,1 @@
-mod evaluator;
-
-pub use self::evaluator::Evaluator;
+pub mod ngram_eval;
