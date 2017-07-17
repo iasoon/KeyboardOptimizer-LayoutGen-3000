@@ -19,6 +19,10 @@ impl<D, T> SeqTable<D, T>
             phantom: PhantomData,
         }
     }
+
+    pub fn seq_len(&self) -> usize {
+        return self.seq_len;
+    }
 }
 
 impl<D, T> Dict<Num<D>, [T]> for SeqTable<D, T>

@@ -1,6 +1,7 @@
 use cat::types::*;
 
 use std::marker::PhantomData;
+use std::cmp::Ordering;
 
 pub struct Num<D: FiniteDomain> {
     num: usize,
@@ -37,6 +38,18 @@ impl<D: FiniteDomain> PartialEq for Num<D> {
 }
 
 impl<D: FiniteDomain> Eq for Num<D> {}
+
+impl<D: FiniteDomain> PartialOrd for Num<D> {
+    fn partial_cmp(&self, rhs: &Num<D>) -> Option<Ordering> {
+        self.as_usize().partial_cmp(&rhs.as_usize())
+    }
+}
+
+impl<D: FiniteDomain> Ord for Num<D> {
+    fn cmp(&self, rhs: &Num<D>) -> Ordering {
+        self.as_usize().cmp(&rhs.as_usize())
+    }
+}
 
 
 pub fn to_num<D: FiniteDomain>(num: usize) -> Num<D> {

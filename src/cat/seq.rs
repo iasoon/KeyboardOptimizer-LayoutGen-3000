@@ -39,7 +39,7 @@ pub struct SeqIter<D: FiniteDomain> {
 }
 
 impl<D: FiniteDomain> SeqIter<D> {
-    fn new(count: Count<D>, len: usize) -> Self {
+    pub fn new(count: Count<D>, len: usize) -> Self {
         SeqIter {
             idxs: vec![0; len],
             count: count,

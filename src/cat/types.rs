@@ -81,4 +81,5 @@ impl<'t, D, K, T: 't> Mapping<K> for BorrowedDict<'t, D, T>
     }
 }
 
+
 pub type BorrowedTable<'t, D, T> = BorrowedDict<'t, Table<D, T>, T>;

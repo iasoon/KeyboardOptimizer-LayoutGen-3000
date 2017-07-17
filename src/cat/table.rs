@@ -93,3 +93,13 @@ impl<D: FiniteDomain, T> MapMutWithKey<Num<D>, T> for Table<D, T>
     }
 
 }
+
+impl<D, T, R> MapInto<T, R, Table<D, R>> for Table<D, T>
+    where D: FiniteDomain
+{
+    fn map_into<F>(self, mut fun: F) -> Table<D, R>
+        where F: FnMut(T) -> R
+    {
+        Table::from_vec(self.elems.into_iter().map(fun).collect())
+    }
+}

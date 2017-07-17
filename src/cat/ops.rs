@@ -15,3 +15,8 @@ pub trait MapMutWithKey<K, T> {
         where F: FnMut(K, &'t mut T),
               T: 't;
 }
+
+pub trait MapInto<S, T, R> {
+    fn map_into<F>(self, fun: F) -> R
+        where F: FnMut(S) -> T;
+}

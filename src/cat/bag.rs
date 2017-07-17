@@ -51,6 +51,17 @@ pub struct BagNum<D>
     size: usize,
 }
 
+impl<D> BagNum<D>
+    where D: FiniteDomain
+{
+    pub fn new(count: Count<D>, size: usize) -> Self {
+        BagNum {
+            elemtype_count: count,
+            size: size,
+        }
+    }
+}
+
 impl<D> HasCount<Bag<D>> for BagNum<D>
     where D: FiniteDomain
 {

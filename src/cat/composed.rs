@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use cat::types::*;
 use cat::has_count::*;
+use cat::ops::*;
 
 /// General composition struct.
 /// A: First object to be composed
@@ -37,3 +38,15 @@ impl<S, T, M, D> Dict<S, T> for Composed<M, D>
     }
 }
 
+impl<A, B, S, T, R> MapInto<S, T, Composed<A, R>> for Composed<A, B>
+    where B: MapInto<S, T, R>
+{
+    fn map_into<F>(self, fun: F) -> Composed<A, R>
+        where F: FnMut(S) -> T
+    {
+        Composed {
+            fst: self.fst,
+            snd: self.snd.map_into(fun),
+        }
+    }
+}
