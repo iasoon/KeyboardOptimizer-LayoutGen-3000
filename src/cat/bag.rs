@@ -119,3 +119,49 @@ impl<D> Mapping<Num<Bag<D>>> for BagNum<D>
         }
     }
 }
+
+pub struct SeqBag<D>
+    where D: FiniteDomain
+{
+    count: Count<D>,
+    bag_size: usize,
+    seq_bag: Table<Seq<D>, Num<Bag<D>>>,
+}
+
+impl<D> SeqBag<D>
+    where D: FiniteDomain
+{
+    pub fn new(count: Count<D>, bag_size: usize) -> Self {
+        let bag_num = BagNum::new(count, bag_size);
+        let seq_bag = Table::from_vec(
+            SeqIter::new(count, bag_size)
+                .map(|seq| bag_num.apply(Bag::new(seq)))
+                .collect());
+        return SeqBag {
+            count: count,
+            bag_size: bag_size,
+            seq_bag: seq_bag,
+        }
+    }
+}
+
+impl<D> HasCount<Bag<D>> for SeqBag<D>
+    where D: FiniteDomain
+{
+    fn count(&self) -> Count<Bag<D>> {
+        BagNum::new(self.count, self.bag_size).count()
+    }
+}
+
+impl<D, I> Mapping<I> for SeqBag<D>
+    where I: Iterator<Item = Num<D>>,
+          D: FiniteDomain
+{
+    type Result = Num<Bag<D>>;
+
+    fn apply(&self, seq: I) -> Num<Bag<D>> {
+        *self.seq_bag.get(SeqNum::new(self.count, self.bag_size).apply(seq))
+    }
+}
+
+pub type BagTable<D, T> = Composed<SeqBag<D>, Table<Bag<D>, T>>;

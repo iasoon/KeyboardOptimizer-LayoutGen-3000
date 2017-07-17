@@ -17,7 +17,7 @@ pub use self::has_count::{HasCount, Count, Enumerator, ElemEnumerator};
 pub use self::num::Num;
 pub use self::composed::Composed;
 pub use self::seq::{Seq, SeqIter, SeqNum};
-pub use self::bag::{Bag, BagNum};
+pub use self::bag::*;
 pub use self::product::{Product, ProductNum};
 
 
