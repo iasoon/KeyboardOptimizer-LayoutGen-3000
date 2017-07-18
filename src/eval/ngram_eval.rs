@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 use data::*;
 use cat::*;
 use cat::ops::*;
+use layout::Assignable;
+use eval::walker::*;
 
 pub struct NGram<T> {
     phantom: PhantomData<T>,
@@ -193,5 +195,58 @@ impl<T> NGramsSubsetBuilder<T>
             elements: SeqTable::from_elem_vec(elems, ngrams.elements.seq_len()),
             freqs: Table::from_vec(freqs),
         }
+    }
+}
+
+pub struct NGramWalker<'e, T, P>
+    where T: FiniteDomain + 'e,
+          P: FiniteDomain + 'e
+{
+    eval: &'e NGramEval<T, P>,
+    mapping: Table<T, Num<P>>,
+    assignment_delta: Table<Assignment, f64>,
+}
+
+impl<'e, T, P> Assignable for NGramWalker<'e, T, P>
+    where Table<T, Num<P>>: Assignable,
+          T: FiniteDomain + 'e,
+          P: FiniteDomain + 'e
+{
+    fn assign(&mut self, kb_def: &KbDef, assignment: Assignment) {
+        self.mapping.assign(kb_def, assignment);
+    }
+}
+
+impl<'e, T, P> NGramWalker<'e, T, P>
+    where T: FiniteDomain + 'e,
+          P: FiniteDomain + 'e
+
+{
+    fn cost<'a>(&'a self) -> NGramCost<'a, T, P> {
+        self.eval.ngram_cost(&self.mapping)
+    }
+
+    fn eval(&self) -> f64 {
+        self.eval.ngrams.eval(self.cost())
+    }
+
+    fn eval_intersection(&self, ts: [Num<T>; 2]) -> f64 {
+        self.eval.intersections.get(ts.iter().cloned()).eval(self.cost())
+    }
+}
+
+impl<'e, T, P> EvalWalker for NGramWalker<'e, T, P>
+    where Self: Assignable,
+          T: FiniteDomain + 'e,
+          P: FiniteDomain + 'e
+{
+    fn eval_delta<'a>(&'a mut self, walker: &'a mut LtWalker<'a>, delta: &[Assignment]) -> f64 {
+        walker.with_eval(self).measure_effect(
+            |walker| walker.assign_all(delta),
+            |walker| walker.eval_walker.eval()
+        )
+    }
+
+    fn update<'a>(&'a mut self, walker: &'a mut LtWalker, delta: &[Assignment]) {
     }
 }
