@@ -259,6 +259,10 @@ impl<'e, T, P> WalkableEval<'e> for NGramWalker<'e, T, P>
             |walker| walker.eval()
         )
     }
+
+    fn update<'w>(&'w mut self, driver: &'w mut WalkerDriver<'e>, delta: &[Assignment]) {
+        // do nothing
+    }
 }
 
 impl<'w, 'e> HasMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Key>> {

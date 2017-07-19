@@ -85,8 +85,9 @@ impl<'a> WalkerDriver<'a> {
     }
 }
 
-pub trait WalkableEval<'e> {
-    fn eval_delta<'w>(&'w mut self, driver: &'w mut WalkerDriver<'e>, delta: &[Assignment]) -> f64;
+pub trait WalkableEval<'d> {
+    fn eval_delta<'w>(&'w mut self, driver: &'w mut WalkerDriver<'d>, delta: &[Assignment]) -> f64;
+    fn update<'w>(&'w mut self, driver: &'w mut WalkerDriver<'d>, delta: &[Assignment]);
 }
 
 pub struct Walker<'a, 'e: 'a, E>

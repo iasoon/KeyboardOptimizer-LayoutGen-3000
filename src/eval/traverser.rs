@@ -22,4 +22,11 @@ impl<'e> WalkingEval<'e> {
             eval.eval_delta(driver, assignments)
         }).sum()
     }
+
+    fn update(&'e mut self, assignments: &[Assignment]) {
+        let driver = &mut self.driver;
+        for eval in self.eval_walkers.iter_mut() {
+            eval.update(driver, assignments);
+        }
+    }
 }
