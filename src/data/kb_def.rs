@@ -30,4 +30,13 @@ impl KbDef {
             lock_count: self.locks.count(),
         }
     }
+
+    pub fn assignment_num(&self) -> AssignmentNum {
+        AssignmentNum {
+            free_count: self.frees.count(),
+            lock_count: self.locks.count(),
+            key_count: self.keys.count(),
+            layer_count: self.layers.count(),
+        }
+    }
 }

@@ -4,7 +4,9 @@ use data::*;
 use cat::*;
 use cat::ops::*;
 use layout::Assignable;
+use layout::Layout;
 use eval::walker::*;
+use eval::evaluator::Evaluator;
 
 pub struct NGram<T> {
     phantom: PhantomData<T>,
@@ -71,6 +73,22 @@ impl<T, P> NGramEval<T, P>
 
     pub fn eval(&self, mapping: &Table<T, Num<P>>) -> f64 {
         self.ngrams.eval(self.ngram_cost(mapping))
+    }
+}
+
+impl<'e> Evaluator<'e> for NGramEval<Group, Key> {
+    type Walker = NGramWalker<'e, Group, Key>;
+
+    fn eval(&self, layout: &Layout) -> f64 {
+        unimplemented!()
+    }
+
+    fn walker(&'e self, lt_walker: &mut LtWalker) -> Self::Walker {
+        NGramWalker {
+            eval: self,
+            // TODO
+            assignment_delta: lt_walker.kb_def.assignment_num().map_nums(|_| 0.0),
+        }
     }
 }
 
@@ -198,55 +216,72 @@ impl<T> NGramsSubsetBuilder<T>
     }
 }
 
+trait HasMapping<T, P>
+    where T: FiniteDomain,
+          P: FiniteDomain
+{
+    fn mapping<'m>(&'m self) -> &'m Table<T, Num<P>>;
+}
+
 pub struct NGramWalker<'e, T, P>
     where T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
 {
     eval: &'e NGramEval<T, P>,
-    mapping: Table<T, Num<P>>,
     assignment_delta: Table<Assignment, f64>,
 }
 
+// Nothing has to be done
 impl<'e, T, P> Assignable for NGramWalker<'e, T, P>
     where Table<T, Num<P>>: Assignable,
           T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
-{
-    fn assign(&mut self, kb_def: &KbDef, assignment: Assignment) {
-        self.mapping.assign(kb_def, assignment);
-    }
-}
+{}
 
-impl<'e, T, P> NGramWalker<'e, T, P>
-    where T: FiniteDomain + 'e,
-          P: FiniteDomain + 'e
-
-{
-    fn cost<'a>(&'a self) -> NGramCost<'a, T, P> {
-        self.eval.ngram_cost(&self.mapping)
-    }
-
-    fn eval(&self) -> f64 {
-        self.eval.ngrams.eval(self.cost())
-    }
-
-    fn eval_intersection(&self, ts: [Num<T>; 2]) -> f64 {
-        self.eval.intersections.get(ts.iter().cloned()).eval(self.cost())
-    }
-}
-
-impl<'e, T, P> EvalWalker for NGramWalker<'e, T, P>
-    where Self: Assignable,
+impl<'e, T, P> Walker<'e, NGramWalker<'e, T, P>>
+    where Self: HasMapping<T, P>,
           T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
 {
-    fn eval_delta(&mut self, kb_def: &KbDef, walker: &mut LtWalker, delta: &[Assignment]) -> f64 {
-        walker.with_eval(kb_def, self).measure_effect(
+    fn cost<'a>(&'a self) -> NGramCost<'a, T, P> {
+        self.evaluator().ngram_cost(self.mapping())
+    }
+
+    fn evaluator<'a>(&'a self) -> &'a NGramEval<T, P> {
+        self.eval_walker.eval
+    }
+
+    fn eval(&self) -> f64 {
+        self.evaluator().ngrams.eval(self.cost())
+    }
+
+    fn eval_intersection(&self, ts: [Num<T>; 2]) -> f64
+    {
+        let ngrams = self.evaluator().intersections.get(ts.iter().cloned());
+        return ngrams.eval(self.cost());
+    }
+}
+
+impl<'e> HasMapping<Group, Key> for Walker<'e, NGramWalker<'e, Group, Key>> {
+    fn mapping<'m>(&'m self) -> &'m Table<Group, Num<Key>> {
+        self.lt_walker.group_map()
+    }
+}
+
+impl<'e, T, P> EvalWalker<'e> for NGramWalker<'e, T, P>
+    where Self: Assignable,
+          Walker<'e, Self>: HasMapping<T, P>,
+          T: FiniteDomain + 'e,
+          P: FiniteDomain + 'e
+{
+    fn eval_delta(&'e mut self, lt_walker: &'e mut LtWalker<'e>, delta: &[Assignment]) -> f64 {
+        lt_walker.with_eval(self).measure_effect(
             |walker| walker.assign_all(delta),
-            |walker| walker.eval_walker.eval()
+            |walker| walker.eval()
         )
     }
 
-    fn update(&mut self, kb_def: &KbDef, walker: &mut LtWalker, delta: &[Assignment]) {
+    fn update(&mut self, walker: &mut LtWalker, delta: &[Assignment]) {
+        // do nothing
     }
 }
