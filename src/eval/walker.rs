@@ -4,8 +4,7 @@ use layout::*;
 
 type GroupMap = Table<Group, Num<Key>>;
 
-pub struct LtWalker<'a> {
-    pub kb_def: &'a KbDef,
+pub struct LtWalker {
     keymap: Keymap,
     group_map: GroupMap,
     token_map: TokenMap,
@@ -13,12 +12,12 @@ pub struct LtWalker<'a> {
     breadcrumbs: Vec<Assignment>,
 }
 
-impl<'a> Assignable for LtWalker<'a> {
+impl Assignable for LtWalker {
     fn assign(&mut self, kb_def: &KbDef, assignment: Assignment) {
         if self.saved_locs.len() > 0 {
-            self.leave_breadcrumb(assignment);
+            self.leave_breadcrumb(kb_def, assignment);
         }
-        self.assign_raw(assignment);
+        self.assign_raw(kb_def, assignment);
     }
 
     fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {
@@ -26,13 +25,13 @@ impl<'a> Assignable for LtWalker<'a> {
     }
 }
 
-impl<'a> LtWalker<'a> {
-    fn assign_raw(&mut self, assignment: Assignment) {
-        self.dispatch_assignment(self.kb_def, assignment);
+impl LtWalker {
+    fn assign_raw(&mut self, kb_def: &KbDef, assignment: Assignment) {
+        self.dispatch_assignment(kb_def, assignment);
     }
 
-    fn leave_breadcrumb(&mut self, assignment: Assignment) {
-        let breadcrumb = self.inverse(assignment);
+    fn leave_breadcrumb(&mut self, kb_def: &KbDef, assignment: Assignment) {
+        let breadcrumb = self.inverse(kb_def, assignment);
         self.breadcrumbs.push(breadcrumb);
     }
 
@@ -41,35 +40,36 @@ impl<'a> LtWalker<'a> {
         self.saved_locs.push(pos);
     }
 
-    fn pop_loc<C>(&mut self, mut callback: C)
+    fn pop_loc<C>(&mut self, kb_def: &KbDef, mut callback: C)
         where C: FnMut(Assignment)
     {
         let pos = self.saved_locs.pop().unwrap();
         for _ in 0..(self.breadcrumbs.len() - pos) {
             let assignment = self.breadcrumbs.pop().unwrap();
-            self.assign_raw(assignment);
+            self.assign_raw(kb_def, assignment);
             callback(assignment);
         }
     }
 
-    pub fn inverse(&self, assignment: Assignment) -> Assignment {
+    pub fn inverse(&self, kb_def: &KbDef, assignment: Assignment) -> Assignment {
         match assignment {
             Assignment::Free { free_num, loc_num: _ } => {
-                let token_num = *self.kb_def.frees.get(free_num);
+                let token_num = *kb_def.frees.get(free_num);
                 let current_loc = *self.token_map.get(token_num);
                 Assignment::Free { free_num, loc_num: current_loc }
             },
             Assignment::Lock { lock_num, key_num: _ } => {
                 let group = Group::Lock(lock_num);
-                let group_num = self.kb_def.group_num().apply(group);
+                let group_num = kb_def.group_num().apply(group);
                 let current_key = *self.group_map.get(group_num);
                 Assignment::Lock { lock_num, key_num: current_key }
             }
         }
     }
 
-    pub fn with_eval<E: 'a>(&'a mut self, eval: &'a mut E) -> Walker<'a, E> {
+    pub fn with_eval<'e, E: 'e>(&'e mut self, kb_def: &'e KbDef, eval: &'e mut E) -> Walker<'e, E> {
         Walker {
+            kb_def: kb_def,
             layout_walker: self,
             eval_walker: eval,
         }
@@ -77,13 +77,14 @@ impl<'a> LtWalker<'a> {
 }
 
 pub struct Walker<'e, E: 'e> {
-    layout_walker: &'e mut LtWalker<'e>,
+    pub kb_def: &'e KbDef,
+    pub layout_walker: &'e mut LtWalker,
     pub eval_walker: &'e mut E,
 }
 
 pub trait EvalWalker : Assignable {
-    fn eval_delta<'a>(&'a mut self, walker: &'a mut LtWalker<'a>, delta: &[Assignment]) -> f64;
-    fn update<'a>(&'a mut self, walker: &'a mut LtWalker<'a>, delta: &[Assignment]);
+    fn eval_delta(&mut self, kb_def: &KbDef, walker: &mut LtWalker, delta: &[Assignment]) -> f64;
+    fn update(&mut self, kb_def: &KbDef, walker: &mut LtWalker, delta: &[Assignment]);
 }
 
 impl<'e, E: 'e> Walker<'e, E>
@@ -94,17 +95,16 @@ impl<'e, E: 'e> Walker<'e, E>
     }
 
     fn pop_loc(&mut self) {
-        let kb_def = self.layout_walker.kb_def;
+        let kb_def = self.kb_def;
         let eval_walker = &mut self.eval_walker;
-        self.layout_walker.pop_loc(|assignment| {
+        self.layout_walker.pop_loc(kb_def, |assignment| {
             eval_walker.assign(kb_def, assignment);
         });
     }
 
     pub fn assign(&mut self, assignment: Assignment) {
-        let kb_def = self.layout_walker.kb_def;
-        self.layout_walker.assign(kb_def, assignment);
-        self.eval_walker.assign(kb_def, assignment)
+        self.layout_walker.assign(self.kb_def, assignment);
+        self.eval_walker.assign(self.kb_def, assignment)
     }
 
     pub fn assign_all(&mut self, assignments: &[Assignment]) {

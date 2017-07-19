@@ -240,13 +240,13 @@ impl<'e, T, P> EvalWalker for NGramWalker<'e, T, P>
           T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
 {
-    fn eval_delta<'a>(&'a mut self, walker: &'a mut LtWalker<'a>, delta: &[Assignment]) -> f64 {
-        walker.with_eval(self).measure_effect(
+    fn eval_delta(&mut self, kb_def: &KbDef, walker: &mut LtWalker, delta: &[Assignment]) -> f64 {
+        walker.with_eval(kb_def, self).measure_effect(
             |walker| walker.assign_all(delta),
             |walker| walker.eval_walker.eval()
         )
     }
 
-    fn update<'a>(&'a mut self, walker: &'a mut LtWalker, delta: &[Assignment]) {
+    fn update(&mut self, kb_def: &KbDef, walker: &mut LtWalker, delta: &[Assignment]) {
     }
 }
