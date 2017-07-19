@@ -76,22 +76,6 @@ impl<T, P> NGramEval<T, P>
     }
 }
 
-impl<'e> Evaluator<'e> for NGramEval<Group, Key> {
-    type Walker = NGramWalker<'e, Group, Key>;
-
-    fn eval(&self, layout: &Layout) -> f64 {
-        unimplemented!()
-    }
-
-    fn walker(&'e self, kb_def: &KbDef, lt_walker: &mut LtWalker) -> Self::Walker {
-        NGramWalker {
-            eval: self,
-            // TODO
-            assignment_delta: kb_def.assignment_num().map_nums(|_| 0.0),
-        }
-    }
-}
-
 struct NGramCost<'a, D, T>
     where D: FiniteDomain + 'a,
           T: FiniteDomain + 'a
@@ -240,17 +224,17 @@ impl<'e, T, P> Assignable for NGramWalker<'e, T, P>
     }
 }
 
-impl<'e, T, P> Walker<'e, NGramWalker<'e, T, P>>
+impl<'a, 'e, T, P> Walker<'a, 'e, NGramWalker<'e, T, P>>
     where Self: HasMapping<T, P>,
           T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
 {
-    fn cost<'a>(&'a self) -> NGramCost<'a, T, P> {
+    fn cost<'b>(&'b self) -> NGramCost<'b, T, P> {
         self.evaluator().ngram_cost(self.mapping())
     }
 
-    fn evaluator<'a>(&'a self) -> &'a NGramEval<T, P> {
-        self.eval_walker.eval
+    fn evaluator<'b>(&'b self) -> &'b NGramEval<T, P> {
+        self.eval.eval
     }
 
     fn eval(&self) -> f64 {
@@ -264,25 +248,21 @@ impl<'e, T, P> Walker<'e, NGramWalker<'e, T, P>>
     }
 }
 
-impl<'e, T, P> EvalWalker for Walker<'e, NGramWalker<'e, T, P>>
-    where Self: HasMapping<T, P>,
+impl<'e, T, P> WalkableEval<'e> for NGramWalker<'e, T, P>
+    where for<'w, 'd> Walker<'w, 'd, Self> : HasMapping<T, P>,
           T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
 {
-    fn eval_delta(&mut self, delta: &[Assignment]) -> f64 {
-        self.measure_effect(
+    fn eval_delta<'w>(&'w mut self, driver: &'w mut WalkerDriver<'e>, delta: &[Assignment]) -> f64 {
+        driver.drive(self).measure_effect(
             |walker| walker.assign_all(delta),
             |walker| walker.eval()
         )
     }
-
-    fn update(&mut self, delta: &[Assignment]) {
-        // do nothing
-    }
 }
 
-impl<'e> HasMapping<Group, Key> for Walker<'e, NGramWalker<'e, Group, Key>> {
+impl<'w, 'e> HasMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Key>> {
     fn mapping<'m>(&'m self) -> &'m Table<Group, Num<Key>> {
-        self.lt_walker.group_map()
+        self.driver.group_map()
     }
 }
