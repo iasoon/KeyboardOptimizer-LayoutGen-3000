@@ -78,8 +78,8 @@ impl<D> Mapping<Bag<Num<D>>> for BagNum<D>
 
     fn apply(&self, bag: Bag<Num<D>>) -> Num<Bag<D>> {
         let mut num = 0;
-        for i in 0..self.elemtype_count.as_usize() {
-            let k = self.elemtype_count.as_usize() - i;
+        for i in 0..bag.elems.len() {
+            let k = bag.elems.len() - i;
             let c = bag.elems[i].as_usize();
             if c > 0 {
                 num += choose_repeat(c, k)
