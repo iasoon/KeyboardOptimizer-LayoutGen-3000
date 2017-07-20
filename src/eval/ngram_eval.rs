@@ -70,10 +70,6 @@ impl<T, P> NGramEval<T, P>
             path_cost: &self.costs,
         }
     }
-
-    pub fn eval(&self, mapping: &Table<T, Num<P>>) -> f64 {
-        self.ngrams.eval(self.ngram_cost(mapping))
-    }
 }
 
 struct NGramCost<'a, D, T>
@@ -136,7 +132,7 @@ impl<'t, T: 't> SubSeqs<'t, T> {
 
     fn next(&mut self) -> bool {
         self.increment();
-        return self.pos_valid(0);
+        return self.pos_valid(self.idxs.len()-1);
     }
 
     fn seq<'a>(&'a self) -> impl Iterator<Item = &'a T> + 'a {
@@ -249,7 +245,7 @@ impl<'a, 'e, T, P> Walker<'a, 'e, NGramWalker<'e, T, P>>
 }
 
 impl<'e, T, P> WalkableEval<'e> for NGramWalker<'e, T, P>
-    where for<'w, 'd> Walker<'w, 'd, Self> : HasMapping<T, P>,
+    where for<'w> Walker<'w, 'e, Self> : HasMapping<T, P>,
           T: FiniteDomain + 'e,
           P: FiniteDomain + 'e
 {
@@ -271,18 +267,16 @@ impl<'w, 'e> HasMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Ke
     }
 }
 
-impl<'e> Evaluator<'e> for NGramEval<Group, Key> {
-    type Walker = NGramWalker<'e, Group, Key>;
-
+impl Evaluator for NGramEval<Group, Key> {
     fn eval(&self, layout: &Layout) -> f64 {
         let group_map = layout.mk_group_map();
         return self.ngrams.eval(self.ngram_cost(&group_map));
     }
 
-    fn walker(&'e self, driver: &'e mut WalkerDriver<'e>) -> Self::Walker {
-        NGramWalker {
+    fn walker<'e>(&'e self, driver: &mut WalkerDriver<'e>) -> Box<WalkableEval<'e> + 'e> {
+        Box::new(NGramWalker {
             eval: self,
             assignment_delta: driver.kb_def.assignment_num().map_nums(|_| 0.0),
-        }
+        })
     }
 }

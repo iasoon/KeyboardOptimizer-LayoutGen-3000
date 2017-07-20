@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 type GroupMap = Table<Group, Num<Key>>;
 
 pub struct WalkerDriver<'a> {
-    kb_def: &'a KbDef,
+    pub kb_def: &'a KbDef,
     token_map: TokenMap,
     group_map: GroupMap,
     saved_locs: Vec<usize>,
@@ -28,6 +28,16 @@ impl<'a> Assignable for WalkerDriver<'a> {
 }
 
 impl<'a> WalkerDriver<'a> {
+    pub fn new(layout: &Layout<'a>) -> Self {
+        WalkerDriver {
+            kb_def: layout.kb_def,
+            token_map: layout.token_map.clone(),
+            group_map: layout.mk_group_map(),
+            saved_locs: Vec::new(),
+            breadcrumbs: Vec::new(),
+        }
+    }
+
     pub fn drive<'w, E>(&'w mut self, eval: &'w mut E) -> Walker<'w, 'a, E> {
         Walker {
             driver: self,

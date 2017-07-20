@@ -2,9 +2,7 @@ use data::*;
 use layout::Layout;
 use eval::walker::*;
 
-pub trait Evaluator<'e> {
-    type Walker;
-
+pub trait Evaluator {
     fn eval(&self, layout: &Layout) -> f64;
-    fn walker(&'e self, driver: &'e mut WalkerDriver<'e>) -> Self::Walker;
+    fn walker<'e>(&'e self, driver: &mut WalkerDriver<'e>) -> Box<WalkableEval<'e> + 'e>;
 }

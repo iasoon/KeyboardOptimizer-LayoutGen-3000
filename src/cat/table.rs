@@ -60,6 +60,18 @@ impl<D: FiniteDomain, T> fmt::Debug for Table<D, T>
     }
 }
 
+impl<D, T> Clone for Table<D, T>
+    where D: FiniteDomain,
+          T: Clone
+{
+    fn clone(&self) -> Self {
+        Table {
+            elems: self.elems.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<D: FiniteDomain, T, V> Map<T, V, Table<D, V>> for Table<D, T>
 {
     fn map<'t, F>(&'t self, mut fun: F) -> Table<D, V>
@@ -103,3 +115,4 @@ impl<D, T, R> MapInto<T, R, Table<D, R>> for Table<D, T>
         Table::from_vec(self.elems.into_iter().map(fun).collect())
     }
 }
+
