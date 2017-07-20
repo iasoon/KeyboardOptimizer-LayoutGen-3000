@@ -1,5 +1,6 @@
 use data::*;
 use cat::*;
+use cat::ops::*;
 
 use layout::assignable::Assignable;
 
@@ -7,6 +8,19 @@ pub struct Layout<'a> {
     pub keymap: Keymap,
     pub token_map: TokenMap,
     pub kb_def: &'a KbDef,
+}
+
+impl<'a> Layout<'a> {
+    pub fn mk_group_map(&self) -> GroupMap {
+        let mut map = self.kb_def.group_num().map_nums(|_| None);
+        for (token_num, &loc_num) in self.token_map.enumerate() {
+            let group = *self.kb_def.token_group.get(token_num);
+            let group_num = self.kb_def.group_num().apply(group);
+            let key_num = self.kb_def.loc_num().apply(loc_num).key_num;
+            *map.get_mut(group_num) = Some(key_num);
+        }
+        return map.map_into(|value| value.unwrap());
+    }
 }
 
 pub type Keymap = Table<Loc, Option<Num<Token>>>;

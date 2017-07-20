@@ -270,3 +270,19 @@ impl<'w, 'e> HasMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Ke
         self.driver.group_map()
     }
 }
+
+impl<'e> Evaluator<'e> for NGramEval<Group, Key> {
+    type Walker = NGramWalker<'e, Group, Key>;
+
+    fn eval(&self, layout: &Layout) -> f64 {
+        let group_map = layout.mk_group_map();
+        return self.ngrams.eval(self.ngram_cost(&group_map));
+    }
+
+    fn walker(&'e self, driver: &'e mut WalkerDriver<'e>) -> Self::Walker {
+        NGramWalker {
+            eval: self,
+            assignment_delta: driver.kb_def.assignment_num().map_nums(|_| 0.0),
+        }
+    }
+}
