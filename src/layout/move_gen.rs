@@ -18,31 +18,28 @@ pub struct MoveGen<'a> {
 // Construct an initial assignment_used map, marking each assignment used in
 // given layout as used in iteration 0.
 fn mk_assignment_used(layout: &Layout) -> Table<AllowedAssignment, Option<usize>> {
-    let mut map = layout.kb_def.assignments.map(|_| None);
+    let mut table = layout.kb_def.assignments.map(|_| None);
+    {
+        let mut map = table.borrow_mut().compose_fn(|assignment: Assignment| {
+            layout.kb_def.assignment_map[assignment].unwrap()
+        });
 
-    // Assigned frees
-    for (free_num, &token_num) in layout.kb_def.frees.enumerate() {
-        let loc_num = layout.token_map[token_num];
-        let assignment = layout.kb_def.assignment_map.index(Assignment::Free {
-            free_num,
-            loc_num
-        }).unwrap();
-        map[assignment] = Some(0);
+        // Assigned frees
+        for (free_num, &token_num) in layout.kb_def.frees.enumerate() {
+            let loc_num = layout.token_map[token_num];
+            map[Assignment::Free { free_num, loc_num}] = Some(0);
+        }
+
+        // Assigned locks
+        let group_map = layout.mk_group_map();
+        for lock_num in layout.kb_def.locks.nums() {
+            let group_num = layout.kb_def.group_num().apply(Group::Lock(lock_num));
+            let key_num = group_map[group_num];
+            map[Assignment::Lock { lock_num, key_num }] = Some(0);
+        }
     }
 
-    // Assigned locks
-    let group_map = layout.mk_group_map();
-    for lock_num in layout.kb_def.locks.nums() {
-        let group_num = layout.kb_def.group_num().apply(Group::Lock(lock_num));
-        let key_num = group_map[group_num];
-        let assignment = layout.kb_def.assignment_map.index(Assignment::Lock {
-            lock_num,
-            key_num,
-        }).unwrap();
-        map[assignment] = Some(0);
-    }
-
-    return map;
+    return table;
 }
 
 impl<'a> MoveGen<'a> {

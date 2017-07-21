@@ -24,6 +24,17 @@ impl<A, B> Composed<A, B> {
     }
 }
 
+impl<K, A, B> Mapping<K> for Composed<A, B>
+    where A: Mapping<K>,
+          B: Mapping<A::Result>
+{
+    type Result = B::Result;
+
+    fn apply(&self, elem: K) -> B::Result {
+        self.snd.apply(self.fst.apply(elem))
+    }
+}
+
 impl<K, A, B> Index<K> for Composed<A, B>
     where A: Mapping<K>,
           B: Index<A::Result>
