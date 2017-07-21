@@ -10,12 +10,27 @@ pub struct Traverser<'e> {
     eval: WalkingEval<'e>,
 }
 
+pub struct Delta {
+    pub assignments: Vec<Assignment>,
+    pub score: f64,
+}
+
 impl<'e> Traverser<'e> {
-    fn new(evals: &'e [Box<Evaluator>], layout: Layout<'e>) -> Self {
+    pub fn new(evals: &'e [Box<Evaluator>], layout: Layout<'e>) -> Self {
         Traverser {
             eval: WalkingEval::new(&layout, evals),
             layout: layout,
         }
+    }
+
+    pub fn deltas<'a>(&'a mut self) -> impl Iterator<Item = Delta> + 'a {
+        let eval = &mut self.eval;
+        self.layout.gen_moves().map(move |assignments| {
+                Delta {
+                    score: eval.eval_delta(assignments.as_slice()),
+                    assignments: assignments,
+                }
+            })
     }
 }
 
@@ -32,7 +47,7 @@ impl<'e> WalkingEval<'e> {
         WalkingEval { driver, eval_walkers }
     }
 
-    fn eval_delta(&'e mut self, assignments: &[Assignment]) -> f64 {
+    fn eval_delta(&mut self, assignments: &[Assignment]) -> f64 {
         let driver = &mut self.driver;
         self.eval_walkers.iter_mut().map(|eval| {
             eval.eval_delta(driver, assignments)
