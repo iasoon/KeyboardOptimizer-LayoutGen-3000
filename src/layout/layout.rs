@@ -3,6 +3,7 @@ use cat::*;
 use cat::ops::*;
 
 use layout::assignable::Assignable;
+use layout::move_gen::MoveGen;
 
 pub struct Layout<'a> {
     pub keymap: Keymap,
@@ -11,6 +12,14 @@ pub struct Layout<'a> {
 }
 
 impl<'a> Layout<'a> {
+    pub fn from_keymap(kb_def: &'a KbDef, keymap: Keymap) -> Self {
+        Layout {
+            token_map: mk_token_map(kb_def, &keymap),
+            keymap: keymap,
+            kb_def: kb_def,
+        }
+    }
+
     pub fn mk_group_map(&self) -> GroupMap {
         let mut map = self.kb_def.group_num().map_nums(|_| None);
         for (token_num, &loc_num) in self.token_map.enumerate() {
@@ -21,11 +30,25 @@ impl<'a> Layout<'a> {
         }
         return map.map_into(|value| value.unwrap());
     }
+
+    pub fn gen_moves<'b>(&'b self) -> MoveGen<'b> {
+        MoveGen::new(self)
+    }
 }
 
 pub type Keymap = Table<Loc, Option<Num<Token>>>;
 pub type TokenMap = Table<Token, Num<Loc>>;
 pub type GroupMap = Table<Group, Num<Key>>;
+
+fn mk_token_map(kb_def: &KbDef, keymap: &Keymap) -> TokenMap {
+    let mut map = kb_def.tokens.map_nums(|_| None);
+    for (loc_num, &value) in keymap.enumerate() {
+        if let Some(token_num) = value {
+            *map.get_mut(token_num) = Some(loc_num);
+        }
+    }
+    return map.map_into(|value| value.unwrap());
+}
 
 impl Assignable for TokenMap {
     fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {

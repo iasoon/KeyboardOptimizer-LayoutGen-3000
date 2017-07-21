@@ -1,12 +1,9 @@
 use data::*;
 use cat::*;
+use cat::ops::*;
 
 use layout::*;
 
-/// In order to generate correct moves, all lock-assignments should be visited
-/// first, then all free-assignments. The easiest way to accomplish this is to
-/// make sure that AllowedAssignments are ordered in this way.
-/// See further below for more information.
 pub struct MoveGen<'a> {
     kb_def: &'a KbDef,
     keymap: &'a Keymap,
@@ -17,7 +14,48 @@ pub struct MoveGen<'a> {
     iteration: usize,
 }
 
+// Construct an initial assignment_used map, marking each assignment used in
+// given layout as used in iteration 0.
+fn mk_assignment_used(layout: &Layout) -> Table<AllowedAssignment, Option<usize>> {
+    let mut map = layout.kb_def.assignments.map(|_| None);
+
+    // Assigned frees
+    for (free_num, &token_num) in layout.kb_def.frees.enumerate() {
+        let loc_num = *layout.token_map.get(token_num);
+        let assignment = layout.kb_def.assignment_map.get(Assignment::Free {
+            free_num,
+            loc_num
+        }).unwrap();
+        *map.get_mut(assignment) = Some(0);
+    }
+
+    // Assigned locks
+    let group_map = layout.mk_group_map();
+    for lock_num in layout.kb_def.locks.nums() {
+        let group_num = layout.kb_def.group_num().apply(Group::Lock(lock_num));
+        let key_num = *group_map.get(group_num);
+        let assignment = layout.kb_def.assignment_map.get(Assignment::Lock {
+            lock_num,
+            key_num,
+        }).unwrap();
+        *map.get_mut(assignment) = Some(0);
+    }
+
+    return map;
+}
+
 impl<'a> MoveGen<'a> {
+    pub fn new(layout: &'a Layout) -> Self {
+        MoveGen {
+            kb_def: layout.kb_def,
+            keymap: &layout.keymap,
+            token_map: &layout.token_map,
+            assignment_used: mk_assignment_used(layout),
+            enumerator: layout.kb_def.assignments.nums(),
+            iteration: 1,
+        }
+    }
+
     fn next_assignment(&mut self) -> Option<Assignment> {
         self.enumerator.next().map(|num| {
             *self.kb_def.assignments.get(num)
