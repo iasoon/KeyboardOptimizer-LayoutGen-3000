@@ -2,6 +2,7 @@ use cat::types::*;
 
 use std::marker::PhantomData;
 use std::cmp::Ordering;
+use std::fmt;
 
 pub struct Num<D: FiniteDomain> {
     num: usize,
@@ -48,6 +49,12 @@ impl<D: FiniteDomain> PartialOrd for Num<D> {
 impl<D: FiniteDomain> Ord for Num<D> {
     fn cmp(&self, rhs: &Num<D>) -> Ordering {
         self.as_usize().cmp(&rhs.as_usize())
+    }
+}
+
+impl<D: FiniteDomain> fmt::Debug for Num<D> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.as_usize())
     }
 }
 
