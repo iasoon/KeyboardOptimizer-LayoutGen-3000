@@ -12,50 +12,28 @@ pub struct NGram<T> {
     phantom: PhantomData<T>,
 }
 
-impl<T> Domain for NGram<T>
-    where T: FiniteDomain
-{
-    type Type = Vec<Num<T>>;
-}
-
-impl<T> FiniteDomain for NGram<T>
-    where T: FiniteDomain
-{}
-
-pub struct NGrams<T>
-    where T: FiniteDomain
-{
+pub struct NGrams<T> {
     pub elements: SeqTable<NGram<T>, Num<T>>,
     pub freqs: Table<NGram<T>, f64>,
 }
 
-impl<T> NGrams<T>
-    where T: FiniteDomain
-{
-    pub fn eval<'e, P>(&self, cost: NGramCost<'e, T, P>) -> f64
-        where P: FiniteDomain
-    {
+impl<T> NGrams<T> {
+    pub fn eval<'e, P>(&self, cost: NGramCost<'e, T, P>) -> f64 {
         self.elements.enumerate().map(|(seq_num, seq)| {
-            cost.apply(seq) * self.freqs.get(seq_num)
+            cost.apply(seq) * self.freqs[seq_num]
         }).sum()
     }
 }
 
 pub type PathCost<T> = Composed<SeqNum<T>, Table<Seq<T>, f64>>;
 
-pub struct NGramEval<T, P>
-    where T: FiniteDomain,
-          P: FiniteDomain
-{
+pub struct NGramEval<T, P> {
     ngrams: NGrams<T>,
     costs: PathCost<P>,
     intersections: BagTable<T, NGrams<T>>,
 }
 
-impl<T, P> NGramEval<T, P>
-    where T: FiniteDomain,
-          P: FiniteDomain
-{
+impl<T, P> NGramEval<T, P> {
     pub fn new(t_count: Count<T>, ngrams: NGrams<T>, costs: PathCost<P>) -> Self {
         NGramEval {
             intersections: mk_intersections(t_count, &ngrams),
@@ -72,21 +50,15 @@ impl<T, P> NGramEval<T, P>
     }
 }
 
-struct NGramCost<'a, D, T>
-    where D: FiniteDomain + 'a,
-          T: FiniteDomain + 'a
-{
+struct NGramCost<'a, D: 'a, T: 'a> {
     mapping: &'a Table<D, Num<T>>,
     path_cost: &'a PathCost<T>,
 }
 
-impl<'a, D, T> NGramCost<'a, D, T>
-    where D: FiniteDomain + 'a,
-          T: FiniteDomain + 'a
-{
+impl<'a, D: 'a, T: 'a> NGramCost<'a, D, T> {
     fn apply<'e>(&self, ngram: &'e [Num<D>]) -> f64 {
-        let path = ngram.iter().map(|&e| *self.mapping.get(e));
-        return *self.path_cost.get(path);
+        let path = ngram.iter().map(|&e| self.mapping[e]);
+        return self.path_cost[path];
     }
 }
 
@@ -140,9 +112,7 @@ impl<'t, T: 't> SubSeqs<'t, T> {
     }
 }
 
-fn mk_intersections<T>(count: Count<T>, ngrams: &NGrams<T>) -> BagTable<T, NGrams<T>>
-    where T: FiniteDomain
-{
+fn mk_intersections<T>(count: Count<T>, ngrams: &NGrams<T>) -> BagTable<T, NGrams<T>> {
     let seq_bag = SeqBag::new(count, ngrams.elements.seq_len());
     let mut builder = seq_bag
         .map_nums(|_| NGramsSubsetBuilder::new())
@@ -150,22 +120,18 @@ fn mk_intersections<T>(count: Count<T>, ngrams: &NGrams<T>) -> BagTable<T, NGram
     for (ngram_num, ngram) in ngrams.elements.enumerate() {
         let mut subseqs = SubSeqs::new(ngram, 2);
         while subseqs.next() {
-            builder.get_mut(subseqs.seq().cloned()).push(ngram_num);
+            builder[subseqs.seq().cloned()].push(ngram_num);
         }
     }
     return builder.map_into(|b| b.build(ngrams));
 }
 
-struct NGramsSubsetBuilder<T>
-    where T: FiniteDomain
-{
+struct NGramsSubsetBuilder<T> {
     nums: Vec<Num<NGram<T>>>,
     next_allowed: usize,
 }
 
-impl<T> NGramsSubsetBuilder<T>
-    where T: FiniteDomain
-{
+impl<T> NGramsSubsetBuilder<T> {
     fn new() -> Self {
         NGramsSubsetBuilder {
             nums: Vec::new(),
@@ -186,8 +152,8 @@ impl<T> NGramsSubsetBuilder<T>
             self.nums.len() * ngrams.elements.seq_len());
         let mut freqs = Vec::with_capacity(self.nums.len());
         for &num in self.nums.iter() {
-            elems.extend(ngrams.elements.get(num).iter().cloned());
-            freqs.push(*ngrams.freqs.get(num));
+            elems.extend(ngrams.elements[num].iter().cloned());
+            freqs.push(ngrams.freqs[num]);
         }
         return NGrams {
             elements: SeqTable::from_elem_vec(elems, ngrams.elements.seq_len()),
@@ -196,34 +162,23 @@ impl<T> NGramsSubsetBuilder<T>
     }
 }
 
-trait HasMapping<T, P>
-    where T: FiniteDomain,
-          P: FiniteDomain
-{
+trait HasMapping<T, P> {
     fn mapping<'m>(&'m self) -> &'m Table<T, Num<P>>;
 }
 
-pub struct NGramWalker<'e, T, P>
-    where T: FiniteDomain + 'e,
-          P: FiniteDomain + 'e
-{
+pub struct NGramWalker<'e, T: 'e, P: 'e> {
     eval: &'e NGramEval<T, P>,
-    assignment_delta: Table<Assignment, f64>,
+    assignment_delta: Composed<AssignmentNum, Table<Assignment, f64>>,
 }
 
-impl<'e, T, P> Assignable for NGramWalker<'e, T, P>
-    where T: FiniteDomain + 'e,
-          P: FiniteDomain + 'e
-{
+impl<'e, T: 'e, P: 'e> Assignable for NGramWalker<'e, T, P> {
     fn assign(&mut self, _: &KbDef, _: Assignment) {
         // Do nothing
     }
 }
 
-impl<'a, 'e, T, P> Walker<'a, 'e, NGramWalker<'e, T, P>>
+impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
     where Self: HasMapping<T, P>,
-          T: FiniteDomain + 'e,
-          P: FiniteDomain + 'e
 {
     fn cost<'b>(&'b self) -> NGramCost<'b, T, P> {
         self.evaluator().ngram_cost(self.mapping())
@@ -239,15 +194,21 @@ impl<'a, 'e, T, P> Walker<'a, 'e, NGramWalker<'e, T, P>>
 
     fn eval_intersection(&self, ts: [Num<T>; 2]) -> f64
     {
-        let ngrams = self.evaluator().intersections.get(ts.iter().cloned());
+        let ngrams = &self.evaluator().intersections[ts.iter().cloned()];
         return ngrams.eval(self.cost());
+    }
+
+    fn recalc_delta(&mut self, assignment: Assignment) {
+        let delta = self.measure_effect(
+            |walker| walker.assign(assignment),
+            |walker| walker.eval()
+        );
+        self.eval.assignment_delta[assignment] = delta;
     }
 }
 
-impl<'e, T, P> WalkableEval<'e> for NGramWalker<'e, T, P>
-    where for<'w> Walker<'w, 'e, Self> : HasMapping<T, P>,
-          T: FiniteDomain + 'e,
-          P: FiniteDomain + 'e
+impl<'e, T: 'e, P: 'e> WalkableEval<'e> for NGramWalker<'e, T, P>
+    where for<'w> Walker<'w, 'e, Self> : HasMapping<T, P>
 {
     fn eval_delta<'w>(&'w mut self, driver: &'w mut WalkerDriver<'e>, delta: &[Assignment]) -> f64 {
         driver.drive(self).measure_effect(
@@ -274,9 +235,13 @@ impl Evaluator for NGramEval<Group, Key> {
     }
 
     fn walker<'e>(&'e self, driver: &mut WalkerDriver<'e>) -> Box<WalkableEval<'e> + 'e> {
-        Box::new(NGramWalker {
+        let mut walker = NGramWalker {
             eval: self,
-            assignment_delta: driver.kb_def.assignment_num().map_nums(|_| 0.0),
-        })
+            assignment_delta: driver.kb_def
+                .assignment_num()
+                .map_nums(|_| 0.0)
+                .compose(driver.kb_def.assignment_num()),
+        };
+        return Box::new(walker);
     }
 }

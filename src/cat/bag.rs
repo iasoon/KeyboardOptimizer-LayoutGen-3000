@@ -34,26 +34,12 @@ impl<T> Bag<T> {
     }
 }
 
-impl<D> Domain for Bag<D>
-    where D: Domain
-{
-    type Type = Bag<D::Type>;
-}
-
-impl<D> FiniteDomain for Bag<D>
-    where D: FiniteDomain
-{}
-
-pub struct BagNum<D>
-    where D: FiniteDomain
-{
+pub struct BagNum<D> {
     elemtype_count: Count<D>,
     size: usize,
 }
 
-impl<D> BagNum<D>
-    where D: FiniteDomain
-{
+impl<D> BagNum<D> {
     pub fn new(count: Count<D>, size: usize) -> Self {
         BagNum {
             elemtype_count: count,
@@ -62,18 +48,14 @@ impl<D> BagNum<D>
     }
 }
 
-impl<D> HasCount<Bag<D>> for BagNum<D>
-    where D: FiniteDomain
-{
+impl<D> HasCount<Bag<D>> for BagNum<D> {
     fn count(&self) -> Count<Bag<D>> {
         let count = choose_repeat(self.elemtype_count.as_usize(), self.size);
         return to_count(count);
     }
 }
 
-impl<D> Mapping<Bag<Num<D>>> for BagNum<D>
-    where D: FiniteDomain
-{
+impl<D> Mapping<Bag<Num<D>>> for BagNum<D> {
     type Result = Num<Bag<D>>;
 
     fn apply(&self, bag: Bag<Num<D>>) -> Num<Bag<D>> {
@@ -89,9 +71,7 @@ impl<D> Mapping<Bag<Num<D>>> for BagNum<D>
     }
 }
 
-impl<D> Mapping<Num<Bag<D>>> for BagNum<D>
-    where D: FiniteDomain
-{
+impl<D> Mapping<Num<Bag<D>>> for BagNum<D> {
     type Result = Bag<Num<D>>;
 
     fn apply(&self, num: Num<Bag<D>>) -> Bag<Num<D>> {
@@ -120,17 +100,13 @@ impl<D> Mapping<Num<Bag<D>>> for BagNum<D>
     }
 }
 
-pub struct SeqBag<D>
-    where D: FiniteDomain
-{
+pub struct SeqBag<D> {
     count: Count<D>,
     bag_size: usize,
     seq_bag: Table<Seq<D>, Num<Bag<D>>>,
 }
 
-impl<D> SeqBag<D>
-    where D: FiniteDomain
-{
+impl<D> SeqBag<D> {
     pub fn new(count: Count<D>, bag_size: usize) -> Self {
         let bag_num = BagNum::new(count, bag_size);
         let seq_bag = Table::from_vec(
@@ -145,22 +121,19 @@ impl<D> SeqBag<D>
     }
 }
 
-impl<D> HasCount<Bag<D>> for SeqBag<D>
-    where D: FiniteDomain
-{
+impl<D> HasCount<Bag<D>> for SeqBag<D> {
     fn count(&self) -> Count<Bag<D>> {
         BagNum::new(self.count, self.bag_size).count()
     }
 }
 
 impl<D, I> Mapping<I> for SeqBag<D>
-    where I: Iterator<Item = Num<D>>,
-          D: FiniteDomain
+    where I: Iterator<Item = Num<D>>
 {
     type Result = Num<Bag<D>>;
 
     fn apply(&self, seq: I) -> Num<Bag<D>> {
-        *self.seq_bag.get(SeqNum::new(self.count, self.bag_size).apply(seq))
+        self.seq_bag[SeqNum::new(self.count, self.bag_size).apply(seq)]
     }
 }
 

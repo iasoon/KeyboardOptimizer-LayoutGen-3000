@@ -2,7 +2,7 @@ use data::*;
 use cat::*;
 
 use layout::utils::Subset;
-use layout::maps::*;
+use layout::layout::*;
 
 pub struct Cycle {
     tokens: Vec<Num<Token>>,
@@ -41,8 +41,8 @@ impl<'a> LayoutPair<'a> {
     fn differing_tokens(&self) -> Subset<Token> {
         let mut token_set = Subset::complete(self.kb_def.tokens.count());
         for token_num in self.kb_def.tokens.nums() {
-            let fst = self.token_maps[0].get(token_num);
-            let snd = self.token_maps[1].get(token_num);
+            let fst = self.token_maps[0][token_num];
+            let snd = self.token_maps[1][token_num];
             if fst == snd {
                 token_set.remove(token_num);
             }
@@ -51,13 +51,13 @@ impl<'a> LayoutPair<'a> {
     }
 
     fn cycle_next(&self, token_num: Num<Token>) -> Option<Num<Token>> {
-        let loc_num = *self.token_maps[0].get(token_num);
-        return *self.keymaps[1].get(loc_num);
+        let loc_num = self.token_maps[0][token_num];
+        return self.keymaps[1][loc_num];
     }
 
     fn cycle_prev(&self, token_num: Num<Token>) -> Option<Num<Token>> {
-        let loc_num = *self.token_maps[1].get(token_num);
-        return *self.keymaps[0].get(loc_num);
+        let loc_num = self.token_maps[1][token_num];
+        return self.keymaps[0][loc_num];
     }
 
     pub fn cycles<'b: 'a>(&'b self) -> Cycles<'b> {
@@ -124,14 +124,14 @@ impl<'a> CycleBuilder<'a> {
     }
 
     fn visit_group(&mut self, token_num: Num<Token>) {
-        match self.layout_pair.kb_def.token_group.get(token_num) {
-            &Group::Free(_) => self.visit_token(token_num),
-            &Group::Lock(lock_num) => self.visit_lock(lock_num),
+        match self.layout_pair.kb_def.token_group[token_num] {
+            Group::Free(_) => self.visit_token(token_num),
+            Group::Lock(lock_num) => self.visit_lock(lock_num),
         }
     }
 
     fn visit_lock(&mut self, lock_num: Num<Lock>) {
-        let lock = self.layout_pair.kb_def.locks.get(lock_num);
+        let lock = &self.layout_pair.kb_def.locks[lock_num];
         for (_, &value) in lock.enumerate() {
             if let Some(token_num) = value {
                 self.visit_token(token_num);

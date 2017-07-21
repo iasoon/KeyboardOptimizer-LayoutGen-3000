@@ -13,14 +13,14 @@ pub trait Assignable {
                 let key_num = kb_def.loc_num().apply(loc_num).key_num;
                 self.assign_group(group_num, key_num);
 
-                let &token_num = kb_def.frees.get(free_num);
+                let token_num = kb_def.frees[free_num];
                 self.assign_token(token_num, loc_num);
             },
             Assignment::Lock { lock_num, key_num } => {
                 let group_num = kb_def.group_num().apply(Group::Lock(lock_num));
                 self.assign_group(group_num, key_num);
 
-                let lock_entries = kb_def.locks.get(lock_num);
+                let lock_entries = &kb_def.locks[lock_num];
                 for (layer_num, &value) in lock_entries.enumerate() {
                     if let Some(token_num) = value {
                         self.assign_token(token_num, kb_def.loc_num().apply(Loc {

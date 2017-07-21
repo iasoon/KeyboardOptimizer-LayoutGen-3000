@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::{Index, IndexMut};
 
 use cat::types::*;
 use cat::has_count::*;
@@ -23,18 +24,25 @@ impl<A, B> Composed<A, B> {
     }
 }
 
-impl<S, T, M, D> Dict<S, T> for Composed<M, D>
-    where M: Mapping<S>,
-          D: Dict<M::Result, T>
+impl<K, A, B> Index<K> for Composed<A, B>
+    where A: Mapping<K>,
+          B: Index<A::Result>
 {
-    fn get<'t>(&'t self, elem: S) -> &'t T {
-        let d = self.fst.apply(elem);
-        return self.snd.get(d);
-    }
+    type Output = B::Output;
 
-    fn get_mut<'t>(&'t mut self, elem: S) -> &'t mut T {
-        let d = self.fst.apply(elem);
-        return self.snd.get_mut(d);
+    fn index<'t>(&'t self, key: K) -> &'t B::Output {
+        let idx = self.fst.apply(key);
+        return &self.snd[idx];
+    }
+}
+
+impl<K, A, B> IndexMut<K> for Composed<A, B>
+    where A: Mapping<K>,
+          B: IndexMut<A::Result>
+{
+    fn index_mut<'t>(&'t mut self, key: K) -> &'t mut B::Output {
+        let idx = self.fst.apply(key);
+        return &mut self.snd[idx];
     }
 }
 

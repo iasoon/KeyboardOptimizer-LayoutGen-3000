@@ -1,6 +1,7 @@
 use data::*;
 use cat::*;
 use cat::ops::*;
+use std::ops::Index;
 
 use layout::*;
 
@@ -21,24 +22,24 @@ fn mk_assignment_used(layout: &Layout) -> Table<AllowedAssignment, Option<usize>
 
     // Assigned frees
     for (free_num, &token_num) in layout.kb_def.frees.enumerate() {
-        let loc_num = *layout.token_map.get(token_num);
-        let assignment = layout.kb_def.assignment_map.get(Assignment::Free {
+        let loc_num = layout.token_map[token_num];
+        let assignment = layout.kb_def.assignment_map.index(Assignment::Free {
             free_num,
             loc_num
         }).unwrap();
-        *map.get_mut(assignment) = Some(0);
+        map[assignment] = Some(0);
     }
 
     // Assigned locks
     let group_map = layout.mk_group_map();
     for lock_num in layout.kb_def.locks.nums() {
         let group_num = layout.kb_def.group_num().apply(Group::Lock(lock_num));
-        let key_num = *group_map.get(group_num);
-        let assignment = layout.kb_def.assignment_map.get(Assignment::Lock {
+        let key_num = group_map[group_num];
+        let assignment = layout.kb_def.assignment_map.index(Assignment::Lock {
             lock_num,
             key_num,
         }).unwrap();
-        *map.get_mut(assignment) = Some(0);
+        map[assignment] = Some(0);
     }
 
     return map;
@@ -58,7 +59,7 @@ impl<'a> MoveGen<'a> {
 
     fn next_assignment(&mut self) -> Option<Assignment> {
         self.enumerator.next().map(|num| {
-            *self.kb_def.assignments.get(num)
+            self.kb_def.assignments[num]
         })
     }
 
@@ -141,9 +142,9 @@ impl<'a> MoveBuilder<'a> {
     }
 
     fn assignment_state(&self, assignment: Assignment) -> AssignmentState {
-        match *self.kb_def.assignment_map.get(assignment) {
+        match self.kb_def.assignment_map[assignment] {
             Some(num) => {
-                match *self.assignment_used.get(num) {
+                match self.assignment_used[num] {
                     Some(iteration) if iteration == self.iteration => Used,
                     Some(_) => Forbidden,
                     None => Allowed(num),
@@ -156,12 +157,12 @@ impl<'a> MoveBuilder<'a> {
     fn resolve_assignment(&mut self, assignment: Assignment) -> Result<()> {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
-                let &token_num = self.kb_def.frees.get(free_num);
+                let token_num = self.kb_def.frees[free_num];
                 try!(self.resolve_token(token_num, loc_num));
                 Ok(())
             },
             Assignment::Lock { lock_num, key_num } => {
-                let lock = self.kb_def.locks.get(lock_num);
+                let lock = &self.kb_def.locks[lock_num];
                 for (layer_num, &value) in lock.enumerate() {
                     if let Some(token_num) = value {
                         let loc_num = self.kb_def.loc_num().apply(Loc {
@@ -181,8 +182,8 @@ impl<'a> MoveBuilder<'a> {
                      -> Result<()>
     {
 
-        if let &Some(replaced) = self.keymap.get(loc_num) {
-            let &prev_loc = self.token_map.get(token_num);
+        if let Some(replaced) = self.keymap[loc_num] {
+            let prev_loc = self.token_map[token_num];
             try!(self.assign_token(replaced, prev_loc));
         }
         Ok(())
@@ -205,7 +206,7 @@ impl<'a> MoveBuilder<'a> {
             Forbidden => Err(()),
             Used => Ok(()),
             Allowed(num) => {
-                *self.assignment_used.get_mut(num) = Some(self.iteration);
+                self.assignment_used[num] = Some(self.iteration);
                 self.assignments.push(assignment);
                 return Ok(());
             }
@@ -216,19 +217,19 @@ impl<'a> MoveBuilder<'a> {
     fn get_assignment(&self, token_num: Num<Token>, loc_num: Num<Loc>)
                       -> Result<Assignment>
     {
-        match self.kb_def.token_group.get(token_num) {
-            &Group::Free(free_num) => Ok(
+        match self.kb_def.token_group[token_num] {
+            Group::Free(free_num) => Ok(
                 Assignment::Free {
                     free_num: free_num,
                     loc_num: loc_num,
                 }
             ),
-            &Group::Lock(lock_num) => {
-                let lock = self.kb_def.locks.get(lock_num);
+            Group::Lock(lock_num) => {
+                let lock = &self.kb_def.locks[lock_num];
                 let loc = self.kb_def.loc_num().apply(loc_num);
                 // Swapping a locked token is only possible when it does not
                 // move layers.
-                if lock.get(loc.layer_num) == &Some(token_num) {
+                if lock[loc.layer_num] == Some(token_num) {
                     Ok(Assignment::Lock {
                         lock_num: lock_num,
                         key_num: loc.key_num,

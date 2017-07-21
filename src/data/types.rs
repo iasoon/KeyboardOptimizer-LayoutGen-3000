@@ -4,43 +4,17 @@ use cat::*;
 /// A key on the keyboard.
 pub struct Key;
 
-impl Domain for Key {
-    type Type = String;
-}
-
-impl FiniteDomain for Key {}
-
-
 /// A layer on the keyboard, e.g. 'default', 'shift', 'alt', ...
 pub struct Layer;
 
-impl Domain for Layer {
-    type Type = String;
-}
-
-impl FiniteDomain for Layer {}
-
-
 /// A token that can be assigned to a location, e.g. letters of the alphabet.
 pub struct Token;
-
-impl Domain for Token {
-    type Type = String;
-}
-
-impl FiniteDomain for Token {}
 
 /// A location on the keyboard, determined by a key and a layer.
 pub struct Loc {
     pub key_num: Num<Key>,
     pub layer_num: Num<Layer>,
 }
-
-impl Domain for Loc {
-    type Type = Loc;
-}
-
-impl FiniteDomain for Loc {}
 
 pub struct LocNum {
     pub key_count: Count<Key>,
@@ -89,13 +63,6 @@ impl Mapping<Num<Loc>> for LocNum {
 /// placed on.
 pub struct Free;
 
-impl Domain for Free {
-    type Type = Num<Token>;
-}
-
-impl FiniteDomain for Free {}
-
-
 /// A group of tokens that is locked together.
 /// Each token of the group is uniquely assigned to a layer, so that a 'locked'
 /// token only has one degree of freedom: which key the group is assigned to.
@@ -104,25 +71,12 @@ impl FiniteDomain for Free {}
 /// same key.
 pub struct Lock;
 
-impl Domain for Lock {
-    type Type = Table<Layer, Option<Num<Token>>>;
-}
-
-impl FiniteDomain for Lock {}
-
-
 /// Union type for free and locked groups.
 #[derive(Copy, Clone)]
 pub enum Group {
     Free(Num<Free>),
     Lock(Num<Lock>),
 }
-
-impl Domain for Group {
-    type Type = Group;
-}
-
-impl FiniteDomain for Group {}
 
 pub struct GroupNum {
     pub free_count: Count<Free>,
@@ -178,12 +132,6 @@ pub enum Assignment {
         key_num: Num<Key>,
     }
 }
-
-impl Domain for Assignment {
-    type Type = Assignment;
-}
-
-impl FiniteDomain for Assignment {}
 
 pub struct AssignmentNum {
     pub free_count: Count<Free>,
@@ -243,9 +191,3 @@ impl Mapping<Assignment> for AssignmentNum {
 
 /// Marker type for disambiguating between possible and allowed assignments.
 pub struct AllowedAssignment;
-
-impl Domain for AllowedAssignment {
-    type Type = Assignment;
-}
-
-impl FiniteDomain for AllowedAssignment {}

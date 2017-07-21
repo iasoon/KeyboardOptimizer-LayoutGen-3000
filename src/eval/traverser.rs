@@ -1,5 +1,5 @@
 use data::*;
-use layout::Layout;
+use layout::{Layout, Assignable};
 use std::marker::PhantomData;
 
 use eval::walker::*;
@@ -26,11 +26,16 @@ impl<'e> Traverser<'e> {
     pub fn deltas<'a>(&'a mut self) -> impl Iterator<Item = Delta> + 'a {
         let eval = &mut self.eval;
         self.layout.gen_moves().map(move |assignments| {
-                Delta {
-                    score: eval.eval_delta(assignments.as_slice()),
-                    assignments: assignments,
-                }
-            })
+            Delta {
+                score: eval.eval_delta(assignments.as_slice()),
+                assignments: assignments,
+            }
+        })
+    }
+
+    pub fn assign_all(&mut self, assignments: &[Assignment]) {
+        self.layout.assign_all(assignments);
+        self.eval.update(assignments);
     }
 }
 
@@ -54,10 +59,11 @@ impl<'e> WalkingEval<'e> {
         }).sum()
     }
 
-    fn update(&'e mut self, assignments: &[Assignment]) {
+    fn update(&mut self, assignments: &[Assignment]) {
         let driver = &mut self.driver;
         for eval in self.eval_walkers.iter_mut() {
             eval.update(driver, assignments);
         }
+        driver.assign_all(assignments);
     }
 }

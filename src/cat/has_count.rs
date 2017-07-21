@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
+use std::ops::Index;
 
 use cat::*;
 use cat::ops::*;
 use cat::internal::*;
 
-pub trait HasCount<D: FiniteDomain> {
+pub trait HasCount<D> {
     fn count(&self) -> Count<D>;
 
     fn nums(&self) -> Enumerator<D> {
@@ -22,7 +23,7 @@ pub trait HasCount<D: FiniteDomain> {
 
 
     fn enumerate<'t, T>(&'t self) -> ElemEnumerator<'t, D, T, Self>
-        where Self: Dict<Num<D>, T> + Sized,
+        where Self: Index<Num<D>, Output=T> + Sized,
               T: ?Sized
     {
         ElemEnumerator {
@@ -33,26 +34,24 @@ pub trait HasCount<D: FiniteDomain> {
     }
 }
 
-pub struct Count<D: FiniteDomain> {
+pub struct Count<D> {
     count: usize,
     phantom: PhantomData<D>,
 }
 
-impl<D: FiniteDomain> Count<D> {
+impl<D> Count<D> {
     pub fn as_usize(&self) -> usize {
         self.count
     }
 }
 
-impl<D> HasCount<D> for Count<D>
-    where D: FiniteDomain
-{
+impl<D> HasCount<D> for Count<D> {
     fn count(&self) -> Count<D> {
         self.clone()
     }
 }
 
-impl<D: FiniteDomain> Clone for Count<D> {
+impl<D> Clone for Count<D> {
     fn clone(&self) -> Self {
         Count {
             count: self.count,
@@ -61,25 +60,21 @@ impl<D: FiniteDomain> Clone for Count<D> {
     }
 }
 
-impl<D: FiniteDomain> Copy for Count<D> {}
+impl<D> Copy for Count<D> {}
 
-pub fn to_count<D: FiniteDomain>(count: usize) -> Count<D> {
+pub fn to_count<D>(count: usize) -> Count<D> {
     Count {
         count: count,
         phantom: PhantomData,
     }
 }
 
-pub struct Enumerator<D>
-    where D: FiniteDomain
-{
+pub struct Enumerator<D> {
     count: Count<D>,
     pos: usize,
 }
 
-impl<D> Iterator for Enumerator<D>
-    where D: FiniteDomain
-{
+impl<D> Iterator for Enumerator<D> {
     type Item = Num<D>;
 
     fn next(&mut self) -> Option<Num<D>> {
@@ -94,8 +89,7 @@ impl<D> Iterator for Enumerator<D>
 }
 
 pub struct ElemEnumerator<'t, D, T, M>
-    where M: Dict<Num<D>, T> + HasCount<D> + 't,
-          D: FiniteDomain,
+    where M: Index<Num<D>, Output = T> + HasCount<D> + 't,
           T: ?Sized
 {
     mapping: &'t M,
@@ -104,15 +98,14 @@ pub struct ElemEnumerator<'t, D, T, M>
 }
 
 impl<'t, D, T, M> Iterator for ElemEnumerator<'t, D, T, M>
-    where M: Dict<Num<D>, T> + HasCount<D> + 't,
-          D: FiniteDomain,
+    where M: Index<Num<D>, Output = T> + HasCount<D> + 't,
           T: 't + ?Sized
 {
     type Item = (Num<D>, &'t T);
 
     fn next(&mut self) -> Option<(Num<D>, &'t T)> {
         self.enumerator.next().map(|num| {
-            (num, self.mapping.get(num))
+            (num, &self.mapping[num])
         })
     }
 }

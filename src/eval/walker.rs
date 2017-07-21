@@ -23,11 +23,11 @@ impl<'a> Assignable for WalkerDriver<'a> {
     }
 
     fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {
-        *self.token_map.get_mut(token_num) = loc_num;
+        self.token_map[token_num] = loc_num;
     }
 
     fn assign_group(&mut self, group_num: Num<Group>, key_num: Num<Key>) {
-        *self.group_map.get_mut(group_num) = key_num;
+        self.group_map[group_num] = key_num;
     }
 }
 
@@ -46,6 +46,12 @@ impl<'a> WalkerDriver<'a> {
         Walker {
             driver: self,
             eval: eval,
+        }
+    }
+
+    pub fn assign_all(&mut self, assignments: &[Assignment]) {
+        for &assignment in assignments.iter() {
+            self.assign(self.kb_def, assignment);
         }
     }
 
@@ -77,14 +83,14 @@ impl<'a> WalkerDriver<'a> {
     fn inverse(&self, assignment: Assignment) -> Assignment {
         match assignment {
             Assignment::Free { free_num, loc_num: _ } => {
-                let token_num = *self.kb_def.frees.get(free_num);
-                let current_loc = *self.token_map.get(token_num);
+                let token_num = self.kb_def.frees[free_num];
+                let current_loc = self.token_map[token_num];
                 Assignment::Free { free_num, loc_num: current_loc }
             },
             Assignment::Lock { lock_num, key_num: _ } => {
                 let group = Group::Lock(lock_num);
                 let group_num = self.kb_def.group_num().apply(group);
-                let current_key = *self.group_map.get(group_num);
+                let current_key = self.group_map[group_num];
                 Assignment::Lock { lock_num, key_num: current_key }
             }
         }

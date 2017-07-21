@@ -1,22 +1,19 @@
 use std::mem;
+use std::ops::{Index, IndexMut};
 use rand::{thread_rng, Rng};
 use cat::*;
 use cat::ops::*;
 
 pub type Subset<D> = IndexedList<Num<D>, Table<D, Option<usize>>>;
 
-pub struct IndexedList<T, I>
-    where I: Dict<T, Option<usize>>
-{
+pub struct IndexedList<T, I> {
     // elements currently in this subset
     pub elems: Vec<T>,
     // maps an element to its index
     pub idxs: I,
 }
 
-impl<D> IndexedList<Num<D>, Table<D, Option<usize>>>
-    where D: FiniteDomain
-{
+impl<D> IndexedList<Num<D>, Table<D, Option<usize>>> {
 
     pub fn complete(count: Count<D>) -> Self {
         IndexedList {
@@ -36,18 +33,18 @@ impl<D> IndexedList<Num<D>, Table<D, Option<usize>>>
 }
 
 impl<T, I> IndexedList<T, I>
-    where I: Dict<T, Option<usize>>,
+    where I: Index<T, Output = Option<usize>> + IndexMut<T>,
           T: Copy,
 {
     pub fn add(&mut self, mut elem: T, pos: usize) {
-        if self.idxs.get(elem).is_none() {
+        if self.idxs[elem].is_none() {
             // swap elem and element in target position
             if pos < self.elems.len() {
-                *self.idxs.get_mut(elem.clone()) = Some(pos);
+                self.idxs[elem] = Some(pos);
                 mem::swap(&mut elem, &mut self.elems[pos]);
             }
             // push elem to elems
-            *self.idxs.get_mut(elem) = Some(self.elems.len());
+            self.idxs[elem] = Some(self.elems.len());
             self.elems.push(elem);
         }
     }
@@ -65,7 +62,7 @@ impl<T, I> IndexedList<T, I>
     }
 
     pub fn contains(&self, elem: T) -> bool {
-        self.idxs.get(elem).is_some()
+        self.idxs[elem].is_some()
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = T> + 'a {
@@ -74,10 +71,10 @@ impl<T, I> IndexedList<T, I>
 
     // returns index the element used to have
     pub fn remove(&mut self, elem: T) -> Option<usize> {
-        if let Some(idx) = self.idxs.get_mut(elem).take() {
+        if let Some(idx) = self.idxs[elem].take() {
             self.elems.swap_remove(idx);
             if idx < self.elems.len() {
-                *self.idxs.get_mut(self.elems[idx]) = Some(idx);
+                self.idxs[self.elems[idx]] = Some(idx);
             }
             return Some(idx);
         } else {
@@ -97,7 +94,7 @@ impl<T, I> IndexedList<T, I>
 
     fn fix_index(&mut self) {
         for (idx, &elem) in self.elems.iter().enumerate() {
-            *self.idxs.get_mut(elem) = Some(idx);
+            self.idxs[elem] = Some(idx);
         }
     }
 }

@@ -4,3 +4,4 @@ mod walker;
 mod traverser;
 
 pub use self::evaluator::Evaluator;
+pub use self::traverser::Traverser;

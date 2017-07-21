@@ -163,10 +163,10 @@ impl<'a> Generator<'a> {
     fn add_assignment(&mut self, assignment: Assignment, pos: usize) {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
-                self.frees.get_mut(free_num).add(loc_num, pos);
+                self.frees[free_num].add(loc_num, pos);
             }
             Assignment::Lock { lock_num, key_num } => {
-                self.locks.get_mut(lock_num).add(key_num, pos);
+                self.locks[lock_num].add(key_num, pos);
             }
         }
     }
@@ -175,10 +175,10 @@ impl<'a> Generator<'a> {
     fn remove_assignment(&mut self, assignment: Assignment) {
         let idx = match assignment {
             Assignment::Free { free_num, loc_num } => {
-                self.frees.get_mut(free_num).remove(loc_num)
+                self.frees[free_num].remove(loc_num)
             }
             Assignment::Lock { lock_num, key_num } => {
-                self.locks.get_mut(lock_num).remove(key_num)
+                self.locks[lock_num].remove(key_num)
             }
         };
         if let Some(num) = idx {
@@ -191,13 +191,13 @@ impl<'a> Generator<'a> {
             Group::Free(free_num) => {
                 Assignment::Free {
                     free_num: free_num,
-                    loc_num: self.frees.get(free_num).get(pos),
+                    loc_num: self.frees[free_num].get(pos),
                 }
             }
             Group::Lock(lock_num) => {
                 Assignment::Lock {
                     lock_num: lock_num,
-                    key_num: self.locks.get(lock_num).get(pos),
+                    key_num: self.locks[lock_num].get(pos),
                 }
             }
         }
@@ -206,8 +206,8 @@ impl<'a> Generator<'a> {
     /// How many assignments remain available for given group
     fn group_count(&self, group: Group) -> usize {
         match group {
-            Group::Free(free_id) => self.frees.get(free_id).size(),
-            Group::Lock(lock_id) => self.locks.get(lock_id).size(),
+            Group::Free(free_id) => self.frees[free_id].size(),
+            Group::Lock(lock_id) => self.locks[lock_id].size(),
         }
     }
 }
@@ -234,7 +234,7 @@ fn free_overlaps(kb_def: &KbDef, loc_num: Num<Loc>) -> Vec<Assignment> {
                     return loc_num == other_loc_num;
                 }
                 Assignment::Lock { lock_num, key_num } => {
-                    let entry = kb_def.locks.get(lock_num).get(loc.layer_num);
+                    let entry = kb_def.locks[lock_num][loc.layer_num];
                     return key_num == loc.key_num && entry.is_some();
                 }
             }
@@ -243,7 +243,7 @@ fn free_overlaps(kb_def: &KbDef, loc_num: Num<Loc>) -> Vec<Assignment> {
 }
 
 fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>) -> Vec<Assignment> {
-    let lock = kb_def.locks.get(lock_num);
+    let lock = &kb_def.locks[lock_num];
     kb_def.assignments
         .enumerate()
         .map(|(_, &assignment)| assignment)
@@ -251,13 +251,12 @@ fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>) -> Vec<
             match assignment {
                 Assignment::Free { free_num: _, loc_num } => {
                     let loc = kb_def.loc_num().apply(loc_num);
-                    key_num == loc.key_num && lock.get(loc.layer_num).is_some()
+                    key_num == loc.key_num && lock[loc.layer_num].is_some()
                 }
                 Assignment::Lock { lock_num: loc2_num, key_num: key2_num } => {
-                    let locks_overlap = kb_def.locks
-                        .get(loc2_num)
+                    let locks_overlap = kb_def.locks[loc2_num]
                         .enumerate()
-                        .any(|(layer_num, value)| value.is_some() && lock.get(layer_num).is_some());
+                        .any(|(layer_num, value)| value.is_some() && lock[layer_num].is_some());
                     return key_num == key2_num && locks_overlap;
                 }
             }

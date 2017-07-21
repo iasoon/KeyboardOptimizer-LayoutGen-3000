@@ -8,31 +8,12 @@ pub struct Product<Maj, Min> {
     phantom_minor: PhantomData<Min>,
 }
 
-impl<Maj, Min> Domain for Product<Maj, Min>
-    where Maj: FiniteDomain,
-          Min: FiniteDomain
-{
-    type Type = (Num<Maj>, Num<Min>);
-}
-
-impl<Maj, Min> FiniteDomain for Product<Maj, Min>
-    where Maj: FiniteDomain,
-          Min: FiniteDomain
-{}
-
-
-pub struct ProductNum<Maj, Min>
-    where Maj: FiniteDomain,
-          Min: FiniteDomain
-{
+pub struct ProductNum<Maj, Min> {
     pub major_count: Count<Maj>,
     pub minor_count: Count<Min>,
 }
 
-impl<Maj, Min> Mapping<(Num<Maj>, Num<Min>)> for ProductNum<Maj, Min>
-    where Maj: FiniteDomain,
-          Min: FiniteDomain
-{
+impl<Maj, Min> Mapping<(Num<Maj>, Num<Min>)> for ProductNum<Maj, Min> {
     type Result = Num<Product<Maj, Min>>;
 
     fn apply(&self, elem: (Num<Maj>, Num<Min>)) -> Num<Product<Maj, Min>> {
@@ -43,10 +24,7 @@ impl<Maj, Min> Mapping<(Num<Maj>, Num<Min>)> for ProductNum<Maj, Min>
     }
 }
 
-impl<Maj, Min> Mapping<Num<Product<Maj, Min>>> for ProductNum<Maj, Min>
-    where Maj: FiniteDomain,
-          Min: FiniteDomain
-{
+impl<Maj, Min> Mapping<Num<Product<Maj, Min>>> for ProductNum<Maj, Min> {
     type Result = (Num<Maj>, Num<Min>);
 
     fn apply(&self, num: Num<Product<Maj, Min>>) -> (Num<Maj>, Num<Min>) {
@@ -56,10 +34,7 @@ impl<Maj, Min> Mapping<Num<Product<Maj, Min>>> for ProductNum<Maj, Min>
     }
 }
 
-impl<Maj, Min> HasCount<Product<Maj, Min>> for ProductNum<Maj, Min>
-    where Maj: FiniteDomain,
-          Min: FiniteDomain
-{
+impl<Maj, Min> HasCount<Product<Maj, Min>> for ProductNum<Maj, Min> {
     fn count(&self) -> Count<Product<Maj, Min>> {
         let count = self.major_count.as_usize() * self.minor_count.as_usize();
         return cat::internal::to_count(count);
