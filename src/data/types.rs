@@ -1,3 +1,4 @@
+use data::KbDef;
 use cat;
 use cat::*;
 
@@ -108,6 +109,22 @@ impl Mapping<Group> for GroupNum {
                 cat::internal::to_num(num)
             }
         }
+    }
+}
+
+impl Mapping<Num<Free>> for GroupNum {
+    type Result = Num<Group>;
+
+    fn apply(&self, free_num: Num<Free>) -> Num<Group> {
+        self.apply(Group::Free(free_num))
+    }
+}
+
+impl Mapping<Num<Lock>> for GroupNum {
+    type Result = Num<Group>;
+
+    fn apply(&self, lock_num: Num<Lock>) -> Num<Group> {
+        self.apply(Group::Lock(lock_num))
     }
 }
 

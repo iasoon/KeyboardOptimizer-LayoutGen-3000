@@ -9,7 +9,7 @@ pub trait Assignable {
     fn dispatch_assignment(&mut self, kb_def: &KbDef, assignment: Assignment) {
         match assignment {
             Assignment::Free { free_num, loc_num } => {
-                let group_num = kb_def.group_num().apply(Group::Free(free_num));
+                let group_num = kb_def.group_num().apply(free_num);
                 let key_num = kb_def.loc_num().apply(loc_num).key_num;
                 self.assign_group(group_num, key_num);
 
@@ -17,7 +17,7 @@ pub trait Assignable {
                 self.assign_token(token_num, loc_num);
             },
             Assignment::Lock { lock_num, key_num } => {
-                let group_num = kb_def.group_num().apply(Group::Lock(lock_num));
+                let group_num = kb_def.group_num().apply(lock_num);
                 self.assign_group(group_num, key_num);
 
                 let lock_entries = &kb_def.locks[lock_num];

@@ -33,7 +33,7 @@ fn mk_assignment_used(layout: &Layout) -> Table<AllowedAssignment, Option<usize>
         // Assigned locks
         let group_map = layout.mk_group_map();
         for lock_num in layout.kb_def.locks.nums() {
-            let group_num = layout.kb_def.group_num().apply(Group::Lock(lock_num));
+            let group_num = layout.kb_def.group_num().apply(lock_num);
             let key_num = group_map[group_num];
             map[Assignment::Lock { lock_num, key_num }] = Some(0);
         }
