@@ -167,7 +167,7 @@ impl HasCount<Group> for GroupNum {
 
 /// An assignment either assigns a free token to a location, or a locked group
 /// to a key.
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Assignment {
     Free {
         free_num: Num<Free>,
