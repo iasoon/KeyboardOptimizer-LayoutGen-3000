@@ -25,6 +25,10 @@ impl<'a> Assignable for WalkerDriver<'a> {
     fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {
         *self.token_map.get_mut(token_num) = loc_num;
     }
+
+    fn assign_group(&mut self, group_num: Num<Group>, key_num: Num<Key>) {
+        *self.group_map.get_mut(group_num) = key_num;
+    }
 }
 
 impl<'a> WalkerDriver<'a> {
