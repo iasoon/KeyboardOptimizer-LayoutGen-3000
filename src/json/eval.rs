@@ -28,21 +28,21 @@ struct FreqData<'s> {
     freq: f64,
 }
 
-impl<'s> Reader<NGramEval> for EvalReader<'s> {
+impl<'s> Reader<NGramEval<Group, Key>> for EvalReader<'s> {
     type Repr = EvalData<'s>;
 
-    fn read(&self, repr: EvalData<'s>) -> Result<NGramEval> {
-        Ok(NGramEval {
-            ngrams: try!(self.read(&repr)),
-            costs: try!(self.read(&repr)),
-        })
+    fn read(&self, repr: EvalData<'s>) -> Result<NGramEval<Group, Key>> {
+        Ok(NGramEval::new(
+            self.kb_def.group_num().count(),
+            try!(self.read(&repr)),
+            try!(self.read(&repr))))
     }
 }
 
-impl<'s> Reader<NGrams> for EvalReader<'s> {
+impl<'s> Reader<NGrams<Group>> for EvalReader<'s> {
     type Repr = &'s EvalData<'s>;
 
-    fn read(&self, repr: &EvalData<'s>) -> Result<NGrams> {
+    fn read(&self, repr: &EvalData<'s>) -> Result<NGrams<Group>> {
         // TODO: read length
         let mut vec = Vec::with_capacity(repr.freqs.len() * 3);
         for ngram in repr.freqs.iter() {
@@ -50,7 +50,7 @@ impl<'s> Reader<NGrams> for EvalReader<'s> {
                 let token: Num<Token> = self.read(elem_repr)?;
                 let group = self.kb_def.
                     group_num()
-                    .apply(*self.kb_def.token_group.get(token));
+                    .apply(self.kb_def.token_group[token]);
                 vec.push(group);
             }
         }
@@ -76,7 +76,7 @@ impl<'s> Reader<PathCost<Key>> for EvalReader<'s> {
             for &elem in cost.key_seq.iter() {
                 path_buf.push(try!(self.read(elem)));
             }
-            *table.get_mut(path_buf.iter().cloned()) += cost.cost;
+            table[path_buf.iter().cloned()] += cost.cost;
         }
         Ok(table)
     }

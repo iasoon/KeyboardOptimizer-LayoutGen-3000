@@ -80,7 +80,7 @@ impl<'s> Reader<Groups> for GroupsReader<'s> {
             for (&layer_name, &token_name) in lock_data.elems.iter() {
                 let layer_num = self.read(layer_name)?;
                 let token_num = self.read(token_name)?;
-                *lock.get_mut(layer_num) = Some(token_num);
+                lock[layer_num] = Some(token_num);
             }
             locks.push(lock);
             // assignments

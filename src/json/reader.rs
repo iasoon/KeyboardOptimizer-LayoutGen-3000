@@ -86,9 +86,7 @@ impl<'s> ElemReader<'s> {
     }
 }
 
-fn mk_name_map<'a, D>(table: &'a Table<D, String>) -> HashMap<&'a str, Num<D>>
-    where D: FiniteDomain<Type = String>,
-{
+fn mk_name_map<'a, D>(table: &'a Table<D, String>) -> HashMap<&'a str, Num<D>> {
     table.enumerate().map(|(num, name)| (name.as_str(), num)).collect()
 }
 

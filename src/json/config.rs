@@ -22,8 +22,8 @@ pub struct ConfigData<'s> {
 
 
 pub struct Config {
-    kb_def: KbDef,
-    eval: NGramEval,
+    pub kb_def: KbDef,
+    pub eval: NGramEval<Group, Key>,
 }
 
 
@@ -74,14 +74,12 @@ fn token_group(elements: &Elements, groups: &Groups)
     let mut map = elements.tokens.map(|_| None);
 
     for (free_num, &token_num) in groups.frees.enumerate() {
-        *map.get_mut(token_num) = Some(Group::Free(free_num));
+        map[token_num] = Some(Group::Free(free_num));
     }
     for (lock_num, lock) in groups.locks.enumerate() {
         for (_, &value) in lock.enumerate() {
             if let Some(token_num) = value {
-                *map.get_mut(token_num) = Some(
-                    Group::Lock(lock_num)
-                );
+                map[token_num] = Some(Group::Lock(lock_num));
             }
         }
     }
@@ -90,7 +88,7 @@ fn token_group(elements: &Elements, groups: &Groups)
             Ok(group)
         } else {
             bail!("Token not assigned to a group: {}",
-                  elements.tokens.get(token_num))
+                  elements.tokens[token_num])
         }
     })
 
@@ -108,7 +106,7 @@ fn assignment_map(elements: &Elements, groups: &Groups)
     };
     let mut map = num.map_nums(|_| None).compose(num);
     for (assignment_num, &assignment) in groups.assignments.enumerate() {
-        *map.get_mut(assignment) = Some(assignment_num);
+        map[assignment] = Some(assignment_num);
     }
     return map;
 }
