@@ -36,8 +36,6 @@ pub struct NGramEval<T, P> {
 
 impl NGramEval<Group, Key> {
     pub fn new(t_count: Count<Group>, ngrams: NGrams<Group>, costs: PathCost<Key>) -> Self {
-        let items = [1,2,3,4,5];
-        let mut s = SubSeqs::new(&items, 2);
         NGramEval {
             intersections: mk_intersections(t_count, &ngrams),
             ngrams: ngrams,
@@ -285,8 +283,22 @@ impl<'e, T: 'e, P: 'e> WalkableEval<'e> for NGramWalker<'e, T, P>
         return d;
     }
 
+    // TODO: ewwwww
     fn update<'w>(&'w mut self, driver: &'w mut WalkerDriver<'e>, delta: &[Assignment]) {
-        // do nothing
+        let kb_def = driver.kb_def;
+        for (_, &assignment) in kb_def.assignments.enumerate() {
+            if delta.iter().any(|a| a.group() == assignment.group()) {
+                driver.drive(self).excursion(|walker| {
+                    walker.assign_all(delta);
+                    walker.recalc_delta(assignment);
+                })
+            } else {
+                let d = driver.drive(self).excursion(|walker| {
+                    walker.eval_delta_delta(assignment, delta)
+                });
+                self.assignment_delta[assignment] += d;
+            }
+        }
     }
 }
 
