@@ -3,7 +3,7 @@ use layout::{Layout, Assignable};
 use std::marker::PhantomData;
 
 use eval::walker::*;
-use eval::evaluator::Evaluator;
+use eval::evaluator::*;
 
 pub struct Traverser<'e> {
     layout: Layout<'e>,
@@ -16,9 +16,9 @@ pub struct Delta {
 }
 
 impl<'e> Traverser<'e> {
-    pub fn new(evals: &'e [Box<Evaluator>], layout: Layout<'e>) -> Self {
+    pub fn new(eval: &'e Eval, layout: Layout<'e>) -> Self {
         Traverser {
-            eval: WalkingEval::new(&layout, evals),
+            eval: WalkingEval::new(&layout, eval),
             layout: layout,
         }
     }
@@ -39,31 +39,24 @@ impl<'e> Traverser<'e> {
     }
 }
 
-struct WalkingEval<'e> {
-    eval_walkers: Vec<Box<WalkableEval<'e> + 'e>>,
+pub struct WalkingEval<'e> {
+    eval_walker: EvalWalker<'e>,
     driver: WalkerDriver<'e>,
 }
 
-
 impl<'e> WalkingEval<'e> {
-    fn new(layout: &Layout<'e>, evals: &'e [Box<Evaluator>]) -> Self {
+    pub fn new(layout: &Layout<'e>, eval: &'e Eval) -> Self {
         let mut driver = WalkerDriver::new(&layout);
-        let eval_walkers = evals.iter().map(|e| e.walker(&mut driver)).collect();
-        WalkingEval { driver, eval_walkers }
+        let eval_walker = eval.eval_walker(&mut driver);
+        return WalkingEval { driver, eval_walker };
     }
 
-    fn eval_delta(&mut self, assignments: &[Assignment]) -> f64 {
-        let driver = &mut self.driver;
-        self.eval_walkers.iter_mut().map(|eval| {
-            eval.eval_delta(driver, assignments)
-        }).sum()
+    pub fn eval_delta(&mut self, assignments: &[Assignment]) -> f64 {
+        self.eval_walker.eval_delta(&mut self.driver, assignments)
     }
 
-    fn update(&mut self, assignments: &[Assignment]) {
-        let driver = &mut self.driver;
-        for eval in self.eval_walkers.iter_mut() {
-            eval.update(driver, assignments);
-        }
-        driver.assign_all(assignments);
+    pub fn update(&mut self, assignments: &[Assignment]) {
+        self.eval_walker.update(&mut self.driver, assignments);
+        self.driver.assign_all(assignments);
     }
 }
