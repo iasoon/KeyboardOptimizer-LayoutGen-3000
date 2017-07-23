@@ -47,7 +47,9 @@ impl<'a> Assignable for Layout<'a> {
         let prev_loc = self.token_map[token_num];
         self.token_map[token_num] = loc_num;
         // clear prev loc
-        self.keymap[prev_loc] = None;
+        if self.keymap[prev_loc] == Some(token_num) {
+            self.keymap[prev_loc] = None;
+        }
         // assign new loc
         self.keymap[loc_num] = Some(token_num);
     }
