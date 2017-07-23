@@ -1,3 +1,4 @@
+// TODO: tidy up this file
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 
@@ -27,17 +28,20 @@ impl<T> NGrams<T> {
 }
 
 pub type PathCost<T> = Composed<SeqNum<T>, Table<Seq<T>, f64>>;
+type GroupTable<T> = Composed<GroupNum, Table<Group, T>>;
 
 pub struct NGramEval<T, P> {
     ngrams: NGrams<T>,
     costs: PathCost<P>,
+    group_ngrams: GroupTable<NGrams<T>>,
     intersections: BagTable<Group, NGrams<T>>,
 }
 
 impl NGramEval<Group, Key> {
-    pub fn new(t_count: Count<Group>, ngrams: NGrams<Group>, costs: PathCost<Key>) -> Self {
+    pub fn new(kb_def: &KbDef, ngrams: NGrams<Group>, costs: PathCost<Key>) -> Self {
         NGramEval {
-            intersections: mk_intersections(t_count, &ngrams),
+            group_ngrams: mk_group_ngrams(kb_def, &ngrams),
+            intersections: mk_intersections(kb_def, &ngrams),
             ngrams: ngrams,
             costs: costs,
         }
@@ -116,8 +120,18 @@ impl<'t, T: 't> SubSeqs<'t, T> {
     }
 }
 
-fn mk_intersections<T>(count: Count<T>, ngrams: &NGrams<T>) -> BagTable<T, NGrams<T>> {
-    let seq_bag = SeqBag::new(count, ngrams.elements.seq_len());
+fn mk_group_ngrams(kb_def: &KbDef, ngrams: &NGrams<Group>) -> GroupTable<NGrams<Group>> {
+    let mut table = kb_def.group_num().map_nums(|_| NGramsSubsetBuilder::new());
+    for (ngram_num, ngram) in ngrams.elements.enumerate() {
+        for &group_num in ngram.iter() {
+            table[group_num].push(ngram_num);
+        }
+    }
+    return table.map_into(|b| b.build(ngrams)).compose(kb_def.group_num());
+}
+
+fn mk_intersections(kb_def: &KbDef, ngrams: &NGrams<Group>) -> BagTable<Group, NGrams<Group>> {
+    let seq_bag = SeqBag::new(kb_def.group_num().count(), ngrams.elements.seq_len());
     let mut builder = seq_bag
         .map_nums(|_| NGramsSubsetBuilder::new())
         .compose(seq_bag);
@@ -229,6 +243,11 @@ impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
         self.evaluator().ngrams.eval(self.cost())
     }
 
+    fn eval_group(&self, group: Group) -> f64 {
+        let ngrams = &self.evaluator().group_ngrams[group];
+        return ngrams.eval(self.cost());
+    }
+
     fn eval_intersection(&self, ts: [Num<Group>; 2]) -> f64
     {
         let ngrams = &self.evaluator().intersections[ts.iter().cloned()];
@@ -238,7 +257,7 @@ impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
     fn recalc_delta(&mut self, assignment: Assignment) {
         let delta = self.measure_effect(
             |walker| walker.assign(assignment),
-            |walker| walker.eval()
+            |walker| walker.eval_group(assignment.group())
         );
         self.eval.assignment_delta[assignment] = delta;
     }
