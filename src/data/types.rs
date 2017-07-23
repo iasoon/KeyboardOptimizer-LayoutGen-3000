@@ -73,7 +73,7 @@ pub struct Free;
 pub struct Lock;
 
 /// Union type for free and locked groups.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Group {
     Free(Num<Free>),
     Lock(Num<Lock>),
@@ -147,6 +147,23 @@ pub enum Assignment {
     Lock {
         lock_num: Num<Lock>,
         key_num: Num<Key>,
+    }
+}
+
+impl Assignment {
+    pub fn group(&self) -> Group {
+        match *self {
+            Assignment::Free { free_num, loc_num: _ } => {
+                Group::Free(free_num)
+            },
+            Assignment::Lock { lock_num, key_num: _ } => {
+                Group::Lock(lock_num)
+            }
+        }
+    }
+
+    pub fn group_num(&self, kb_def: &KbDef) -> Num<Group> {
+        kb_def.group_num().apply(self.group())
     }
 }
 
