@@ -14,6 +14,8 @@ pub struct KbDef {
 
     pub token_group: Table<Token, Group>,
     pub assignment_map: AssignmentTable<Option<Num<AllowedAssignment>>>,
+
+    pub group_assignments: Table<Group, Vec<Assignment>>,
 }
 
 impl KbDef {

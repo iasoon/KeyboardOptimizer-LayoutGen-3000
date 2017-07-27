@@ -37,22 +37,18 @@ impl<'a> ConfigData<'a> {
             groups = reader.read(self.groups)?
         }
 
-
-        let token_group = try!(token_group(&elements, &groups));
-        let assignment_map = assignment_map(&elements, &groups);
-
         let kb_def = KbDef {
+            token_group: try!(token_group(&elements, &groups)),
+            assignment_map: assignment_map(&elements, &groups),
+            group_assignments: group_assignments(&groups),
+
             keys: elements.keys,
             layers: elements.layers,
             tokens: elements.tokens,
 
             frees: groups.frees,
             locks: groups.locks,
-
             assignments: groups.assignments,
-
-            token_group: token_group,
-            assignment_map: assignment_map,
         };
 
         let eval;
@@ -95,6 +91,8 @@ fn token_group(elements: &Elements, groups: &Groups)
 }
 
 type AssignmentTable<T> = Composed<AssignmentNum, Table<Assignment, T>>;
+
+
 fn assignment_map(elements: &Elements, groups: &Groups)
                    -> AssignmentTable<Option<Num<AllowedAssignment>>>
 {
@@ -108,5 +106,20 @@ fn assignment_map(elements: &Elements, groups: &Groups)
     for (assignment_num, &assignment) in groups.assignments.enumerate() {
         map[assignment] = Some(assignment_num);
     }
+    return map;
+}
+
+
+fn group_assignments(groups: &Groups) -> Table<Group, Vec<Assignment>> {
+    let num = GroupNum {
+        free_count: groups.frees.count(),
+        lock_count: groups.locks.count(),
+    };
+    let mut map = num.map_nums(|_| Vec::new());
+    for (_, &assignment) in groups.assignments.enumerate() {
+        let group_num = num.apply(assignment.group());
+        map[group_num].push(assignment);
+    }
+    map.map_mut(|vec| vec.shrink_to_fit());
     return map;
 }
