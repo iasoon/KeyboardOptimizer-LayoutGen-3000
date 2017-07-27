@@ -3,7 +3,7 @@ use serde::Deserialize;
 use data::*;
 use cat::*;
 use cat::ops::*;
-use eval::ngram_eval::NGramEval;
+use eval::Eval;
 
 use json::errors::*;
 use json::reader::*;
@@ -17,13 +17,13 @@ pub struct ConfigData<'s> {
     #[serde(borrow)]
     groups: GroupsData<'s>,
     #[serde(borrow)]
-    evaluator: EvalData<'s>,
+    evaluators: Vec<EvalData<'s>>,
 }
 
 
 pub struct Config {
     pub kb_def: KbDef,
-    pub eval: NGramEval<Group, Key>,
+    pub eval: Eval,
 }
 
 
@@ -58,7 +58,7 @@ impl<'a> ConfigData<'a> {
         let eval;
         {
             let reader = EvalReader::new(&kb_def);
-            eval = try!(reader.read(self.evaluator));
+            eval = try!(reader.read(self.evaluators));
         }
 
         Ok(Config {
