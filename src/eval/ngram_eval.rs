@@ -185,39 +185,6 @@ trait HasMapping<T, P> {
     fn mapping<'m>(&'m self) -> &'m Table<T, Num<P>>;
 }
 
-struct AssignmentTable<'a, T> {
-    kb_def: &'a KbDef,
-    table: Table<AllowedAssignment, T>,
-}
-
-impl<'a, T> AssignmentTable<'a, T> {
-    fn new<F>(kb_def: &'a KbDef, fun: F) -> Self
-        where F: FnMut((Num<AllowedAssignment>, &Assignment)) -> T
-    {
-        let values = kb_def.assignments.enumerate().map(fun).collect();
-        AssignmentTable {
-            table: Table::from_vec(values),
-            kb_def: kb_def,
-        }
-    }
-}
-
-impl<'a, T> Index<Assignment> for AssignmentTable<'a, T> {
-    type Output = T;
-
-    fn index<'t>(&'t self, assignment: Assignment) -> &'t T {
-        let assignment_num = self.kb_def.assignment_map[assignment].unwrap();
-        return &self.table[assignment_num];
-    }
-}
-
-impl<'a, T> IndexMut<Assignment> for AssignmentTable<'a, T> {
-    fn index_mut<'t>(&'t mut self, assignment: Assignment) -> &'t mut T {
-        let assignment_num = self.kb_def.assignment_map[assignment].unwrap();
-        return &mut self.table[assignment_num];
-    }
-}
-
 pub struct NGramWalker<'e, T: 'e, P: 'e> {
     eval: &'e NGramEval<T, P>,
     assignment_delta: AssignmentTable<'e, f64>,
@@ -333,14 +300,14 @@ impl<'e, T: 'e, P: 'e> WalkableEval<'e> for NGramWalker<'e, T, P>
                 .eval_delta_delta(assignments[idx], &assignments[0..idx]);
             return delta + delta_delta;
         }).sum();
-        let expected = driver.drive(self).measure_effect(
-            |walker| walker.assign_all(assignments),
-            |walker| walker.eval()
-        );
-        let tol = (10.0 as f64).powi(-12);
-        if (d - expected).abs() > tol {
-            println!("PANIC! WRONG RESULT! was {} but expected {}", d, expected);
-        }
+        // let expected = driver.drive(self).measure_effect(
+        //     |walker| walker.assign_all(assignments),
+        //     |walker| walker.eval()
+        // );
+        // let tol = (10.0 as f64).powi(-12);
+        // if (d - expected).abs() > tol {
+        //     println!("PANIC! WRONG RESULT! was {} but expected {}", d, expected);
+        // }
         return d;
     }
 

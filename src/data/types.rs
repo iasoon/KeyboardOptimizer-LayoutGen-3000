@@ -1,6 +1,7 @@
 use data::KbDef;
 use cat;
 use cat::*;
+use std::ops::{Index, IndexMut};
 
 /// A key on the keyboard.
 pub struct Key;
@@ -225,3 +226,36 @@ impl Mapping<Assignment> for AssignmentNum {
 
 /// Marker type for disambiguating between possible and allowed assignments.
 pub struct AllowedAssignment;
+
+pub struct AssignmentTable<'a, T> {
+    kb_def: &'a KbDef,
+    table: Table<AllowedAssignment, T>,
+}
+
+impl<'a, T> AssignmentTable<'a, T> {
+    pub fn new<F>(kb_def: &'a KbDef, fun: F) -> Self
+        where F: FnMut((Num<AllowedAssignment>, &Assignment)) -> T
+    {
+        let values = kb_def.assignments.enumerate().map(fun).collect();
+        AssignmentTable {
+            table: Table::from_vec(values),
+            kb_def: kb_def,
+        }
+    }
+}
+
+impl<'a, T> Index<Assignment> for AssignmentTable<'a, T> {
+    type Output = T;
+
+    fn index<'t>(&'t self, assignment: Assignment) -> &'t T {
+        let assignment_num = self.kb_def.assignment_map[assignment].unwrap();
+        return &self.table[assignment_num];
+    }
+}
+
+impl<'a, T> IndexMut<Assignment> for AssignmentTable<'a, T> {
+    fn index_mut<'t>(&'t mut self, assignment: Assignment) -> &'t mut T {
+        let assignment_num = self.kb_def.assignment_map[assignment].unwrap();
+        return &mut self.table[assignment_num];
+    }
+}

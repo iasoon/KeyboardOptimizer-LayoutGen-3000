@@ -7,6 +7,7 @@ use eval::evaluator::*;
 
 pub struct Traverser<'e> {
     layout: Layout<'e>,
+    score: f64,
     eval: WalkingEval<'e>,
 }
 
@@ -19,6 +20,7 @@ impl<'e> Traverser<'e> {
     pub fn new(eval: &'e Eval, layout: Layout<'e>) -> Self {
         Traverser {
             eval: WalkingEval::new(&layout, eval),
+            score: eval.eval(&layout),
             layout: layout,
         }
     }
@@ -33,9 +35,22 @@ impl<'e> Traverser<'e> {
         })
     }
 
-    pub fn assign_all(&mut self, assignments: &[Assignment]) {
-        self.layout.assign_all(assignments);
-        self.eval.update(assignments);
+    pub fn assign(&mut self, delta: &Delta) {
+        self.layout.assign_all(&delta.assignments);
+        self.eval.update(&delta.assignments);
+        self.score += delta.score;
+    }
+
+    pub fn inverse(&self, assignment: Assignment) -> Assignment {
+        self.eval.driver.inverse(assignment)
+    }
+
+    pub fn position<'a>(&'a self) -> &'a Layout<'e> {
+        &self.layout
+    }
+
+    pub fn position_score(&self) -> f64 {
+        self.score
     }
 }
 

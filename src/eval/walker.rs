@@ -80,7 +80,7 @@ impl<'a> WalkerDriver<'a> {
         }
     }
 
-    fn inverse(&self, assignment: Assignment) -> Assignment {
+    pub fn inverse(&self, assignment: Assignment) -> Assignment {
         match assignment {
             Assignment::Free { free_num, loc_num: _ } => {
                 let token_num = self.kb_def.frees[free_num];

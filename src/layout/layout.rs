@@ -5,6 +5,7 @@ use cat::ops::*;
 use layout::assignable::Assignable;
 use layout::move_gen::MoveGen;
 
+#[derive(Clone)]
 pub struct Layout<'a> {
     pub keymap: Keymap,
     pub token_map: TokenMap,
