@@ -8,3 +8,4 @@ mod utils;
 pub use self::layout::*;
 pub use self::assignable::Assignable;
 pub use self::generator::Generator;
+pub use self::combinator::LayoutPair;

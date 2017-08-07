@@ -13,6 +13,14 @@ pub struct Layout<'a> {
 }
 
 impl<'a> Layout<'a> {
+    pub fn from_token_map(kb_def: &'a KbDef, token_map: TokenMap) -> Self {
+        Layout {
+            keymap: mk_keymap(kb_def, &token_map),
+            token_map: token_map,
+            kb_def: kb_def,
+        }
+    }
+
     pub fn from_keymap(kb_def: &'a KbDef, keymap: Keymap) -> Self {
         Layout {
             token_map: mk_token_map(kb_def, &keymap),
@@ -68,6 +76,14 @@ fn mk_token_map(kb_def: &KbDef, keymap: &Keymap) -> TokenMap {
         }
     }
     return map.map_into(|value| value.unwrap());
+}
+
+fn mk_keymap(kb_def: &KbDef, token_map: &TokenMap) -> Keymap {
+    let mut map = kb_def.loc_num().map_nums(|_| None);
+    for (token_num, &loc_num) in token_map.enumerate() {
+        map[loc_num] = Some(token_num);
+    }
+    return map;
 }
 
 impl Assignable for TokenMap {

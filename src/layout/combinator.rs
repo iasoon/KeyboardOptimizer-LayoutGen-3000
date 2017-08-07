@@ -9,35 +9,28 @@ pub struct Cycle {
 }
 
 impl Cycle {
-    // pub fn inject(&self, maj: &mut TokenMap, min: &TokenMap) {
-    //     unimplemented!()
-    // }
-
-    // pub fn swap(&self, maj: &mut Layout, min: &mut Layout) {
-    //     unimplemented!()
-    // }
+    pub fn inject(&self, target: &mut TokenMap, other: &TokenMap) {
+        for &token_num in self.tokens.iter() {
+            target[token_num] = other[token_num];
+        }
+    }
 }
 
-// fn swap_cycle(&mut self, cycle: &Vec<usize>) {
-//     for &token_id in cycle.iter() {
-//         self.swap_token(token_id);
-//     }
-// }
-
-// fn swap_token(&mut self, token_id: usize) {
-//     let loc_a = self.keymaps[0][token_id];
-//     let loc_b = self.keymaps[1][token_id];
-//     self.keymaps[0].cycle_swap(loc_b, token_id);
-//     self.keymaps[1].cycle_swap(loc_a, token_id);
-// }
-
 pub struct LayoutPair<'a> {
-    keymaps: [Keymap; 2],
+    keymaps: [&'a Keymap; 2],
     token_maps: [&'a TokenMap; 2],
     kb_def: &'a KbDef,
 }
 
 impl<'a> LayoutPair<'a> {
+    pub fn new(fst: &'a Layout<'a>, snd: &'a Layout<'a>) -> Self {
+        LayoutPair {
+            keymaps: [&fst.keymap, &snd.keymap],
+            token_maps: [&fst.token_map, &snd.token_map],
+            kb_def: fst.kb_def,
+        }
+    }
+
     fn differing_tokens(&self) -> Subset<Token> {
         let mut token_set = Subset::complete(self.kb_def.tokens.count());
         for token_num in self.kb_def.tokens.nums() {
@@ -68,7 +61,7 @@ impl<'a> LayoutPair<'a> {
     }
 }
 
-struct Cycles<'a> {
+pub struct Cycles<'a> {
     layout_pair: &'a LayoutPair<'a>,
     unvisited: Subset<Token>,
 }
