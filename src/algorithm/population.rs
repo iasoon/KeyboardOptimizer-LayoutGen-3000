@@ -1,7 +1,8 @@
 use eval::{Eval, Evaluator};
-use layout::{Layout, TokenMap, Generator, LayoutPair};
+use layout::{Layout, TokenMap, Generator, LayoutPair, MoveGenState};
 use rand::{thread_rng, sample, Rng};
-use data::{KbDef, Assignment};
+use cat::*;
+use data::*;
 
 pub struct GeneticAlgorithm<'e> {
     kb_def: &'e KbDef,
@@ -9,7 +10,7 @@ pub struct GeneticAlgorithm<'e> {
     tournament_size: usize,
 }
 
-const POP_SIZE: usize = 5000;
+const POP_SIZE: usize = 5001;
 
 
 impl<'e> GeneticAlgorithm<'e> {
@@ -23,7 +24,7 @@ impl<'e> GeneticAlgorithm<'e> {
 
     pub fn run(&self) -> Layout<'e> {
         let mut pop = self.gen_population();
-        for i in 0..100 {
+        for i in 0..150 {
             let next = self.evolve_population(pop);
             pop = next;
             let min = pop.iter().min_by(|a, b| {
@@ -52,7 +53,7 @@ impl<'e> GeneticAlgorithm<'e> {
         });
 
         let mut population = Vec::with_capacity(POP_SIZE);
-        population.extend_from_slice(&prev[0..0]);
+        population.extend_from_slice(&prev[0..1]);
         while population.len() < POP_SIZE {
             let maj = self.tournament(&prev);
             let min = self.tournament(&prev);
@@ -95,12 +96,52 @@ impl<'e> GeneticAlgorithm<'e> {
           Individual::from_layout(self.eval, lt2))
     }
 
-    fn mutate(&self, layout: &mut Layout) {
+    fn mutate<'l, 'a: 'l>(&self, layout: &'l mut Layout<'a>) {
         if thread_rng().next_f64() < 0.4 {
-            let moves: Vec<Vec<Assignment>> = layout.gen_moves().collect();
-            let mv = thread_rng().choose(moves.as_slice()).unwrap();
-            layout.assign_all(mv.as_slice());
+            let mut mutator = Mutator::new(layout);
+            mutator.mutate(2);
         }
+    }
+}
+
+struct Mutator<'l, 'a: 'l> {
+    layout: &'l mut Layout<'a>,
+    gen_state: MoveGenState,
+    assignments: <Vec<Num<AllowedAssignment>> as IntoIterator>::IntoIter,
+}
+
+impl<'l, 'a: 'l> Mutator<'l, 'a> {
+    fn new(layout: &'l mut Layout<'a>) -> Self {
+        let mut assignments: Vec<_> = layout.kb_def.assignments.nums().collect();
+        thread_rng().shuffle(assignments.as_mut_slice());
+        Mutator {
+            gen_state: MoveGenState::from_layout(layout),
+            layout: layout,
+            assignments: assignments.into_iter(),
+        }
+    }
+
+    fn mutate(&mut self, num: usize) {
+        for _ in 0..num {
+            if let Some(assignments) = self.next_move() {
+                self.layout.assign_all(assignments.as_slice());
+            }
+        }
+    }
+
+    // TODO: duplication with move_gen
+    fn next_move(&mut self) -> Option<Vec<Assignment>> {
+        while let Some(assignment) = self.next_assignment() {
+            let value = self.gen_state.build_move(self.layout, assignment);
+            if let Ok(assignments) = value {
+                return Some(assignments);
+            }
+        }
+        return None;
+    }
+
+    fn next_assignment(&mut self) -> Option<Assignment> {
+        self.assignments.next().map(|num| self.layout.kb_def.assignments[num])
     }
 }
 

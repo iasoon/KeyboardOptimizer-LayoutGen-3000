@@ -6,13 +6,87 @@ use std::ops::Index;
 use layout::*;
 
 pub struct MoveGen<'a> {
-    kb_def: &'a KbDef,
-    keymap: &'a Keymap,
-    token_map: &'a TokenMap,
-    assignment_used: Table<AllowedAssignment, Option<usize>>,
-
+    layout: &'a Layout<'a>,
+    state: MoveGenState,
     enumerator: Enumerator<AllowedAssignment>,
+}
+impl<'a> MoveGen<'a> {
+    pub fn new(layout: &'a Layout<'a>) -> Self {
+        MoveGen {
+            state: MoveGenState::from_layout(layout),
+            enumerator: layout.kb_def.assignments.nums(),
+            layout: layout,
+        }
+    }
+
+    fn next_assignment(&mut self) -> Option<Assignment> {
+        self.enumerator.next().map(|num| {
+            self.layout.kb_def.assignments[num]
+        })
+    }
+
+    fn next_move(&mut self) -> Option<Vec<Assignment>> {
+        while let Some(assignment) = self.next_assignment() {
+            if let Ok(assignments) = self.build_move(assignment) {
+                return Some(assignments);
+            }
+        }
+        return None;
+    }
+
+    fn build_move(&mut self, assignment: Assignment) -> Result<Vec<Assignment>> {
+        self.state.build_move(self.layout, assignment)
+    }
+}
+
+impl<'a> Iterator for MoveGen<'a> {
+    type Item = Vec<Assignment>;
+
+    fn next(&mut self) -> Option<Vec<Assignment>> {
+        self.next_move()
+    }
+}
+
+
+pub struct MoveGenState {
+    assignment_used: Table<AllowedAssignment, Option<usize>>,
     iteration: usize,
+}
+
+impl MoveGenState {
+    pub fn from_layout(layout: &Layout) -> Self {
+        MoveGenState {
+            assignment_used: mk_assignment_used(layout),
+            iteration: 0,
+        }
+    }
+
+    fn builder<'a>(&'a mut self, layout: &'a Layout) -> MoveBuilder<'a> {
+        MoveBuilder {
+            kb_def: layout.kb_def,
+            keymap: &layout.keymap,
+            token_map: &layout.token_map,
+            assignment_used: &mut self.assignment_used,
+            iteration: self.iteration,
+            assignments: Vec::with_capacity(
+                // an assignment swaps tokens between two keys, and each key has
+                // at most #layers tokens. Thus, 2*#layers is a (liberal) upper
+                // bound for the number of assignments in a move.
+                2 * layout.kb_def.layers.count().as_usize()
+            ),
+        }
+    }
+
+    pub fn build_move(&mut self, layout: &Layout, assignment: Assignment)
+                  -> Result<Vec<Assignment>>
+    {
+        self.iteration += 1;
+        let mut builder = self.builder(layout);
+        try!(builder.queue_assignment(assignment));
+        try!(builder.resolve());
+        Ok(builder.assignments)
+    }
+
 }
 
 // Construct an initial assignment_used map, marking each assignment used in
@@ -42,67 +116,17 @@ fn mk_assignment_used(layout: &Layout) -> Table<AllowedAssignment, Option<usize>
     return table;
 }
 
-impl<'a> MoveGen<'a> {
-    pub fn new(layout: &'a Layout) -> Self {
-        MoveGen {
-            kb_def: layout.kb_def,
-            keymap: &layout.keymap,
-            token_map: &layout.token_map,
-            assignment_used: mk_assignment_used(layout),
-            enumerator: layout.kb_def.assignments.nums(),
-            iteration: 1,
-        }
-    }
 
-    fn next_assignment(&mut self) -> Option<Assignment> {
-        self.enumerator.next().map(|num| {
-            self.kb_def.assignments[num]
-        })
-    }
-
-    fn next_move(&mut self) -> Option<Vec<Assignment>> {
-        while let Some(assignment) = self.next_assignment() {
-            self.iteration += 1;
-            if let Ok(assignments) = self.build_move(assignment) {
-                return Some(assignments);
-            }
-        }
-        return None;
-    }
-
-    fn build_move(&mut self, assignment: Assignment) -> Result<Vec<Assignment>> {
-        let mut builder = self.move_builder();
-        try!(builder.queue_assignment(assignment));
-        try!(builder.resolve());
-        Ok(builder.assignments)
-    }
-
-    fn move_builder<'b>(&'b mut self) -> MoveBuilder<'b> {
-        MoveBuilder {
-            kb_def: self.kb_def,
-            keymap: self.keymap,
-            token_map: self.token_map,
-            assignment_used: &mut self.assignment_used,
-            iteration: self.iteration,
-            assignments: Vec::with_capacity(
-                // an assignment swaps tokens between two keys, and each key has
-                // at most #layers tokens. Thus, 2*#layers is a (liberal) upper
-                // bound for the number of assignments in a move.
-                2 * self.kb_def.layers.count().as_usize()
-            ),
-        }
-    }
+enum AssignmentState {
+    /// Free to use
+    Allowed(Num<AllowedAssignment>),
+    /// Used by this builder
+    Used,
+    /// Used by a previous builder or not allowed
+    Forbidden,
 }
 
-impl<'a> Iterator for MoveGen<'a> {
-    type Item = Vec<Assignment>;
-
-    fn next(&mut self) -> Option<Vec<Assignment>> {
-        self.next_move()
-    }
-}
-
-
+use self::AssignmentState::*;
 type Result<T> = ::std::result::Result<T, ()>;
 
 pub struct MoveBuilder<'a> {
@@ -116,16 +140,6 @@ pub struct MoveBuilder<'a> {
     iteration: usize,
 }
 
-enum AssignmentState {
-    /// Free to use
-    Allowed(Num<AllowedAssignment>),
-    /// Used by this builder
-    Used,
-    /// Used by a previous builder or not allowed
-    Forbidden,
-}
-
-use self::AssignmentState::*;
 
 impl<'a> MoveBuilder<'a> {
     fn resolve(&mut self) -> Result<()> {
