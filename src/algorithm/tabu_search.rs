@@ -3,37 +3,45 @@ use eval::*;
 use cat::*;
 use data::*;
 
+pub struct TabuParams<'e> {
+    num_iterations: usize,
+    tabu_duration: usize,
+    eval: &'e Eval,
+}
+
 pub struct TabuSearch<'e> {
     traverser: Traverser<'e>,
     iteration: usize,
     best: Layout<'e>,
     best_score: f64,
     tabu: AssignmentTable<'e, usize>,
+    params: TabuParams<'e>,
 }
 
 impl<'e> TabuSearch<'e> {
-    pub fn new(start: Layout<'e>, eval: &'e Eval) -> Self {
-        let traverser = Traverser::new(eval, start.clone());
+    pub fn new(start: Layout<'e>, params: TabuParams<'e>) -> Self {
+        let traverser = Traverser::new(params.eval, start.clone());
         TabuSearch {
             iteration: 0,
             tabu: AssignmentTable::new(start.kb_def, |_| 0),
             best_score: traverser.position_score(),
             traverser: traverser,
             best: start,
+            params: params,
         }
     }
 
     pub fn run(mut self) -> Layout<'e> {
         let tol = 2f64.powi(-53); // 64-bit machine epsilon
 
-        while self.iteration < 50_000 {
+        while self.iteration < self.params.num_iterations {
 
             let delta = self.pick_move();
 
             if delta.score >= -tol {
                 for &assignment in delta.assignments.iter() {
                     let inv = self.traverser.inverse(assignment);
-                    self.tabu[inv] = self.iteration + 25;
+                    self.tabu[inv] = self.iteration + self.params.tabu_duration;
                 }
             }
 
@@ -45,7 +53,7 @@ impl<'e> TabuSearch<'e> {
             }
             self.iteration += 1;
         }
-        println!("\n\nsearch finished. best score found: {}", self.best_score);
+        println!("search finished. best score found: {}", self.best_score);
         return self.best;
     }
 
