@@ -3,10 +3,19 @@ use eval::*;
 use cat::*;
 use data::*;
 
+const ROUNDING_ERROR: f64 = 2f64.powi(-53); // 64-bit machine epsilon
+
+#[derive(Clone)]
 pub struct TabuParams<'e> {
     num_iterations: usize,
     tabu_duration: usize,
     eval: &'e Eval,
+}
+
+impl<'e> TabuParams<'e> {
+    pub fn apply(&self, layout: Layout<'e>) -> Layout<'e> {
+        TabuSearch::new(layout, self.clone()).run()
+    }
 }
 
 pub struct TabuSearch<'e> {
@@ -32,13 +41,12 @@ impl<'e> TabuSearch<'e> {
     }
 
     pub fn run(mut self) -> Layout<'e> {
-        let tol = 2f64.powi(-53); // 64-bit machine epsilon
 
         while self.iteration < self.params.num_iterations {
 
             let delta = self.pick_move();
 
-            if delta.score >= -tol {
+            if delta.score >= -ROUNDING_ERROR {
                 for &assignment in delta.assignments.iter() {
                     let inv = self.traverser.inverse(assignment);
                     self.tabu[inv] = self.iteration + self.params.tabu_duration;
@@ -47,7 +55,7 @@ impl<'e> TabuSearch<'e> {
 
             self.traverser.assign(&delta);
 
-            if self.traverser.position_score() + tol < self.best_score {
+            if self.traverser.position_score() + ROUNDING_ERROR < self.best_score {
                 self.best = self.traverser.position().clone();
                 self.best_score = self.traverser.position_score();
             }
