@@ -3,6 +3,7 @@ use layout::{Layout, TokenMap, Generator, LayoutPair, MoveGenState};
 use rand::{thread_rng, sample, Rng};
 use cat::*;
 use data::*;
+use algorithm::TabuSearch;
 
 pub struct GeneticAlgorithm<'e> {
     kb_def: &'e KbDef,
@@ -10,8 +11,7 @@ pub struct GeneticAlgorithm<'e> {
     tournament_size: usize,
 }
 
-const POP_SIZE: usize = 5001;
-
+const POP_SIZE: usize = 50;
 
 impl<'e> GeneticAlgorithm<'e> {
     pub fn new(kb_def: &'e KbDef, eval: &'e Eval) -> Self {
@@ -24,7 +24,7 @@ impl<'e> GeneticAlgorithm<'e> {
 
     pub fn run(&self) -> Layout<'e> {
         let mut pop = self.gen_population();
-        for i in 0..150 {
+        for i in 0..10 {
             let next = self.evolve_population(pop);
             pop = next;
             let min = pop.iter().min_by(|a, b| {
@@ -53,7 +53,6 @@ impl<'e> GeneticAlgorithm<'e> {
         });
 
         let mut population = Vec::with_capacity(POP_SIZE);
-        population.extend_from_slice(&prev[0..1]);
         while population.len() < POP_SIZE {
             let maj = self.tournament(&prev);
             let min = self.tournament(&prev);
@@ -92,8 +91,11 @@ impl<'e> GeneticAlgorithm<'e> {
         self.mutate(&mut lt1);
         self.mutate(&mut lt2);
 
-        ( Individual::from_layout(self.eval, lt1),
-          Individual::from_layout(self.eval, lt2))
+        let lt1_ = TabuSearch::new(lt1, self.eval).run();
+        let lt2_ = TabuSearch::new(lt2, self.eval).run();
+
+        ( Individual::from_layout(self.eval, lt1_),
+          Individual::from_layout(self.eval, lt2_))
     }
 
     fn mutate<'l, 'a: 'l>(&self, layout: &'l mut Layout<'a>) {
