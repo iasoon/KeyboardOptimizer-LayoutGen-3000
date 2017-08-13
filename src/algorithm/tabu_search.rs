@@ -3,17 +3,15 @@ use eval::*;
 use cat::*;
 use data::*;
 
-const ROUNDING_ERROR: f64 = 2f64.powi(-53); // 64-bit machine epsilon
-
 #[derive(Clone)]
 pub struct TabuParams<'e> {
-    num_iterations: usize,
-    tabu_duration: usize,
-    eval: &'e Eval,
+    pub num_iterations: usize,
+    pub tabu_duration: usize,
+    pub eval: &'e Eval,
 }
 
 impl<'e> TabuParams<'e> {
-    pub fn apply(&self, layout: Layout<'e>) -> Layout<'e> {
+    pub fn search(&self, layout: Layout<'e>) -> Scored<Layout<'e>> {
         TabuSearch::new(layout, self.clone()).run()
     }
 }
@@ -21,32 +19,33 @@ impl<'e> TabuParams<'e> {
 pub struct TabuSearch<'e> {
     traverser: Traverser<'e>,
     iteration: usize,
-    best: Layout<'e>,
-    best_score: f64,
+    best: Scored<Layout<'e>>,
     tabu: AssignmentTable<'e, usize>,
     params: TabuParams<'e>,
 }
 
 impl<'e> TabuSearch<'e> {
     pub fn new(start: Layout<'e>, params: TabuParams<'e>) -> Self {
-        let traverser = Traverser::new(params.eval, start.clone());
+        let kb_def = start.kb_def;
+        let traverser = Traverser::new(params.eval, start);
         TabuSearch {
             iteration: 0,
-            tabu: AssignmentTable::new(start.kb_def, |_| 0),
-            best_score: traverser.position_score(),
-            traverser: traverser,
-            best: start,
+            tabu: AssignmentTable::new(kb_def, |_| 0),
             params: params,
+            best: traverser.position().clone(),
+            traverser: traverser,
         }
     }
 
-    pub fn run(mut self) -> Layout<'e> {
+    pub fn run(mut self) -> Scored<Layout<'e>> {
+        let rounding_error = 2f64.powi(-53); // 64-bit machine epsilon
+
 
         while self.iteration < self.params.num_iterations {
 
             let delta = self.pick_move();
 
-            if delta.score >= -ROUNDING_ERROR {
+            if delta.score >= -rounding_error {
                 for &assignment in delta.assignments.iter() {
                     let inv = self.traverser.inverse(assignment);
                     self.tabu[inv] = self.iteration + self.params.tabu_duration;
@@ -55,13 +54,12 @@ impl<'e> TabuSearch<'e> {
 
             self.traverser.assign(&delta);
 
-            if self.traverser.position_score() + ROUNDING_ERROR < self.best_score {
+            if self.traverser.position().score + rounding_error < self.best.score {
                 self.best = self.traverser.position().clone();
-                self.best_score = self.traverser.position_score();
             }
             self.iteration += 1;
         }
-        println!("search finished. best score found: {}", self.best_score);
+        println!("search finished. best score found: {}", self.best.score);
         return self.best;
     }
 

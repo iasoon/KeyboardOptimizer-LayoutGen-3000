@@ -4,10 +4,10 @@ use std::marker::PhantomData;
 
 use eval::walker::*;
 use eval::evaluator::*;
+use eval::scored::Scored;
 
 pub struct Traverser<'e> {
-    layout: Layout<'e>,
-    score: f64,
+    position: Scored<Layout<'e>>,
     eval: WalkingEval<'e>,
 }
 
@@ -20,14 +20,16 @@ impl<'e> Traverser<'e> {
     pub fn new(eval: &'e Eval, layout: Layout<'e>) -> Self {
         Traverser {
             eval: WalkingEval::new(&layout, eval),
-            score: eval.eval(&layout),
-            layout: layout,
+            position: Scored {
+                score: eval.eval(&layout),
+                value: layout,
+            }
         }
     }
 
     pub fn deltas<'a>(&'a mut self) -> impl Iterator<Item = Delta> + 'a {
         let eval = &mut self.eval;
-        self.layout.gen_moves().map(move |assignments| {
+        self.position.value.gen_moves().map(move |assignments| {
             Delta {
                 score: eval.eval_delta(assignments.as_slice()),
                 assignments: assignments,
@@ -36,21 +38,17 @@ impl<'e> Traverser<'e> {
     }
 
     pub fn assign(&mut self, delta: &Delta) {
-        self.layout.assign_all(&delta.assignments);
+        self.position.value.assign_all(&delta.assignments);
         self.eval.update(&delta.assignments);
-        self.score += delta.score;
+        self.position.score += delta.score;
     }
 
     pub fn inverse(&self, assignment: Assignment) -> Assignment {
         self.eval.driver.inverse(assignment)
     }
 
-    pub fn position<'a>(&'a self) -> &'a Layout<'e> {
-        &self.layout
-    }
-
-    pub fn position_score(&self) -> f64 {
-        self.score
+    pub fn position<'a>(&'a self) -> &'a Scored<Layout<'e>> {
+        &self.position
     }
 }
 
