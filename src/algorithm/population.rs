@@ -62,6 +62,7 @@ impl<'e> GeneticAlgorithm<'e> {
         let mut rng = thread_rng();
         Behaviour {
             mutation_intensity: rng.gen_range(0, 8),
+            tabu_duration: rng.gen_range(1, 50),
         }
     }
 
@@ -179,7 +180,10 @@ impl<'a> Individual<'a> {
     fn improve(mut self, algorithm: &GeneticAlgorithm<'a>) -> Scored<Individual<'a>> {
         self.mutate();
         let b = self.tabu_search(algorithm);
-        println!("mutation: {}\tscore: {}", b.value.behaviour.mutation_intensity, b.score);
+        println!("mutation: {}\ttabu: {}\tscore: {}",
+                 b.value.behaviour.mutation_intensity,
+                 b.value.behaviour.tabu_duration,
+                 b.score);
         return b;
     }
 
@@ -191,7 +195,7 @@ impl<'a> Individual<'a> {
         let Individual { layout, behaviour } = self;
         let ps = TabuParams {
             num_iterations: algorithm.localsearch_intensity,
-            tabu_duration: 25,
+            tabu_duration: behaviour.tabu_duration,
             eval: algorithm.eval,
         };
         return ps.search(layout).map(|lt| {
@@ -203,6 +207,7 @@ impl<'a> Individual<'a> {
 #[derive(Clone)]
 struct Behaviour {
     mutation_intensity: usize,
+    tabu_duration: usize,
 }
 
 type Population<'e> = Vec<Scored<Individual<'e>>>;
