@@ -5,6 +5,8 @@ use cat::*;
 use data::*;
 use algorithm::tabu_search::TabuParams;
 
+use std::mem::swap;
+
 pub struct GeneticAlgorithm<'e> {
     kb_def: &'e KbDef,
     eval: &'e Eval,
@@ -15,16 +17,24 @@ pub struct GeneticAlgorithm<'e> {
     num_generations: usize,
 }
 
+macro_rules! crossover {
+    ($p:expr, $var:ident, $fst:ident, $snd:ident) => {
+        if thread_rng().next_f64() < $p {
+            swap(&mut $fst.$var, &mut $snd.$var);
+        }
+    }
+}
+
 impl<'e> GeneticAlgorithm<'e> {
     pub fn new(kb_def: &'e KbDef, eval: &'e Eval) -> Self {
         GeneticAlgorithm {
             kb_def: kb_def,
             eval: eval,
-            tournament_size: 3,
-            localsearch_intensity: 200,
+            tournament_size: 2,
+            localsearch_intensity: 50,
             innovation_rate: 0.05,
-            population_size: 100,
-            num_generations: 10,
+            population_size: 200,
+            num_generations: 20,
         }
     }
 
@@ -82,7 +92,10 @@ impl<'e> GeneticAlgorithm<'e> {
         while population.len() < self.population_size {
             let maj = self.tournament(&prev);
             let min = self.tournament(&prev);
-            let (a, b) = self.crossover(maj, min);
+            let (mut a, mut b) = self.crossover(maj, min);
+            self.mutate(&mut a);
+            self.mutate(&mut b);
+
             population.push(a.improve(self));
             population.push(b.improve(self));
         }
@@ -104,17 +117,30 @@ impl<'e> GeneticAlgorithm<'e> {
         let mut maj_child = maj.layout.token_map.clone();
         let mut min_child = min.layout.token_map.clone();
 
+        let mut maj_behaviour = maj.behaviour.clone();
+        let mut min_behaviour = min.behaviour.clone();
+
         for cycle in LayoutPair::new(&maj.layout, &min.layout).cycles() {
             if thread_rng().next_f64() < 0.5 {
                 cycle.inject(&mut maj_child, &min.layout.token_map);
                 cycle.inject(&mut min_child, &maj.layout.token_map);
             }
         }
-        (
-            self.mk_individual(maj_child, maj.behaviour.clone()),
-            self.mk_individual(min_child, maj.behaviour.clone())
-        )
+
+        crossover!(0.5, mutation_intensity, maj_behaviour, min_behaviour);
+        crossover!(0.5, tabu_duration,      maj_behaviour, min_behaviour);
+
+        (self.mk_individual(maj_child, maj_behaviour),
+         self.mk_individual(min_child, min_behaviour))
     }
+
+    fn mutate(&self, individual: &mut Individual) {
+        // mutation of layout is handled by individal improvement
+        if thread_rng().next_f64() < self.innovation_rate {
+            individual.behaviour = self.generate_behaviour();
+        }
+    }
+
 
     fn mk_individual(&self, token_map: TokenMap, behaviour: Behaviour) -> Individual<'e> {
         let layout = Layout::from_token_map(self.kb_def, token_map);
