@@ -59,7 +59,6 @@ impl<'e> TabuSearch<'e> {
             }
             self.iteration += 1;
         }
-        println!("search finished. best score found: {}", self.best.score);
         return self.best;
     }
 

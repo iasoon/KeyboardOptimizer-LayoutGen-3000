@@ -1,30 +1,36 @@
-use eval::{Eval, Evaluator};
+use eval::{Eval, Evaluator, Scored};
 use layout::{Layout, TokenMap, Generator, LayoutPair, MoveGenState};
 use rand::{thread_rng, sample, Rng};
 use cat::*;
 use data::*;
-use algorithm::TabuSearch;
+use algorithm::tabu_search::TabuParams;
 
 pub struct GeneticAlgorithm<'e> {
     kb_def: &'e KbDef,
     eval: &'e Eval,
     tournament_size: usize,
+    localsearch_intensity: usize,
+    innovation_rate: f64,
+    population_size: usize,
+    num_generations: usize,
 }
-
-const POP_SIZE: usize = 50;
 
 impl<'e> GeneticAlgorithm<'e> {
     pub fn new(kb_def: &'e KbDef, eval: &'e Eval) -> Self {
         GeneticAlgorithm {
             kb_def: kb_def,
             eval: eval,
-            tournament_size: 2,
+            tournament_size: 3,
+            localsearch_intensity: 200,
+            innovation_rate: 0.05,
+            population_size: 100,
+            num_generations: 10,
         }
     }
 
-    pub fn run(&self) -> Layout<'e> {
+    pub fn run(&self) -> Scored<Layout<'e>> {
         let mut pop = self.gen_population();
-        for i in 0..10 {
+        for i in 0..self.num_generations {
             let next = self.evolve_population(pop);
             pop = next;
             let min = pop.iter().min_by(|a, b| {
@@ -32,19 +38,38 @@ impl<'e> GeneticAlgorithm<'e> {
             }).unwrap();
             println!("gen {}: {}", i, min.score);
         }
-        return pop[0].layout.clone();
+        return pop.into_iter().min_by(|a, b| {
+            a.score.partial_cmp(&b.score).unwrap()
+        }).unwrap().map(|ind| ind.layout);
     }
 
     fn gen_population(&self) -> Population<'e> {
         let mut gen = Generator::new(self.kb_def);
-        let mut population = Vec::with_capacity(POP_SIZE);
-        for _ in 0..POP_SIZE {
-            let keymap = gen.generate().unwrap();
-            let layout = Layout::from_keymap(self.kb_def, keymap);
-            population.push(Individual::from_layout(self.eval, layout));
+        let mut population = Vec::with_capacity(self.population_size);
 
+        for _ in 0..self.population_size {
+            let keymap = gen.generate().unwrap();
+            let individual = Individual {
+                layout: Layout::from_keymap(self.kb_def, keymap),
+                behaviour: self.generate_behaviour(),
+            };
+            population.push(self.score(individual));
         }
         return population;
+    }
+
+    fn generate_behaviour(&self) -> Behaviour {
+        let mut rng = thread_rng();
+        Behaviour {
+            mutation_intensity: rng.gen_range(0, 8),
+        }
+    }
+
+    fn score<'a>(&self, ind: Individual<'a>) -> Scored<Individual<'a>> {
+        Scored {
+            score: self.eval.eval(&ind.layout),
+            value: ind,
+        }
     }
 
     fn evolve_population(&self, mut prev: Population<'e>) -> Population<'e> {
@@ -52,24 +77,24 @@ impl<'e> GeneticAlgorithm<'e> {
             a.score.partial_cmp(&b.score).unwrap()
         });
 
-        let mut population = Vec::with_capacity(POP_SIZE);
-        while population.len() < POP_SIZE {
+        let mut population = Vec::with_capacity(self.population_size);
+        while population.len() < self.population_size {
             let maj = self.tournament(&prev);
             let min = self.tournament(&prev);
             let (a, b) = self.crossover(maj, min);
-            population.push(a);
-            population.push(b);
+            population.push(a.improve(self));
+            population.push(b.improve(self));
         }
         return population;
     }
 
     fn tournament<'a>(&self, population: &'a Population<'e>) -> &'a Individual<'e> {
-        sample(&mut thread_rng(), population, self.tournament_size)
+        &sample(&mut thread_rng(), population, self.tournament_size)
             .iter()
             .min_by(|a, b| {
                 a.score.partial_cmp(&b.score).unwrap()
             })
-            .unwrap()
+            .unwrap().value
     }
 
     fn crossover<'a>(&self, maj: &'a Individual<'e>, min: &'a Individual<'e>)
@@ -84,25 +109,15 @@ impl<'e> GeneticAlgorithm<'e> {
                 cycle.inject(&mut min_child, &maj.layout.token_map);
             }
         }
-
-        let mut lt1 = Layout::from_token_map(self.kb_def, maj_child);
-        let mut lt2 = Layout::from_token_map(self.kb_def, min_child);
-
-        self.mutate(&mut lt1);
-        self.mutate(&mut lt2);
-
-        let lt1_ = TabuSearch::new(lt1, self.eval).run();
-        let lt2_ = TabuSearch::new(lt2, self.eval).run();
-
-        ( Individual::from_layout(self.eval, lt1_),
-          Individual::from_layout(self.eval, lt2_))
+        (
+            self.mk_individual(maj_child, maj.behaviour.clone()),
+            self.mk_individual(min_child, maj.behaviour.clone())
+        )
     }
 
-    fn mutate<'l, 'a: 'l>(&self, layout: &'l mut Layout<'a>) {
-        if thread_rng().next_f64() < 0.4 {
-            let mut mutator = Mutator::new(layout);
-            mutator.mutate(2);
-        }
+    fn mk_individual(&self, token_map: TokenMap, behaviour: Behaviour) -> Individual<'e> {
+        let layout = Layout::from_token_map(self.kb_def, token_map);
+        return Individual { layout, behaviour };
     }
 }
 
@@ -149,21 +164,45 @@ impl<'l, 'a: 'l> Mutator<'l, 'a> {
 
 #[derive(Clone)]
 struct Individual<'a> {
-  layout: Layout<'a>,
-  score: f64,
+    layout: Layout<'a>,
+    behaviour: Behaviour,
 }
-
-type Population<'e> = Vec<Individual<'e>>;
 
 impl<'a> Individual<'a> {
-    fn from_token_map(eval: &'a Eval, kb_def: &'a KbDef, map: TokenMap) -> Self {
-        let layout = Layout::from_token_map(kb_def, map);
-        return Individual::from_layout(eval, layout);
-    }
-    fn from_layout(eval: &'a Eval, layout: Layout<'a>) -> Self {
+    fn new(layout: Layout<'a>, behaviour: Behaviour) -> Self {
         Individual {
-            score: eval.eval(&layout),
             layout: layout,
+            behaviour: behaviour,
         }
     }
+
+    fn improve(mut self, algorithm: &GeneticAlgorithm<'a>) -> Scored<Individual<'a>> {
+        self.mutate();
+        let b = self.tabu_search(algorithm);
+        println!("mutation: {}\tscore: {}", b.value.behaviour.mutation_intensity, b.score);
+        return b;
+    }
+
+    fn mutate(&mut self) {
+        Mutator::new(&mut self.layout).mutate(self.behaviour.mutation_intensity);
+    }
+
+    fn tabu_search(self, algorithm: &GeneticAlgorithm<'a>) -> Scored<Individual<'a>> {
+        let Individual { layout, behaviour } = self;
+        let ps = TabuParams {
+            num_iterations: algorithm.localsearch_intensity,
+            tabu_duration: 25,
+            eval: algorithm.eval,
+        };
+        return ps.search(layout).map(|lt| {
+            Individual::new(lt, behaviour)
+        });
+    }
 }
+
+#[derive(Clone)]
+struct Behaviour {
+    mutation_intensity: usize,
+}
+
+type Population<'e> = Vec<Scored<Individual<'e>>>;
