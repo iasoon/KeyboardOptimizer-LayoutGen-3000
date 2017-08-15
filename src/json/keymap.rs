@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 use data::*;
 use cat::*;
@@ -9,33 +8,28 @@ use json::errors::*;
 use json::reader::{Reader, EvalReader};
 
 #[derive(Serialize, Deserialize)]
-pub struct KeymapData<'a> {
+pub struct KeymapData<'a>(
     #[serde(borrow)]
-    keys: HashMap<&'a str, KeyLayers<'a>>,
-}
+    HashMap<&'a str, KeyMapping<'a>>
+);
 
 #[derive(Serialize, Deserialize)]
-struct KeyLayers<'a> {
+pub struct KeyMapping<'a>(
     #[serde(borrow)]
-    layers: HashMap<&'a str, &'a str>
-}
-
-impl<'a> KeyLayers<'a> {
-    fn empty() -> Self {
-        KeyLayers {
-            layers: HashMap::new()
-        }
-    }
-}
+    HashMap<&'a str, &'a str>
+);
 
 impl<'s> Reader<Table<Loc, Option<Num<Token>>>> for EvalReader<'s> {
     type Repr = &'s KeymapData<'s>;
 
     fn read(&self, keymap_data: &'s KeymapData<'s>) -> Result<Keymap> {
+        let &KeymapData(ref key_mappings) = keymap_data;
+
         let mut keymap = self.kb_def.loc_num().map_nums(|_| None);
-        for (&key_name, layers) in keymap_data.keys.iter() {
+        for (&key_name, key_mapping) in key_mappings.iter() {
+            let &KeyMapping(ref entries) = key_mapping;
             let key_num = try!(self.read(key_name));
-            for (&layer_name, &token_name) in layers.layers.iter() {
+            for (&layer_name, &token_name) in entries.iter() {
                 let layer_num = try!(self.read(layer_name));
                 let token_num = try!(self.read(token_name));
                 let loc_num = self.kb_def.loc_num().apply(Loc {
@@ -49,11 +43,25 @@ impl<'s> Reader<Table<Loc, Option<Num<Token>>>> for EvalReader<'s> {
     }
 }
 
+impl<'a> KeyMapping<'a> {
+    fn empty() -> Self {
+        KeyMapping(HashMap::new())
+    }
+
+    fn insert(&mut self, layer: &'a str, token: &'a str) {
+        let &mut KeyMapping(ref mut entries) = self;
+        entries.insert(layer, token);
+    }
+}
+
 impl<'a> KeymapData<'a> {
     fn empty() -> Self {
-        KeymapData {
-            keys: HashMap::new()
-        }
+        KeymapData(HashMap::new())
+    }
+
+    fn mapping_mut<'b>(&'b mut self, key: &'a str) -> &'b mut KeyMapping<'a> {
+        let &mut KeymapData(ref mut key_mappings) = self;
+        return key_mappings.entry(key).or_insert_with(|| KeyMapping::empty());
     }
 
     pub fn from_table(kb_def: &'a KbDef, keymap: Keymap) -> Self {
@@ -66,17 +74,9 @@ impl<'a> KeymapData<'a> {
                 let layer_name = &kb_def.layers[loc.layer_num];
                 let token_name = &kb_def.tokens[token_num];
 
-                keymap_data.add_mapping(key_name, layer_name, token_name);
+                keymap_data.mapping_mut(key_name).insert(layer_name, token_name);
             }
         }
         keymap_data
-    }
-
-    fn add_mapping (&mut self, key: &'a str, layer: &'a str, token: &'a str) {
-        self.keys
-            .entry(key)
-            .or_insert_with(|| KeyLayers::empty())
-            .layers
-            .insert(layer, token);
     }
 }
