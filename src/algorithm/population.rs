@@ -71,8 +71,9 @@ impl<'e> GeneticAlgorithm<'e> {
     fn generate_behaviour(&self) -> Behaviour {
         let mut rng = thread_rng();
         Behaviour {
-            mutation_intensity: rng.gen_range(0, 8),
-            tabu_duration: rng.gen_range(1, 50),
+            // TODO: ugh, magic numbers. I don't even know why this works.
+            mutation_intensity: rng.gen_range(0, 5),
+            tabu_duration: rng.gen_range(1, self.localsearch_intensity),
         }
     }
 
