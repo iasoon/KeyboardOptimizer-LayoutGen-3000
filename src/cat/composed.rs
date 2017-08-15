@@ -1,8 +1,6 @@
-use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 
 use cat::types::*;
-use cat::has_count::*;
 use cat::ops::*;
 
 /// General composition struct.

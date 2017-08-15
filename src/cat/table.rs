@@ -19,10 +19,6 @@ impl<D, T> Table<D, T> {
         }
     }
 
-    pub fn iter<'t>(&'t self) -> impl Iterator<Item = (Num<D>, &'t T)> {
-        self.elems.iter().enumerate().map(|(num, item)| (to_num(num), item))
-    }
-
     pub fn compose<M>(self, mapping: M) -> Composed<M, Self> {
         Composed::new(mapping, self)
     }
@@ -81,7 +77,7 @@ impl<D, T> Clone for Table<D, T>
 
 impl<D, T, V> Map<T, V, Table<D, V>> for Table<D, T>
 {
-    fn map<'t, F>(&'t self, mut fun: F) -> Table<D, V>
+    fn map<'t, F>(&'t self, fun: F) -> Table<D, V>
         where F: FnMut(&'t T) -> V
     {
         Table::from_vec(self.elems.iter().map(fun).collect())
@@ -113,7 +109,7 @@ impl<D, T> MapMutWithKey<Num<D>, T> for Table<D, T> {
 }
 
 impl<D, T, R> MapInto<T, R, Table<D, R>> for Table<D, T> {
-    fn map_into<F>(self, mut fun: F) -> Table<D, R>
+    fn map_into<F>(self, fun: F) -> Table<D, R>
         where F: FnMut(T) -> R
     {
         Table::from_vec(self.elems.into_iter().map(fun).collect())

@@ -1,5 +1,3 @@
-use cat::types::*;
-
 use std::marker::PhantomData;
 use std::cmp::Ordering;
 use std::fmt;

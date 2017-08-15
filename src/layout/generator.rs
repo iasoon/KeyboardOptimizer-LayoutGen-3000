@@ -265,7 +265,7 @@ fn lock_overlaps(kb_def: &KbDef, lock_num: Num<Lock>, key_num: Num<Key>) -> Vec<
 }
 
 // TODO: move to Assignment
-fn assignment_group(kb_def: &KbDef, assignment: Assignment) -> Group {
+fn assignment_group(_: &KbDef, assignment: Assignment) -> Group {
     match assignment {
         Assignment::Free { free_num, loc_num: _ } => Group::Free(free_num),
         Assignment::Lock { lock_num, key_num: _ } => Group::Lock(lock_num),

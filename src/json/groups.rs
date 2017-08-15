@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use serde::Deserialize;
 
 use cat;
 use cat::*;
@@ -10,7 +9,7 @@ use json::errors::*;
 use json::reader::{Reader, ElemReader, GroupsReader};
 
 #[derive(Deserialize)]
-struct LocData<'a> {
+pub struct LocData<'a> {
     key: &'a str,
     layer: &'a str,
 }

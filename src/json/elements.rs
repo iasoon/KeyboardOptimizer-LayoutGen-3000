@@ -1,5 +1,3 @@
-use serde::Deserialize;
-
 use cat::Table;
 use data::{Key, Layer, Token};
 

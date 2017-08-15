@@ -1,6 +1,4 @@
-use std::marker::PhantomData;
 use cat::composed::Composed;
-use cat::table::Table;
 
 use std::ops::{Index, IndexMut};
 

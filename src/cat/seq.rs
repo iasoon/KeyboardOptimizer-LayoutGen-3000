@@ -4,20 +4,8 @@ use cat::*;
 use cat::internal::{to_num, to_count};
 
 /// A sequence of values.
-/// Since it is not possible to parametrically fixate a length for these
-/// sequences, impls for this type are a bit liberal and instead rely on
-/// programmer discipline.
 pub struct Seq<D> {
     phantom: PhantomData<D>,
-}
-
-/// This implementation is purposely left a bit vague; for the domain of
-/// sequences to be finite, one should constrain it, for example by using a
-/// fixed length, or a maximum length.
-impl<D> Seq<D> {
-    pub fn iter(count: Count<D>, len: usize) -> SeqIter<D> {
-        SeqIter::new(count, len)
-    }
 }
 
 /// Enumerates, in order, all seqs over this domain with given length.

@@ -2,7 +2,6 @@ use std::mem;
 use std::ops::{Index, IndexMut};
 use rand::{thread_rng, Rng};
 use cat::*;
-use cat::ops::*;
 
 pub type Subset<D> = IndexedList<Num<D>, Table<D, Option<usize>>>;
 

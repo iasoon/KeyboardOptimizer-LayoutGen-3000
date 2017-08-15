@@ -17,9 +17,6 @@ mod eval;
 use std::fs::File;
 use std::io::Read;
 
-use data::KbDef;
-use layout::Keymap;
-
 use serde_json;
 
 pub use self::keymap::KeymapData;
@@ -27,20 +24,12 @@ pub use self::keymap::KeymapData;
 use serde::Deserialize;
 
 use self::config::{Config, ConfigData};
-use self::reader::{Reader, EvalReader};
 
 use self::errors::*;
 
 pub fn parse_config(path: &str) -> Result<Config> {
     JsonBuffer::from_file(path).parse(|json: ConfigData| {
         json.read()
-    })
-}
-
-pub fn parse_keymap(path: &str, kb_def: &KbDef) -> Result<Keymap> {
-    JsonBuffer::from_file(path).parse(|json: KeymapData| {
-        let reader = EvalReader::new(kb_def);
-        reader.read(&json)
     })
 }
 

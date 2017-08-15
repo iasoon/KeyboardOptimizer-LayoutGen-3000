@@ -33,6 +33,6 @@ pub trait Assignable {
         }
     }
 
-    fn assign_token(&mut self, token_num: Num<Token>, loc_num: Num<Loc>) {}
-    fn assign_group(&mut self, group_num: Num<Group>, key_num: Num<Key>) {}
+    fn assign_token(&mut self, _: Num<Token>, _: Num<Loc>) {}
+    fn assign_group(&mut self, _: Num<Group>, _: Num<Key>) {}
 }

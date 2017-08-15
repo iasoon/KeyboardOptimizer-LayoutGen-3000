@@ -1,6 +1,5 @@
 use layout::Layout;
 use eval::*;
-use cat::*;
 use data::*;
 
 #[derive(Clone)]

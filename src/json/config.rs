@@ -1,5 +1,3 @@
-use serde::Deserialize;
-
 use data::*;
 use cat::*;
 use cat::ops::*;

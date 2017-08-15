@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 use std::ops::Index;
 
 use cat::*;
-use cat::ops::*;
 use cat::internal::*;
 
 pub trait HasCount<D> {

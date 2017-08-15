@@ -1,4 +1,3 @@
-use cat::*;
 use data::*;
 
 use eval::{Eval, Evaluator};

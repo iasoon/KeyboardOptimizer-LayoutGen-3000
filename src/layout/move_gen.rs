@@ -1,7 +1,6 @@
 use data::*;
 use cat::*;
 use cat::ops::*;
-use std::ops::Index;
 
 use layout::*;
 
