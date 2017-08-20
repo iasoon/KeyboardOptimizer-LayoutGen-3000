@@ -138,8 +138,10 @@ impl<'e, T: 'e, P: 'e> WalkableEval<'e> for NGramWalker<'e, T, P>
     }
 }
 
-impl<'e> NGramWalker<'e, Group, Key> {
-    pub fn new(eval: &'e NGramEval<Group, Key>, driver: &mut WalkerDriver<'e>) -> Self {
+impl<'e, T, P> NGramWalker<'e, T, P>
+    where for<'a> Walker<'a, 'e, NGramWalker<'e, T, P>>: HasMapping<T, P>
+{
+    pub fn new(eval: &'e NGramEval<T, P>, driver: &mut WalkerDriver<'e>) -> Self {
         let mut walker = NGramWalker {
             eval: eval,
             assignment_delta: AssignmentTable::new(driver.kb_def, |_| 0.0),
