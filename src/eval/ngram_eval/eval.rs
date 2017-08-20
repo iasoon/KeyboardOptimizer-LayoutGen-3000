@@ -132,3 +132,26 @@ impl<'w, 'e> HasMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Ke
     }
 }
 
+// Token/Location n-gram evaluator
+
+impl HasGroup for Num<Token> {
+    fn group_num(&self, kb_def: &KbDef) -> Num<Group> {
+        kb_def.group_num().apply(kb_def.token_group[*self])
+    }
+}
+
+impl<'e> From<&'e Layout<'e>> for Table<Token, Num<Loc>> {
+    fn from(layout: &'e Layout<'e>) -> Self {
+        // TODO: cloning here is not nice. Find a way to solve this.
+        // Probably use control inversion, so that this method decides on lifetimes
+        // (and thus allows for both passing a ref and allocating a new table).
+        // The resulting abstraction could probably replace HasMapping as well.
+        layout.token_map.clone()
+    }
+}
+
+impl<'w, 'e> HasMapping<Token, Loc> for Walker<'w, 'e, NGramWalker<'e, Token, Loc>> {
+    fn mapping<'m>(&'m self) -> &'m Table<Token, Num<Loc>> {
+        self.driver.token_map()
+    }
+}
