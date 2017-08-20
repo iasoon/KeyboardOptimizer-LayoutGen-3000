@@ -2,8 +2,6 @@ use data::*;
 use cat::*;
 use layout::*;
 
-use std::marker::PhantomData;
-
 type GroupMap = Table<Group, Num<Key>>;
 
 pub struct WalkerDriver<'a> {

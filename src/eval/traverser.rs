@@ -1,6 +1,5 @@
 use data::*;
-use layout::{Layout, Assignable};
-use std::marker::PhantomData;
+use layout::Layout;
 
 use eval::walker::*;
 use eval::evaluator::*;
