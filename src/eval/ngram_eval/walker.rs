@@ -21,17 +21,13 @@ impl<'e, T: 'e, P: 'e> Assignable for NGramWalker<'e, T, P> {
     }
 }
 
-
-pub trait HasMapping<T, P> {
-    fn mapping<'m>(&'m self) -> &'m Table<T, Num<P>>;
-}
-
-
 impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
     where Self: HasMapping<T, P>,
 {
-    fn cost<'b>(&'b self) -> NGramCost<'b, T, P> {
-        self.evaluator().ngram_cost(self.mapping())
+    fn eval_ngrams(&self, ngrams: &NGrams<T>) -> f64 {
+        self.with_mapping(|mapping| {
+            ngrams.eval(self.evaluator().ngram_cost(mapping))
+        })
     }
 
     fn evaluator<'b>(&'b self) -> &'b NGramEval<T, P> {
@@ -39,11 +35,11 @@ impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
     }
 
     fn eval_group(&self, group: Group) -> f64 {
-        self.evaluator().group_ngrams(group).eval(self.cost())
+        self.eval_ngrams(self.evaluator().group_ngrams(group))
     }
 
     fn eval_intersection(&self, ts: [Num<Group>; 2]) -> f64 {
-        self.evaluator().intersection(ts).eval(self.cost())
+        self.eval_ngrams(self.evaluator().intersection(ts))
     }
 
     fn recalc_group(&mut self, group_num: Num<Group>, delta: &[Assignment]) {
@@ -80,7 +76,7 @@ impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
 
         let before = self.measure_effect(
             |walker| walker.assign(change),
-            |walker| intersection.eval(walker.cost())
+            |walker| walker.eval_ngrams(intersection)
         );
 
         for &assignment in kb_def.group_assignments[group_num].iter() {
@@ -88,7 +84,7 @@ impl<'a, 'e, T: 'e, P: 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>
                 walker.assign(assignment);
                 let after = walker.measure_effect(
                     |walker| walker.assign(change),
-                    |walker| intersection.eval(walker.cost())
+                    |walker| walker.eval_ngrams(intersection)
                 );
                 walker.eval.assignment_delta[assignment] += after - before;
             });

@@ -40,14 +40,16 @@ impl<T, P> NGramEval<T, P> {
 }
 
 impl<T, P> Evaluator for NGramEval<T, P> where
-    // It should be possible to derive a T->P mapping from a layout
-    for<'a> Table<T, Num<P>>: From<&'a Layout<'a>>,
+    // It should be possible to get a T->P mapping from a layout
+    for<'a> Layout<'a> : HasMapping<T, P>,
     // It should be possible to get a T->P mapping from aa walker
     for<'a, 'e> Walker<'a, 'e, NGramWalker<'e, T, P>>: HasMapping<T, P>,
 {
     /// Evaluate a layout
     fn eval(&self, layout: &Layout) -> f64 {
-        return self.ngrams.eval(self.ngram_cost(&layout.into()));
+        layout.with_mapping(|mapping| {
+            self.ngrams.eval(self.ngram_cost(mapping))
+        })
     }
 
     /// Construct a walkable eval for this evaluator
@@ -120,14 +122,14 @@ impl HasGroup for Num<Group> {
     }
 }
 
-impl<'e> From<&'e Layout<'e>> for Table<Group, Num<Key>> {
-    fn from(layout: &'e Layout<'e>) -> Self {
-        layout.mk_group_map()
+impl<'e> HasMapping<Group, Key> for Layout<'e> {
+    fn get_mapping(&self) -> Table<Group, Num<Key>> {
+        self.mk_group_map()
     }
 }
 
-impl<'w, 'e> HasMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Key>> {
-    fn mapping<'m>(&'m self) -> &'m Table<Group, Num<Key>> {
+impl<'w, 'e> BorrowMapping<Group, Key> for Walker<'w, 'e, NGramWalker<'e, Group, Key>> {
+    fn borrow_mapping<'a>(&'a self) -> &'a Table<Group, Num<Key>> {
         self.driver.group_map()
     }
 }
@@ -140,18 +142,14 @@ impl HasGroup for Num<Token> {
     }
 }
 
-impl<'e> From<&'e Layout<'e>> for Table<Token, Num<Loc>> {
-    fn from(layout: &'e Layout<'e>) -> Self {
-        // TODO: cloning here is not nice. Find a way to solve this.
-        // Probably use control inversion, so that this method decides on lifetimes
-        // (and thus allows for both passing a ref and allocating a new table).
-        // The resulting abstraction could probably replace HasMapping as well.
-        layout.token_map.clone()
+impl<'e> BorrowMapping<Token, Loc> for Layout<'e> {
+    fn borrow_mapping<'a>(&'a self) -> &'a Table<Token, Num<Loc>> {
+        &self.token_map
     }
 }
 
-impl<'w, 'e> HasMapping<Token, Loc> for Walker<'w, 'e, NGramWalker<'e, Token, Loc>> {
-    fn mapping<'m>(&'m self) -> &'m Table<Token, Num<Loc>> {
+impl<'w, 'e> BorrowMapping<Token, Loc> for Walker<'w, 'e, NGramWalker<'e, Token, Loc>> {
+    fn borrow_mapping<'a>(&'a self) -> &'a Table<Token, Num<Loc>> {
         self.driver.token_map()
     }
 }

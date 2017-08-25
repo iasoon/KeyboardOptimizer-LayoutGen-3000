@@ -38,3 +38,31 @@ impl<'a, D: 'a, T: 'a> NGramCost<'a, D, T> {
 }
 
 pub type PathCost<T> = Composed<SeqNum<T>, Table<Seq<T>, f64>>;
+
+pub trait HasMapping<T, P> {
+    fn get_mapping(&self) -> Table<T, Num<P>>;
+
+    fn with_mapping<F, R>(&self, fun: F) -> R
+        where F: FnOnce(&Table<T, Num<P>>) -> R
+    {
+        fun(&self.get_mapping())
+    }
+}
+
+pub trait BorrowMapping<T, P> {
+    fn borrow_mapping<'e>(&'e self) -> &'e Table<T, Num<P>>;
+}
+
+impl<T, P, X> HasMapping<T, P> for X
+    where X: BorrowMapping<T, P>
+{
+    fn get_mapping(&self) -> Table<T, Num<P>> {
+        self.borrow_mapping().clone()
+    }
+
+    fn with_mapping<F, R>(&self, fun: F) -> R
+        where F: FnOnce(&Table<T, Num<P>>) -> R
+    {
+        fun(self.borrow_mapping())
+    }
+}
