@@ -165,24 +165,30 @@ impl<'e> SpeciesSet<'e> {
         }
     }
 
-    fn truncate(&mut self, target_size: usize) {
+    fn truncate(&mut self, mut available_size: usize) {
         println!("SPECIES: ");
         let weights: Vec<f64> = self.species.iter()
-            .map(|species| species.leader().score)
+            .map(|species| 1.0 / species.leader().score)
             .collect();
-        let total_weight: f64 = weights.iter().sum();
-        let avg_weight: f64 = total_weight / weights.len() as f64;
-        let avg_size: f64 = target_size as f64 / self.species.len() as f64;
-        let factor = avg_weight * avg_size;
-        for (i, species) in self.species.iter_mut().enumerate() {
-            let size: usize = (factor / weights[i]) as usize;
+        let mut total_weight: f64 = weights.iter().sum();
+
+        for (i, species) in self.species.iter_mut().enumerate().rev() {
+            let p = weights[i] / total_weight;
+            let allocated: usize = cmp::min(
+                (available_size as f64 * p) as usize,
+                species.size()
+            );
+
             println!(
                 "score: {}\tsize: {}\tshare: {}",
                 species.leader().score,
                 species.size(),
-                size,
+                allocated,
             );
-            species.truncate(size);
+
+            species.truncate(allocated);
+            total_weight -= weights[i];
+            available_size -= allocated;
         }
         println!("\n");
     }
