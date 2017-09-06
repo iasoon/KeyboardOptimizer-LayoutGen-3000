@@ -13,6 +13,29 @@ pub struct Layout<'a> {
 }
 
 impl<'a> Layout<'a> {
+
+    // TODO: eww.
+    pub fn distance(&self, other: &Layout<'a>) -> usize {
+        let mut dist = 0;
+
+        // frees
+        for (_, &token_num)in self.kb_def.frees.enumerate() {
+            if self.token_map[token_num] != other.token_map[token_num] {
+                dist += 1;
+            }
+        }
+
+        // locks
+        for (_, lock) in self.kb_def.locks.enumerate() {
+            let leader_num = lock.enumerate().filter_map(|(_, &val)| val).nth(0).unwrap();
+            if self.token_map[leader_num] != other.token_map[leader_num] {
+                dist += 1;
+            }
+        }
+
+    return dist;
+    }
+
     pub fn from_token_map(kb_def: &'a KbDef, token_map: TokenMap) -> Self {
         Layout {
             keymap: mk_keymap(kb_def, &token_map),

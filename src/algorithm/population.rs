@@ -20,12 +20,9 @@ macro_rules! crossover {
 pub struct GeneticAlgorithm<'e> {
     kb_def: &'e KbDef,
     eval: &'e Eval,
-    tournament_size: usize,
     localsearch_intensity: usize,
     innovation_rate: f64,
     population_size: usize,
-    // TODO: better name
-    num_parents: usize,
     num_generations: usize,
 }
 
@@ -54,70 +51,62 @@ impl<'e> Population<'e> {
     }
 
     fn evolve(&mut self) {
-        self.perform_selection();
-        self.perform_reproduction();
-    }
+        let child = {
+            let maj = self.tournament();
+            let min = self.tournament();
 
-    fn perform_reproduction(&mut self) {
-        println!("reproduction. len={}", self.individuals.len());
-        while self.individuals.len() < self.params.population_size - 1 {
-            let (mut a, mut b) = {
-                let maj = self.random_parent();
-                let min = self.random_parent();
-                self.crossover(&maj.value, &min.value)
-            };
-            self.mutate(&mut a);
-            self.mutate(&mut b);
-            self.individuals.push(a.improve(self.params));
-            self.individuals.push(b.improve(self.params));
+            self.reproduce(&maj.value, &min.value)
+        };
+
+        let closest = self.closest_individual(&child.value.layout);
+        if self.individuals[closest].score > child.score {
+            println!("adding individual with score {}", child.score);
+            self.individuals.swap_remove(closest);
+            self.individuals.push(child);
+        } else {
+            println!("sucks, refused");
         }
     }
 
-    fn perform_selection(&mut self) {
-        self.individuals.sort_by(|a, b| {
+    fn tournament<'a>(&'a self) -> &'a Scored<Individual<'e>> {
+        sample(&mut thread_rng(), &self.individuals, 3).iter().min_by(|a, b| {
             a.score.partial_cmp(&b.score).unwrap()
-        });
-        let mut set = SpeciesSet::empty();
-        for individual in self.individuals.drain(0..) {
-            set.add_individual(individual);
+        }).unwrap()
+    }
+
+    fn closest_individual(&self, ind: &Layout<'e>) -> usize {
+        let mut closest = 0;
+        let mut best_dist = self.individuals[0].value.layout.distance(ind);
+        for idx in 1..self.individuals.len() {
+            let dist = self.individuals[idx].value.layout.distance(ind);
+            if dist < best_dist {
+                best_dist = dist;
+                closest = idx;
+            }
         }
-        set.truncate(self.params.num_parents);
-        self.individuals.extend(set.drain());
+        return closest;
     }
 
-    fn random_parent<'a>(&'a self) -> &'a Scored<Individual<'e>> {
-        let end = cmp::min(self.individuals.len(), self.params.num_parents);
-        let parents = &self.individuals[0..end];
-        let individual = rand::thread_rng().choose(parents).unwrap();
-        return individual;
-    }
-
-    fn crossover<'a>(&self, maj: &'a Individual<'e>, min: &'a Individual<'e>)
-                     -> (Individual<'e>, Individual<'e>)
+    fn reproduce<'a>(&self, maj: &'a Individual<'e>, min: &'a Individual<'e>)
+                     -> Scored<Individual<'e>>
     {
-        let mut maj_child = maj.layout.token_map.clone();
-        let mut min_child = min.layout.token_map.clone();
-
-        let mut maj_behaviour = maj.behaviour.clone();
-        let mut min_behaviour = min.behaviour.clone();
+        let mut child = maj.layout.token_map.clone();
 
         for cycle in LayoutPair::new(&maj.layout, &min.layout).cycles() {
             if thread_rng().next_f64() < 0.5 {
-                cycle.inject(&mut maj_child, &min.layout.token_map);
-                cycle.inject(&mut min_child, &maj.layout.token_map);
+                cycle.inject(&mut child, &min.layout.token_map);
             }
         }
 
-        crossover!(0.5, mutation_intensity, maj_behaviour, min_behaviour);
-        crossover!(0.5, tabu_duration,      maj_behaviour, min_behaviour);
-
-        (self.mk_individual(maj_child, maj_behaviour),
-         self.mk_individual(min_child, min_behaviour))
+        return self.grow_individual(child, maj.behaviour.clone());
     }
 
-    fn mk_individual(&self, token_map: TokenMap, behaviour: Behaviour) -> Individual<'e> {
+    fn grow_individual(&self, token_map: TokenMap, behaviour: Behaviour)
+                       -> Scored<Individual<'e>>
+    {
         let layout = Layout::from_token_map(self.params.kb_def, token_map);
-        return Individual { layout, behaviour };
+        let individual = Individual { layout, behaviour };
+        return individual.improve(self.params);
     }
 
     fn mutate(&self, individual: &mut Individual) {
@@ -128,133 +117,16 @@ impl<'e> Population<'e> {
     }
 }
 
-struct SpeciesSet<'e> {
-    species: Vec<Species<'e>>,
-}
-
-
-impl<'e> SpeciesSet<'e> {
-    fn empty() -> Self {
-        SpeciesSet {
-            species: Vec::new(),
-        }
-    }
-
-    fn add_individual(&mut self, individual: Scored<Individual<'e>>) {
-        let radius = 25;
-
-        if self.species.is_empty() {
-            self.species.push(Species::new(individual));
-        } else {
-            let mut closest = 0;
-            let mut smallest_dist = self.species[0].distance(&individual.value);
-
-            for i in 1..self.species.len() {
-                let dist = self.species[i].distance(&individual.value);
-                if dist < smallest_dist {
-                    smallest_dist = dist;
-                    closest = i;
-                }
-            }
-
-            if smallest_dist <= radius {
-                self.species[closest].individuals.push(individual);
-            } else {
-                self.species.push(Species::new(individual));
-            }
-        }
-    }
-
-    fn truncate(&mut self, mut available_size: usize) {
-        println!("SPECIES: ");
-        let weights: Vec<f64> = self.species.iter()
-            .map(|species| 1.0 / species.leader().score)
-            .collect();
-        let mut total_weight: f64 = weights.iter().sum();
-
-        for (i, species) in self.species.iter_mut().enumerate().rev() {
-            let p = weights[i] / total_weight;
-            let allocated: usize = cmp::min(
-                (available_size as f64 * p) as usize,
-                species.size()
-            );
-
-            println!(
-                "score: {}\tsize: {}\tshare: {}",
-                species.leader().score,
-                species.size(),
-                allocated,
-            );
-
-            species.truncate(allocated);
-            total_weight -= weights[i];
-            available_size -= allocated;
-        }
-        println!("\n");
-    }
-
-    fn drain(self) -> impl Iterator<Item = Scored<Individual<'e>>> {
-        self.species.into_iter().flat_map(|species| species.drain())
-    }
-}
-
-struct Species<'e> {
-    individuals: Vec<Scored<Individual<'e>>>,
-}
-
-impl<'e> Species<'e> {
-    fn new(leader: Scored<Individual<'e>>) -> Self {
-        Species {
-            individuals: vec![leader],
-        }
-    }
-
-    fn size(&self) -> usize {
-        self.individuals.len()
-    }
-
-    fn leader<'a>(&'a self) -> &'a Scored<Individual<'e>> {
-        &self.individuals[0]
-    }
-
-    fn distance(&self, individual: &Individual<'e>) -> usize {
-        self.leader().value.layout.distance(&individual.layout)
-    }
-
-    fn kill_one(&mut self, tournament_size: usize) {
-        let mut rng = rand::thread_rng();
-        let contestants = rand::sample(&mut rng, 0..self.size(), tournament_size);
-        let loser_idx = contestants.iter().cloned().max_by(|&a, &b| {
-            let a_score = self.individuals[a].score;
-            let b_score = self.individuals[b].score;
-            return a_score.partial_cmp(&b_score).unwrap();
-        }).unwrap();
-        self.individuals.swap_remove(loser_idx);
-    }
-
-    fn truncate(&mut self, target_size: usize) {
-        while self.size() > target_size {
-            let tournament_size = cmp::min(3, self.size());
-            self.kill_one(tournament_size);
-        }
-    }
-
-    fn drain(self) -> impl Iterator<Item = Scored<Individual<'e>>> {
-        self.individuals.into_iter()
-    }
-}
 
 impl<'e> GeneticAlgorithm<'e> {
     pub fn new(kb_def: &'e KbDef, eval: &'e Eval) -> Self {
         GeneticAlgorithm {
             kb_def: kb_def,
             eval: eval,
-            tournament_size: 2,
-            localsearch_intensity: 50,
+            localsearch_intensity: 80,
             innovation_rate: 0.05,
-            population_size: 400,
-            num_parents: 200,
-            num_generations: 20,
+            population_size: 250,
+            num_generations: 2500,
         }
     }
 
