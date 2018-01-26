@@ -27,7 +27,7 @@ use self::config::{Config, ConfigData};
 
 use self::errors::*;
 
-pub fn parse_config(path: &str) -> Result<Config> {
+pub fn read_config(path: &str) -> Result<Config> {
     JsonBuffer::from_file(path).parse(|json: ConfigData| {
         json.read()
     })
