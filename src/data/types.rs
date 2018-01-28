@@ -1,7 +1,5 @@
 use cat;
 use cat::*;
-use data::types::*;
-use std::ops::{Index, IndexMut};
 
 /// Indicator struct for a key
 pub struct Key;
@@ -55,6 +53,18 @@ pub struct AllowedAssignment;
 
 type AssignmentTable<T> = Composed<AssignmentNum, Table<Assignment, T>>;
 
+pub enum Restriction {
+    Not(Vec<Num<Value>>),
+    Only(Vec<Num<Value>>),
+}
+
+pub type Restrictor = Table<Value, Restriction>;
+
+pub struct Constraint {
+    key_num: Num<Key>,
+    restrictor: Restrictor,
+}
+
 pub struct Problem {
     /// key names
     pub keys: Table<Key, String>,
@@ -67,6 +77,9 @@ pub struct Problem {
     /// A lookup table to check whether an assignment is allowed, and if so,
     /// which number it was assigned.
     pub assignment_map: AssignmentTable<Option<Num<AllowedAssignment>>>,
+
+    /// A mapping from keys to a list of the constraints they impose.
+    pub constraints: Table<Key, Vec<Constraint>>,
 }
 
 impl Problem {
