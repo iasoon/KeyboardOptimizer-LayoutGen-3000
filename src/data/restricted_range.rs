@@ -169,3 +169,63 @@ impl<T> SegmentedPermutation<T> {
         return frontier;
     }
 }
+
+pub struct RestrictedRange {
+    values: SegmentedPermutation<Value>,
+    times_rejected: Table<Value, usize>,
+}
+
+impl RestrictedRange {
+    pub fn new(value_count: Count<Value>) -> Self {
+        RestrictedRange {
+            values: SegmentedPermutation::new(value_count),
+            times_rejected: value_count.map_nums(|_| 0),
+        }
+    }
+
+    pub fn add_restriction(&mut self, restriction: &Restriction) {
+        match restriction {
+            &Restriction::Not(ref rejected_values) => {
+                for &value_num in rejected_values {
+                    self.reject(value_num);
+                }
+            }
+            &Restriction::Only(ref accepted_values) => {
+                self.values.push_segment();
+                for &value_num in accepted_values {
+                    self.values.promote(value_num);
+                }
+            }
+        }
+    }
+
+    pub fn remove_restriction(&mut self, restriction: &Restriction) {
+        match restriction {
+            &Restriction::Not(ref rejected_values) => {
+                for &value_num in rejected_values {
+                    self.unreject(value_num);
+                }
+            }
+            &Restriction::Only(ref accepted_values) => {
+                for &value_num in accepted_values {
+                    self.values.demote(value_num);
+                }
+                self.values.pop_segment();
+            }
+        }
+    }
+
+    fn reject(&mut self, value_num: Num<Value>) {
+        if self.times_rejected[value_num] == 0 {
+            self.values.reject(value_num);
+        }
+        self.times_rejected[value_num] += 1;
+    }
+
+    fn unreject(&mut self, value_num: Num<Value>) {
+        self.times_rejected[value_num] -= 1;
+        if self.times_rejected[value_num] == 0 {
+            self.values.accept(value_num);
+        }
+    }
+}
