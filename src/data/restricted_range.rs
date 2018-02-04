@@ -1,7 +1,7 @@
 use super::*;
 use cat::*;
 
-use std::ops::Index;
+use std::ops::{Index, Range};
 
 
 struct Permutation<T> {
@@ -41,6 +41,14 @@ impl<T> Index<usize> for Permutation<T> {
 
     fn index<'a>(&'a self, idx: usize) -> &'a Num<T> {
         &self.items[idx]
+    }
+}
+
+impl<T> Index<Range<usize>> for Permutation<T> {
+    type Output = [Num<T>];
+
+    fn index<'a>(&'a self, range: Range<usize>) -> &'a [Num<T>] {
+        &self.items[range]
     }
 }
 
@@ -109,12 +117,20 @@ impl<T> SegmentedPermutation<T> {
         self.item_segment[item_num] = segment - 1;
     }
 
+    pub fn segments<'a>(&'a self) -> &'a [Segment] {
+        &self.segments
+    }
+
     pub fn push_segment(&mut self) {
         self.segments.push(Segment::empty(self.items.len()));
     }
 
     pub fn pop_segment(&mut self) {
         self.segments.pop();
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
     }
 
     fn promote_pos(&mut self, segment: usize, pos: usize) {
@@ -170,6 +186,23 @@ impl<T> SegmentedPermutation<T> {
     }
 }
 
+impl<T> Index<usize> for SegmentedPermutation<T> {
+    type Output = Num<T>;
+
+    fn index<'a>(&'a self, idx: usize) -> &'a Num<T> {
+        &self.items[idx]
+    }
+}
+
+impl<T> Index<Range<usize>> for SegmentedPermutation<T> {
+    type Output = [Num<T>];
+
+    fn index<'a>(&'a self, range: Range<usize>) -> &'a [Num<T>] {
+        &self.items[range]
+    }
+}
+
+
 pub struct RestrictedRange {
     values: SegmentedPermutation<Value>,
     times_rejected: Table<Value, usize>,
@@ -181,6 +214,11 @@ impl RestrictedRange {
             values: SegmentedPermutation::new(value_count),
             times_rejected: value_count.map_nums(|_| 0),
         }
+    }
+
+    pub fn accepted<'a>(&'a self) -> &'a [Num<Value>] {
+        let segment = self.values.segments().last().unwrap();
+        &self.values[(segment.frontier()..self.values.len())]
     }
 
     pub fn add_restriction(&mut self, restriction: &Restriction) {
