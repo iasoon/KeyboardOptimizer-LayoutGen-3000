@@ -1,97 +1,55 @@
 use std::collections::HashMap;
 
 use cat::*;
-use data::{KbDef, Key, Layer, Token};
+use data::{Key, Value};
 
-use json::elements::Elements;
 use json::errors::*;
 
 pub trait Reader<R> {
     type Repr;
 
     fn read(&self, repr: Self::Repr) -> Result<R>;
-}
 
-pub struct GroupsReader<'s> {
-    elem_reader: ElemReader<'s>,
-    pub elements: &'s Elements,
-}
-
-impl<'s> GroupsReader<'s> {
-    pub fn new(elements: &'s Elements) -> Self {
-        GroupsReader {
-            elem_reader: ElemReader::new(
-                &elements.keys,
-                &elements.layers,
-                &elements.tokens),
-            elements: elements,
-        }
+    fn read_vec(&self, repr: Vec<Self::Repr>) -> Result<Vec<R>> {
+        repr.into_iter().map(|elem_repr| self.read(elem_repr)).collect()
     }
 }
 
-impl<'s, T> Reader<T> for GroupsReader<'s>
-    where ElemReader<'s>: Reader<T>
-{
-    type Repr = <ElemReader<'s> as Reader<T>>::Repr;
-
-    fn read(&self, repr: Self::Repr) -> Result<T> {
-        self.elem_reader.read(repr)
-    }
-}
-
-pub struct EvalReader<'s> {
-    elem_reader: ElemReader<'s>,
-    pub kb_def: &'s KbDef,
-}
-
-impl<'s> EvalReader<'s> {
-    pub fn new(kb_def: &'s KbDef) -> Self {
-        EvalReader {
-            elem_reader: ElemReader::new(
-                &kb_def.keys,
-                &kb_def.layers,
-                &kb_def.tokens),
-            kb_def: kb_def,
-        }
-    }
-}
-
-impl<'s, T> Reader<T> for EvalReader<'s>
-    where ElemReader<'s>: Reader<T>
-{
-    type Repr = <ElemReader<'s> as Reader<T>>::Repr;
-
-    fn read(&self, repr: Self::Repr) -> Result<T> {
-        self.elem_reader.read(repr)
-    }
-}
-
-pub struct ElemReader<'s> {
+pub struct NameReader<'s> {
+    keys: Table<Key, &'s str>,
     key_map: HashMap<&'s str, Num<Key>>,
-    layer_map: HashMap<&'s str, Num<Layer>>,
-    token_map: HashMap<&'s str, Num<Token>>,
+    values: Table<Value, &'s str>,
+    value_map: HashMap<&'s str, Num<Value>>,
 }
 
-impl<'s> ElemReader<'s> {
-    fn new(keys: &'s Table<Key, String>,
-           layers: &'s Table<Layer, String>,
-           tokens: &'s Table<Token, String>)
+impl<'s> NameReader<'s> {
+    pub fn new(keys: Table<Key, &'s str>,
+           values: Table<Value, &'s str>)
            -> Self
     {
-        ElemReader {
-            key_map: mk_name_map(keys),
-            layer_map: mk_name_map(layers),
-            token_map: mk_name_map(tokens),
+        NameReader {
+            key_map: mk_name_map(&keys),
+            value_map: mk_name_map(&values),
+            keys: keys,
+            values: values,
         }
+    }
+
+    pub fn keys<'a>(&'a self) -> &'a Table<Key, &'a str> {
+        &self.keys
+    }
+
+    pub fn values<'a>(&'a self) -> &'a Table<Value, &'a str> {
+        &self.values
     }
 }
 
-fn mk_name_map<'a, D>(table: &'a Table<D, String>) -> HashMap<&'a str, Num<D>> {
-    table.enumerate().map(|(num, name)| (name.as_str(), num)).collect()
+fn mk_name_map<'a, D>(table: &'a Table<D, &'a str>) -> HashMap<&'a str, Num<D>> {
+    table.enumerate().map(|(num, &name)| (name, num)).collect()
 }
 
 
-impl<'s> Reader<Num<Key>> for ElemReader<'s> {
+impl<'s> Reader<Num<Key>> for NameReader<'s> {
     type Repr = &'s str;
 
     fn read(&self, key_name: &'s str) -> Result<Num<Key>> {
@@ -103,26 +61,14 @@ impl<'s> Reader<Num<Key>> for ElemReader<'s> {
     }
 }
 
-impl<'s> Reader<Num<Layer>> for ElemReader<'s> {
+impl<'s> Reader<Num<Value>> for NameReader<'s> {
     type Repr = &'s str;
 
-    fn read(&self, layer_name: &'s str) -> Result<Num<Layer>> {
-        if let Some(&layer_num) = self.layer_map.get(layer_name) {
-            Ok(layer_num)
+    fn read(&self, value_name: &'s str) -> Result<Num<Value>> {
+        if let Some(&value_num) = self.value_map.get(value_name) {
+            Ok(value_num)
         } else {
-            bail!("unknown layer: {}", layer_name)
-        }
-    }
-}
-
-impl<'s> Reader<Num<Token>> for ElemReader<'s> {
-    type Repr = &'s str;
-
-    fn read(&self, token_name: &'s str) -> Result<Num<Token>> {
-        if let Some(&token_num) = self.token_map.get(token_name) {
-            Ok(token_num)
-        } else {
-            bail!("unknown token: {}", token_name)
+            bail!("unknown value: {}", value_name)
         }
     }
 }
