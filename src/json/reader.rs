@@ -24,8 +24,8 @@ pub struct NameReader<'s> {
 
 impl<'s> NameReader<'s> {
     pub fn new(keys: Table<Key, &'s str>,
-           values: Table<Value, &'s str>)
-           -> Self
+               values: Table<Value, &'s str>)
+               -> Self
     {
         NameReader {
             key_map: mk_name_map(&keys),
@@ -44,7 +44,7 @@ impl<'s> NameReader<'s> {
     }
 }
 
-fn mk_name_map<'a, D>(table: &'a Table<D, &'a str>) -> HashMap<&'a str, Num<D>> {
+fn mk_name_map<'a, D>(table: &Table<D, &'a str>) -> HashMap<&'a str, Num<D>> {
     table.enumerate().map(|(num, &name)| (name, num)).collect()
 }
 

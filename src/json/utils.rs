@@ -25,7 +25,7 @@ impl<'s> JsonBuffer<'s> {
         Ok(())
     }
 
-    pub fn parse<'de, D, R, F>(&'de mut self, fun: F) -> Result<R>
+    pub fn map<'de, D, R, F>(&'de mut self, fun: F) -> Result<R>
         where F: Fn(D) -> Result<R>,
               D: Deserialize<'de>
     {

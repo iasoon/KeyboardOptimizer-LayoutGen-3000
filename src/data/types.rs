@@ -61,28 +61,21 @@ pub enum Restriction {
 pub type Restrictor = Table<Value, Restriction>;
 
 pub struct Constraint {
-    key_num: Num<Key>,
-    restrictor: Restrictor,
+    pub subject: Num<Key>,
+    pub object: Num<Key>,
+    pub restrictor: Restrictor,
 }
 
-pub struct Problem {
+pub struct Domain {
     /// key names
     pub keys: Table<Key, String>,
     /// value names
     pub values: Table<Value, String>,
-
-    /// A numbered list of all allowed assignments.
-    pub assignments: Table<AllowedAssignment, Assignment>,
-
-    /// A lookup table to check whether an assignment is allowed, and if so,
-    /// which number it was assigned.
-    pub assignment_map: AssignmentTable<Option<Num<AllowedAssignment>>>,
-
-    /// A mapping from keys to a list of the constraints they impose.
-    pub constraints: Table<Key, Vec<Constraint>>,
+    /// assignment constraints
+    pub constraints: Vec<Constraint>
 }
 
-impl Problem {
+impl Domain {
     pub fn assignment_num(&self) -> AssignmentNum {
         AssignmentNum {
             key_count: self.keys.count(),
