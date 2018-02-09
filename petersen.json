@@ -1,0 +1,143 @@
+{
+    "keys": [
+        "inner/1",
+        "inner/2",
+        "inner/3",
+        "inner/4",
+        "inner/5",
+        "outer/1",
+        "outer/2",
+        "outer/3",
+        "outer/4",
+        "outer/5"
+    ],
+    "values": [
+        "red",
+        "green",
+        "blue"
+    ],
+    "restrictions": [
+        {
+            "keys": ["inner/1", "inner/3"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/1", "inner/4"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/2", "inner/4"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/2", "inner/5"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/3", "inner/5"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+
+        {
+            "keys": ["inner/1", "outer/1"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/2", "outer/2"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/3", "outer/3"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/4", "outer/4"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["inner/5", "outer/5"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+
+        {
+            "keys": ["outer/1", "outer/2"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["outer/2", "outer/3"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["outer/3", "outer/4"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["outer/4", "outer/5"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "keys": ["outer/5", "outer1"],
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        }
+    ]
+}
