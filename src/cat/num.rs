@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 
 pub struct Num<D> {
     num: usize,
@@ -47,6 +48,12 @@ impl<D> Ord for Num<D> {
 impl<D> fmt::Debug for Num<D> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.as_usize())
+    }
+}
+
+impl<D> Hash for Num<D> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.num.hash(state)
     }
 }
 
