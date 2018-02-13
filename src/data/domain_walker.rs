@@ -20,6 +20,10 @@ impl<'d> DomainWalker<'d> {
         }
     }
 
+    pub fn range<'a>(&'a self, key_num: Num<Key>) -> &'a RestrictedRange {
+        &self.ranges[key_num]
+    }
+
     pub fn range_for<'a>(&'a self, key_num: Num<Key>) -> &'a [Num<Value>] {
         self.ranges[key_num].accepted()
     }
