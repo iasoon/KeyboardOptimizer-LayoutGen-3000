@@ -16,7 +16,7 @@
         "green",
         "blue"
     ],
-    "restrictions": [
+    "constraints": [
         {
             "keys": ["inner/1", "inner/3"],
             "restrictor": {
@@ -132,7 +132,7 @@
             }
         },
         {
-            "keys": ["outer/5", "outer1"],
+            "keys": ["outer/5", "outer/1"],
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
