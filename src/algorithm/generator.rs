@@ -4,8 +4,9 @@ use cat::*;
 use errors::*;
 
 use std::collections::HashSet;
+use std::iter::FromIterator;
 
-struct Backtracker<'d> {
+pub struct Backtracker<'d> {
     domain_walker: DomainWalker<'d>,
     stack: Vec<Step>,
     pos: Table<Key, Option<Num<Value>>>,
@@ -44,7 +45,16 @@ impl Step {
 }
 
 impl<'d> Backtracker<'d> {
-    fn generate(&mut self) -> Result<()> {
+    pub fn new(domain: &'d Domain) -> Self {
+        Backtracker {
+            domain_walker: DomainWalker::new(domain),
+            stack: Vec::with_capacity(domain.keys.count().as_usize()),
+            pos: domain.keys.map_nums(|_| None),
+            unassigned: HashSet::from_iter(domain.keys.nums()),
+        }
+    }
+
+    pub fn generate(&mut self) -> Result<()> {
         while let Some(key_num) = self.next_key() {
             if self.check() {
                 self.descend(key_num);

@@ -1,12 +1,12 @@
 #![feature(plugin, custom_derive, conservative_impl_trait)]
 #![allow(dead_code)]
 
+mod algorithm;
 mod cat;
-mod eval;
 mod data;
 mod json;
 
-mod layout;
+//mod layout;
 
 extern crate rand;
 
@@ -23,7 +23,7 @@ use std::path::Path;
 mod errors {
     error_chain! {
         links {
-            Parse(::json::errors::Error, ::json::errors::ErrorKind);
+            // Parse(::json::errors::Error, ::json::errors::ErrorKind);
         }
     }
 }
@@ -47,7 +47,9 @@ fn main() {
 }
 
 fn run() -> errors::Result<()> {
-    let _config = json::read_config("config.json")
-        .chain_err(|| "Could not parse config.json")?;
+    let domain = json::read_config("petersen.json")
+        .chain_err(|| "Could not parse domain")?;
+    let mut b = algorithm::Backtracker::new(&domain);
+    try!(b.generate());
     Ok(())
 }
