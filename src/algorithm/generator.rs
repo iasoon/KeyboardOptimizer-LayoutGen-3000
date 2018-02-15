@@ -67,7 +67,10 @@ impl<'d> Backtracker<'d> {
     }
 
     fn next_key(&self) -> Option<Num<Key>> {
-        self.unassigned.iter().cloned().next()
+        // Select most constrained key first for fail-first strategy
+        self.unassigned.iter().cloned().min_by_key(|&key_num| {
+            self.domain_walker.range(key_num).accepted().len()
+        })
     }
 
     fn check(&self) -> bool {
