@@ -30,18 +30,18 @@ impl<'d> DomainWalker<'d> {
 
     pub fn assign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
         for constraint in self.domain.constraints.iter() {
-            if constraint.object == key_num {
+            if constraint.subject == key_num {
                 let restriction = &constraint.restrictor[value_num];
-                self.ranges[constraint.subject].add_restriction(restriction);
+                self.ranges[constraint.object].add_restriction(restriction);
             }
         }
     }
 
     pub fn unassign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
         for constraint in self.domain.constraints.iter() {
-            if constraint.object == key_num {
+            if constraint.subject == key_num {
                 let restriction = &constraint.restrictor[value_num];
-                self.ranges[constraint.subject].remove_restriction(restriction);
+                self.ranges[constraint.object].remove_restriction(restriction);
             }
         }
     }

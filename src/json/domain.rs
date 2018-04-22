@@ -17,12 +17,14 @@ pub struct DomainData<'s> {
 #[derive(Deserialize)]
 
 pub struct ConstraintData<'s> {
-    keys: [&'s str; 2],
+    subject: &'s str,
+    object: &'s str,
     #[serde(borrow)]
     restrictor: HashMap<&'s str, RestrictionData<'s>>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RestrictionData<'s> {
     #[serde(borrow)]
     Not(Vec<&'s str>),
@@ -85,8 +87,8 @@ impl<'s> Reader<Constraint> for NameReader<'s> {
 
     fn read(&self, repr: ConstraintData<'s>) -> Result<Constraint> {
         Ok(Constraint {
-            object: self.read(repr.keys[0])?,
-            subject: self.read(repr.keys[1])?,
+            subject: self.read(repr.subject)?,
+            object: self.read(repr.object)?,
             restrictor: self.read(repr.restrictor)?,
         })
     }
