@@ -17,8 +17,8 @@ pub struct DomainData<'s> {
 #[derive(Deserialize)]
 
 pub struct ConstraintData<'s> {
-    subject: &'s str,
-    object: &'s str,
+    origin: &'s str,
+    target: &'s str,
     #[serde(borrow)]
     restrictor: HashMap<&'s str, RestrictionData<'s>>,
 }
@@ -87,8 +87,8 @@ impl<'s> Reader<Constraint> for NameReader<'s> {
 
     fn read(&self, repr: ConstraintData<'s>) -> Result<Constraint> {
         Ok(Constraint {
-            subject: self.read(repr.subject)?,
-            object: self.read(repr.object)?,
+            origin: self.read(repr.origin)?,
+            target: self.read(repr.target)?,
             restrictor: self.read(repr.restrictor)?,
         })
     }

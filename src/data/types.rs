@@ -10,8 +10,8 @@ pub struct Value;
 /// Simple key/value pair
 #[derive(Debug, Copy, Clone)]
 pub struct Assignment {
-    key_num: Num<Key>,
-    value_num: Num<Value>,
+    pub key_num: Num<Key>,
+    pub value_num: Num<Value>,
 }
 
 /// Defines a numbering on assignments
@@ -61,8 +61,8 @@ pub enum Restriction {
 pub type Restrictor = Table<Value, Restriction>;
 
 pub struct Constraint {
-    pub subject: Num<Key>,
-    pub object: Num<Key>,
+    pub origin: Num<Key>,
+    pub target: Num<Key>,
     pub restrictor: Restrictor,
 }
 

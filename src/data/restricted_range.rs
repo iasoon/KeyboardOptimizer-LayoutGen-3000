@@ -53,20 +53,20 @@ impl<T> Index<Range<usize>> for Permutation<T> {
 }
 
 #[derive(Debug)]
-struct Segment {
-    offset: usize,
-    num_rejected: usize,
+pub struct Segment {
+    pub offset: usize,
+    pub num_rejected: usize,
 }
 
 impl Segment {
-    fn empty(offset: usize) -> Self {
+    pub fn empty(offset: usize) -> Self {
         Segment {
             offset: offset,
             num_rejected: 0,
         }
     }
 
-    fn frontier(&self) -> usize {
+    pub fn frontier(&self) -> usize {
         self.offset + self.num_rejected
     }
 
@@ -127,6 +127,10 @@ impl<T> SegmentedPermutation<T> {
 
     pub fn pop_segment(&mut self) {
         self.segments.pop();
+    }
+
+    pub fn pos(&self, item_num: Num<T>) -> usize {
+        self.items.pos(item_num)
     }
 
     pub fn len(&self) -> usize {
@@ -219,6 +223,12 @@ impl RestrictedRange {
     pub fn accepted<'a>(&'a self) -> &'a [Num<Value>] {
         let segment = self.values.segments().last().unwrap();
         &self.values[(segment.frontier()..self.values.len())]
+    }
+
+    pub fn accepts(&self, value_num: Num<Value>) -> bool {
+        let segment = self.values.segments().last().unwrap();
+        let pos = self.values.pos(value_num);
+        return segment.accepts(pos);
     }
 
     pub fn add_restriction(&mut self, restriction: &Restriction) {

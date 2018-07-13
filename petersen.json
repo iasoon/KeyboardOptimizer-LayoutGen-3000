@@ -18,8 +18,8 @@
     ],
     "constraints": [
         {
-            "subject": "inner/1",
-            "object": "inner/3",
+            "origin": "inner/1",
+            "target": "inner/3",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -27,8 +27,8 @@
             }
         },
         {
-            "subject": "inner/1",
-            "object": "inner/4",
+            "origin": "inner/1",
+            "target": "inner/4",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -36,8 +36,8 @@
             }
         },
         {
-            "subject": "inner/2",
-            "object": "inner/4",
+            "origin": "inner/2",
+            "target": "inner/4",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -45,8 +45,8 @@
             }
         },
         {
-            "subject": "inner/2",
-            "object": "inner/5",
+            "origin": "inner/2",
+            "target": "inner/5",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -54,54 +54,8 @@
             }
         },
         {
-            "subject": "inner/3",
-            "object": "inner/5",
-            "restrictor": {
-                "red":   { "not": [ "red"   ] },
-                "green": { "not": [ "green" ] },
-                "blue":  { "not": [ "blue"  ] }
-            }
-        },
-
-        {
-            "subject": "inner/1",
-            "object": "outer/1",
-            "restrictor": {
-                "red":   { "not": [ "red"   ] },
-                "green": { "not": [ "green" ] },
-                "blue":  { "not": [ "blue"  ] }
-            }
-        },
-        {
-            "subject": "inner/2",
-            "object": "outer/2",
-            "restrictor": {
-                "red":   { "not": [ "red"   ] },
-                "green": { "not": [ "green" ] },
-                "blue":  { "not": [ "blue"  ] }
-            }
-        },
-        {
-            "subject": "inner/3",
-            "object": "outer/3",
-            "restrictor": {
-                "red":   { "not": [ "red"   ] },
-                "green": { "not": [ "green" ] },
-                "blue":  { "not": [ "blue"  ] }
-            }
-        },
-        {
-            "subject": "inner/4",
-            "object": "outer/4",
-            "restrictor": {
-                "red":   { "not": [ "red"   ] },
-                "green": { "not": [ "green" ] },
-                "blue":  { "not": [ "blue"  ] }
-            }
-        },
-        {
-            "subject": "inner/5",
-            "object": "outer/5",
+            "origin": "inner/3",
+            "target": "inner/5",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -110,8 +64,8 @@
         },
 
         {
-            "subject": "outer/1",
-            "object": "outer/2",
+            "origin": "inner/1",
+            "target": "outer/1",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -119,8 +73,8 @@
             }
         },
         {
-            "subject": "outer/2",
-            "object": "outer/3",
+            "origin": "inner/2",
+            "target": "outer/2",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -128,8 +82,8 @@
             }
         },
         {
-            "subject": "outer/3",
-            "object": "outer/4",
+            "origin": "inner/3",
+            "target": "outer/3",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -137,8 +91,8 @@
             }
         },
         {
-            "subject": "outer/4",
-            "object": "outer/5",
+            "origin": "inner/4",
+            "target": "outer/4",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
@@ -146,8 +100,54 @@
             }
         },
         {
-            "subject": "outer/5",
-            "object": "outer/1",
+            "origin": "inner/5",
+            "target": "outer/5",
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+
+        {
+            "origin": "outer/1",
+            "target": "outer/2",
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "origin": "outer/2",
+            "target": "outer/3",
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "origin": "outer/3",
+            "target": "outer/4",
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "origin": "outer/4",
+            "target": "outer/5",
+            "restrictor": {
+                "red":   { "not": [ "red"   ] },
+                "green": { "not": [ "green" ] },
+                "blue":  { "not": [ "blue"  ] }
+            }
+        },
+        {
+            "origin": "outer/5",
+            "target": "outer/1",
             "restrictor": {
                 "red":   { "not": [ "red"   ] },
                 "green": { "not": [ "green" ] },
