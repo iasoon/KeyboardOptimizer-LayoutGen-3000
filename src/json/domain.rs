@@ -44,12 +44,43 @@ impl<'s> Reader<Domain> for NameReader<'s> {
     type Repr = DomainData<'s>;
 
     fn read(&self, repr: DomainData<'s>) -> Result<Domain> {
-        let constraints = self.read_vec(repr.constraints)?;
+        let constraint_table = self.read(repr.constraints)?;
         Ok(Domain {
             keys: self.keys().map(|key_name| key_name.to_string()),
             values: self.values().map(|value_name| value_name.to_string()),
-            constraints: constraints,
+            constraint_table: constraint_table,
         })
+    }
+}
+
+impl<'s> Reader<Table<Key, Table<Key, Restrictor>>> for NameReader<'s> {
+    type Repr = Vec<ConstraintData<'s>>;
+
+    fn read(&self, repr: Self::Repr)
+        -> Result<Table<Key, Table<Key, Restrictor>>>
+    {
+        let key_count = self.keys().count();
+        // construct an empty constraint table
+        let mut table = self.keys().map_nums(|_| {
+            self.keys().map_nums(|_| None)
+        });
+
+
+        let constraints: Vec<Constraint> = self.read_vec(repr)?;
+        for c in constraints.into_iter() {
+            table[c.origin][c.target] = Some(c.restrictor);
+        }
+        
+        return Ok(table.map_into(|row| {
+            row.map_into(|entry| {
+                match entry {
+                    Some(restrictor) => restrictor,
+                    None => self.values().map_nums(|_| {
+                        Restriction::Not(vec![])
+                    })
+                }
+            })
+        }));
     }
 }
 

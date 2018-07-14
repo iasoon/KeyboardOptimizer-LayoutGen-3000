@@ -37,22 +37,19 @@ impl<'d> DomainWalker<'d> {
     pub fn assign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
         self.unassign(key_num);
         self.mapping[key_num] = Some(value_num);
-
-        for constraint in self.domain.constraints.iter() {
-            if constraint.origin == key_num {
-                let restriction = &constraint.restrictor[value_num];
-                self.restrict(constraint.target, restriction);
-            }
+        let row = &self.domain.constraint_table[key_num];
+        for target_num in self.domain.keys.nums() {
+            let restriction = &row[target_num][value_num];
+            self.restrict(target_num, restriction);
         }
     }
 
     pub fn unassign(&mut self, key_num: Num<Key>) {
         if let Some(value_num) = self.mapping[key_num].take() {
-            for constraint in self.domain.constraints.iter() {
-                if constraint.origin == key_num {
-                    let restriction = &constraint.restrictor[value_num];
-                    self.ranges[constraint.target].remove_restriction(restriction);
-                }
+            let row = &self.domain.constraint_table[key_num];
+            for target_num in self.domain.keys.nums() {
+                let restriction = &row[target_num][value_num];
+                self.ranges[target_num].remove_restriction(restriction);
             }
         }
     }

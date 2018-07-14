@@ -66,13 +66,15 @@ pub struct Constraint {
     pub restrictor: Restrictor,
 }
 
+
 pub struct Domain {
     /// key names
     pub keys: Table<Key, String>,
     /// value names
     pub values: Table<Value, String>,
     /// assignment constraints
-    pub constraints: Vec<Constraint>
+    // TODO: get rid of nested table
+    pub constraint_table: Table<Key, Table<Key, Restrictor>>,
 }
 
 impl Domain {
