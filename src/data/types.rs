@@ -58,6 +58,19 @@ pub enum Restriction {
     Only(Vec<Num<Value>>),
 }
 
+impl Restriction {
+    pub fn inverse(&self) -> Restriction {
+        match self {
+            &Restriction::Not(ref values) => {
+                Restriction::Only(values.clone())
+            }
+            &Restriction::Only(ref values) => {
+                Restriction::Not(values.clone())
+            }
+        }
+    }
+}
+
 pub type Restrictor = Table<Value, Restriction>;
 
 pub struct Constraint {

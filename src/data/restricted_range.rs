@@ -234,6 +234,7 @@ impl RestrictedRange {
     pub fn add_restriction(&mut self, restriction: &Restriction) {
         match restriction {
             &Restriction::Not(ref rejected_values) => {
+                // println!("{:?}", rejected_values);
                 for &value_num in rejected_values {
                     self.reject(value_num);
                 }
@@ -258,19 +259,20 @@ impl RestrictedRange {
                 for &value_num in accepted_values {
                     self.values.demote(value_num);
                 }
+                // this segment should be empty now
                 self.values.pop_segment();
             }
         }
     }
 
-    fn reject(&mut self, value_num: Num<Value>) {
+    pub fn reject(&mut self, value_num: Num<Value>) {
         if self.times_rejected[value_num] == 0 {
             self.values.reject(value_num);
         }
         self.times_rejected[value_num] += 1;
     }
 
-    fn unreject(&mut self, value_num: Num<Value>) {
+    pub fn unreject(&mut self, value_num: Num<Value>) {
         self.times_rejected[value_num] -= 1;
         if self.times_rejected[value_num] == 0 {
             self.values.accept(value_num);
