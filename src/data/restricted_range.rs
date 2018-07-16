@@ -231,38 +231,31 @@ impl RestrictedRange {
         return segment.accepts(pos);
     }
 
-    pub fn add_restriction(&mut self, restriction: &Restriction) {
-        match restriction {
-            &Restriction::Not(ref rejected_values) => {
-                // println!("{:?}", rejected_values);
-                for &value_num in rejected_values {
-                    self.reject(value_num);
-                }
-            }
-            &Restriction::Only(ref accepted_values) => {
-                self.values.push_segment();
-                for &value_num in accepted_values {
-                    self.values.promote(value_num);
-                }
-            }
+    pub fn add_rejection(&mut self, rejected: &[Num<Value>]) {
+        for &value_num in rejected {
+            self.reject(value_num);
         }
     }
 
-    pub fn remove_restriction(&mut self, restriction: &Restriction) {
-        match restriction {
-            &Restriction::Not(ref rejected_values) => {
-                for &value_num in rejected_values {
-                    self.unreject(value_num);
-                }
-            }
-            &Restriction::Only(ref accepted_values) => {
-                for &value_num in accepted_values {
-                    self.values.demote(value_num);
-                }
-                // this segment should be empty now
-                self.values.pop_segment();
-            }
+    pub fn remove_rejection(&mut self, rejected: &[Num<Value>]) {
+        for &value_num in rejected {
+            self.unreject(value_num);
         }
+    }
+
+    pub fn add_filter(&mut self, allowed: &[Num<Value>]) {
+        self.values.push_segment();
+        for &value_num in allowed {
+            self.values.promote(value_num);
+        }
+    }
+
+    pub fn remove_filter(&mut self, allowed: &[Num<Value>]) {
+        for &value_num in allowed {
+            self.values.demote(value_num);
+        }
+        // this segment should be empty now
+        self.values.pop_segment();
     }
 
     pub fn reject(&mut self, value_num: Num<Value>) {
