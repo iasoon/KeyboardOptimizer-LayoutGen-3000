@@ -225,6 +225,11 @@ impl RestrictedRange {
         &self.values[(segment.frontier()..self.values.len())]
     }
 
+    pub fn rejected<'a>(&'a self) -> &'a [Num<Value>] {
+        let segment = self.values.segments().last().unwrap();
+        &self.values[(0..segment.frontier())]
+    }
+
     pub fn accepts(&self, value_num: Num<Value>) -> bool {
         let segment = self.values.segments().last().unwrap();
         let pos = self.values.pos(value_num);
@@ -243,14 +248,14 @@ impl RestrictedRange {
         }
     }
 
-    pub fn add_filter(&mut self, allowed: &[Num<Value>]) {
+    pub fn add_restriction(&mut self, allowed: &[Num<Value>]) {
         self.values.push_segment();
         for &value_num in allowed {
             self.values.promote(value_num);
         }
     }
 
-    pub fn remove_filter(&mut self, allowed: &[Num<Value>]) {
+    pub fn remove_restriction(&mut self, allowed: &[Num<Value>]) {
         for &value_num in allowed {
             self.values.demote(value_num);
         }
