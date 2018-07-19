@@ -221,13 +221,11 @@ impl RestrictedRange {
     }
 
     pub fn accepted<'a>(&'a self) -> &'a [Num<Value>] {
-        let segment = self.values.segments().last().unwrap();
-        &self.values[(segment.frontier()..self.values.len())]
+        &self.values[(self.frontier()..self.values.len())]
     }
 
     pub fn rejected<'a>(&'a self) -> &'a [Num<Value>] {
-        let segment = self.values.segments().last().unwrap();
-        &self.values[(0..segment.frontier())]
+        &self.values[(0..self.frontier())]
     }
 
     pub fn accepts(&self, value_num: Num<Value>) -> bool {
@@ -236,10 +234,18 @@ impl RestrictedRange {
         return segment.accepts(pos);
     }
 
-    pub fn add_rejection(&mut self, rejected: &[Num<Value>]) {
+    // returns the values that were rejected by this operation
+    pub fn add_rejection<'a>(&'a mut self, rejected: &[Num<Value>])
+        -> &'a [Num<Value>]
+    {
+
+        let prev_frontier = self.frontier();
         for &value_num in rejected {
             self.reject(value_num);
         }
+
+        // When a value is rejected, it is placed behind the frontier.
+        return &self.values[(prev_frontier..self.frontier())];
     }
 
     pub fn remove_rejection(&mut self, rejected: &[Num<Value>]) {
@@ -248,11 +254,24 @@ impl RestrictedRange {
         }
     }
 
-    pub fn add_restriction(&mut self, allowed: &[Num<Value>]) {
+    // returns the values that were rejected by this operation
+    pub fn add_restriction<'a>(&'a mut self, allowed: &[Num<Value>])
+        -> &'a [Num<Value>]
+    {
+        // add a new segment for this restriction
         self.values.push_segment();
         for &value_num in allowed {
             self.values.promote(value_num);
         }
+        let num_segments = self.values.segments.len();
+
+        // this was the last segment before adding the restriction
+        let prev_segment = &self.values.segments[num_segments - 2];
+        let last_segment = &self.values.segments[num_segments - 1];
+
+        // the values that were dropped in this operation are the values that
+        // are accepted in the now one-but-last segment.
+        return &self.values[(prev_segment.frontier()..last_segment.offset)];
     }
 
     pub fn remove_restriction(&mut self, allowed: &[Num<Value>]) {
@@ -275,5 +294,10 @@ impl RestrictedRange {
         if self.times_rejected[value_num] == 0 {
             self.values.accept(value_num);
         }
+    }
+
+    fn frontier(&self) -> usize {
+        let last_segment = self.values.segments().last().unwrap();
+        return last_segment.frontier();
     }
 }
