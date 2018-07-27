@@ -126,7 +126,22 @@ impl<T> SegmentedPermutation<T> {
     }
 
     pub fn pop_segment(&mut self) {
-        self.segments.pop();
+        let popped_segment = self.segments.pop().unwrap();
+        let num_segments = self.segments.len();
+        let last_segment = &mut self.segments[num_segments - 1];
+
+        // put all items in the previous segment
+        for i in popped_segment.offset..self.items.len() {
+            self.item_segment[self.items[i]] = num_segments - 1;
+        }
+
+        // move the rejected items to the rejected zone
+        for i in 0..popped_segment.num_rejected {
+            let pos = popped_segment.offset + i;
+            let destination = last_segment.frontier() + i;
+            self.items.swap(pos, destination);
+        }
+        last_segment.num_rejected += popped_segment.num_rejected;
     }
 
     pub fn pos(&self, item_num: Num<T>) -> usize {
@@ -274,12 +289,29 @@ impl RestrictedRange {
         return &self.values[(prev_segment.frontier()..last_segment.offset)];
     }
 
-    pub fn remove_restriction(&mut self, allowed: &[Num<Value>]) {
-        for &value_num in allowed {
-            self.values.demote(value_num);
+    // returns the values that are now allowed because of this operation
+    pub fn remove_restriction<'a>(&'a mut self, allowed: &[Num<Value>])
+        -> &'a [Num<Value>]
+    {
+        // first, we demote all values that are currently not in the last
+        // segment.
+        let num_segments = self.values.segments.len();
+        for &value in allowed {
+            if self.values.item_segment[value] < num_segments - 1 {
+                // value is not in the last segment
+                self.values.demote(value);
+            }
         }
-        // this segment should be empty now
+
+        // Merge the last two segments. This is done in a way that keeps the
+        // previously accepted values and newly-accepted values separate,
+        // so that a range of newly-accepted values can be returned.
+
+        // all currently accepted items are past this frontier; they will not be
+        // moved.
+        let prev_frontier = self.frontier();
         self.values.pop_segment();
+        return &self.values[self.frontier()..prev_frontier];
     }
 
     pub fn reject(&mut self, value_num: Num<Value>) {
