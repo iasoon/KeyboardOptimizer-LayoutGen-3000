@@ -263,10 +263,16 @@ impl RestrictedRange {
         return &self.values[(prev_frontier..self.frontier())];
     }
 
-    pub fn remove_rejection(&mut self, rejected: &[Num<Value>]) {
+    pub fn remove_rejection<'a>(&'a mut self, rejected: &[Num<Value>])
+        -> &'a [Num<Value>]
+    {
+        let prev_frontier = self.frontier();
         for &value_num in rejected {
             self.unreject(value_num);
         }
+        
+        // when a value is unrejected, it is places in front of the frontier.
+        return &self.values[(self.frontier()..prev_frontier)];
     }
 
     // returns the values that were rejected by this operation
