@@ -77,16 +77,16 @@ impl<'d> DomainWalker<'d> {
         // TODO
         // self.unassign(key_num);
 
-        for &val in self.ranges[key_num].accepted() {
-            if val != value_num {
+        {
+            let rejected = self.ranges[key_num].add_restriction(&vec![value_num]);
+
+            for &val in rejected {
                 self.to_remove.push(Assignment {
                     key_num,
                     value_num: val,
                 });
             }
         }
-
-        self.ranges[key_num].add_restriction(&vec![value_num]);
 
         while let Some(assignment) = self.to_remove.pop() {
             self.remove_value(assignment.key_num, assignment.value_num);
@@ -115,89 +115,31 @@ impl<'d> DomainWalker<'d> {
             for target_num in self.domain.keys.nums() {
                 // TODO
                 // let restriction = &row[target_num][value_num];
-                // self.ranges[target_num].remove_restriction(restriction);
-                unimplemented!()
+                // self.ranges[target_num].remove_restriction();
             }
         }
     }
 
     fn restrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
-        match restriction {
+        let removed = match restriction {
             &Restriction::Not(ref values) => {
-                self.add_rejection(key_num, values);
+                self.ranges[key_num].add_rejection(values)
             }
-            &Restriction::Only(_) => {
-                unimplemented!()
+            &Restriction::Only(ref values) => {
+                self.ranges[key_num].add_restriction(values)
             }
         };
 
-        if let Some(value_num) = self.mapping[key_num] {
-            if !self.range(key_num).accepts(value_num) {
-                println!("CONFLICT");
-                self.unassign(key_num);
-            }
-        }
-    }
-
-    fn add_rejection(&mut self, key_num: Num<Key>, rejected: &[Num<Value>]) {
-        println!(
-            "rejecting {:?} at {:?}",
-            value_names(&self.domain, rejected),
-            self.domain.keys[key_num]
-        );
-
-        for &value_num in rejected{
-            if self.ranges[key_num].accepts(value_num) {
-                self.remove_value(key_num, value_num);
-            }
+        for &value_num in removed {
+            self.to_remove.push(Assignment { key_num, value_num });
         }
 
-        self.ranges[key_num].add_rejection(rejected);
-
-
-        for origin_num in self.domain.keys.nums() {
-            let restrictor = &self.domain.constraint_table[origin_num][key_num];
-            let support_set = &mut self.supports[key_num][origin_num];
-            
-
-            for &value_num in rejected {
-                match restrictor[value_num] {
-                    Restriction::Not(ref values) => {
-                        // println!(
-                        //     "REMOVING {:?} at {:?} not supported by {:?} at {:?}",
-                        //     values,
-                        //     origin_num,
-                        //     value_num,
-                        //     key_num,
-                        // );
-                        // support_set.remove_restriction(values);
-                    }
-                    Restriction::Only(ref values) => {
-                        // support_set.remove_rejection(values);
-                    }
-                }
-            }
-
-            // for &value in support_set.accepted() {
-            //     if self.ranges[target_num].accepts(value) {
-            //         // this value has no support anymore; remove it
-            //         println!("dropping value because of no support");
-            //         self.ranges[target_num].reject(value);
-            //         self.to_remove.push(Assignment {
-            //             key_num: target_num,
-            //             value_num: value,
-            //         });
-            //     }
-            // }
-
-            // println!(
-            //     "{:?} now supports {:?} at {:?}",
-            //     self.domain.keys[key_num],
-            //     value_names(&self.domain, support_set.rejected()),
-            //     self.domain.keys[origin_num],
-            // );
-        }
-
+        // if let Some(value_num) = self.mapping[key_num] {
+        //     if !self.range(key_num).accepts(value_num) {
+        //         println!("CONFLICT");
+        //         self.unassign(key_num);
+        //     }
+        // }
     }
 
     pub fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
@@ -218,8 +160,8 @@ impl<'d> DomainWalker<'d> {
                 Restriction::Not(ref values) => {
                     support_set.remove_restriction(values);
                 }
-                Restriction::Only(_) => {
-                    unimplemented!()
+                Restriction::Only(ref values) => {
+                    support_set.remove_rejection(values);
                 }
             }
             for &unsupported in support_set.accepted() {
