@@ -11,6 +11,7 @@ pub struct DomainWalker<'d> {
     supports: Table<Key, Table<Key, RestrictedRange>>,
 
     to_remove: Vec<Assignment>,
+    to_add: Vec<Assignment>,
 }
 
 impl<'d> DomainWalker<'d> {
@@ -54,6 +55,7 @@ impl<'d> DomainWalker<'d> {
             supports,
 
             to_remove: Vec::new(),
+            to_add: Vec::new(),
         }
     }
 
@@ -110,14 +112,42 @@ impl<'d> DomainWalker<'d> {
     }
 
     pub fn unassign(&mut self, key_num: Num<Key>) {
-        if let Some(value_num) = self.mapping[key_num].take() {
-            let row = &self.domain.constraint_table[key_num];
-            for target_num in self.domain.keys.nums() {
-                // TODO
-                // let restriction = &row[target_num][value_num];
-                // self.ranges[target_num].remove_restriction();
+        let value_num = match self.mapping[key_num].take() {
+            Some(value_num) => value_num,
+            None => return,
+        };
+
+        {
+            let unrejected = self.ranges[key_num]
+                .remove_restriction(&vec![value_num]);
+
+            for &val in unrejected {
+                self.to_add.push(Assignment {
+                    key_num,
+                    value_num: val,
+                })
             }
         }
+
+        while let Some(assignment) = self.to_add.pop() {
+            self.add_value(assignment.key_num, assignment.value_num);
+        }
+
+        let row = &self.domain.constraint_table[key_num];
+        for target_num in self.domain.keys.nums() {
+            let restriction = &row[target_num][value_num];
+            self.unrestrict(target_num, restriction);
+        }
+
+        // print ranges
+        for key in self.domain.keys.nums() {
+            println!(
+                "domain for {:?} is {:?}",
+                self.domain.keys[key],
+                value_names(self.domain, self.ranges[key].accepted()),
+            )
+        }
+
     }
 
     fn restrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
@@ -140,6 +170,21 @@ impl<'d> DomainWalker<'d> {
         //         self.unassign(key_num);
         //     }
         // }
+    }
+
+    fn unrestrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
+        let added = match restriction {
+            &Restriction::Not(ref values) => {
+                self.ranges[key_num].remove_rejection(values)
+            }
+            &Restriction::Only(ref values) => {
+                self.ranges[key_num].remove_restriction(values)
+            }
+        };
+
+        for &value_num in added {
+            self.to_add.push(Assignment { key_num, value_num })
+        }
     }
 
     pub fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
@@ -189,6 +234,10 @@ impl<'d> DomainWalker<'d> {
             );
         }
 
+    }
+
+    pub fn add_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
+        unimplemented!()
     }
 }
 
