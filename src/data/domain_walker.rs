@@ -237,7 +237,48 @@ impl<'d> DomainWalker<'d> {
     }
 
     pub fn add_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
-        unimplemented!()
+        println!(
+            "adding value {:?} at {:?}",
+            self.domain.values[value_num],
+            self.domain.keys[key_num],
+        );
+
+        for origin_num in self.domain.keys.nums() {
+            if origin_num == key_num {
+                continue;
+            }
+
+            let restrictor = &self.domain.constraint_table[origin_num][key_num];
+            let support_set = &mut self.supports[key_num][origin_num];
+
+            match restrictor[value_num] {
+                Restriction::Not(ref values) => {
+                    support_set.add_restriction(values);
+                }
+                Restriction::Only(ref values) => {
+                    support_set.add_rejection(values);
+                }
+            }
+
+            for &unsupported in support_set.rejected() {
+                if !self.ranges[origin_num].accepts(unsupported) {
+                    println!(
+                        "{:?} gained support at {:?}",
+                        self.domain.values[unsupported],
+                        self.domain.keys[origin_num],
+                    );
+
+                    self.to_add.push(Assignment {
+                        key_num: origin_num,
+                        value_num: unsupported,
+                    });
+
+                    self.ranges[origin_num].unreject(unsupported);
+                }
+            }
+        }
+        println!("removed value");
+
     }
 }
 
