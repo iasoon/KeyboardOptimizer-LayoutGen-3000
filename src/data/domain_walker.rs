@@ -29,14 +29,14 @@ impl<'d> DomainWalker<'d> {
                     // inverse constraints to apply De Morgan's law
                     match restrictor[value_num] {
                         Restriction::Not(ref values) => {
-                            if values.len() > 0 {
-                                println!(
-                                    "{:?} at {:?} not supported by {:?} at {:?}",
-                                    values,
-                                    target,
-                                    value_num,
-                                    origin);
-                            }
+                            // if values.len() > 0 {
+                            //     println!(
+                            //         "{:?} at {:?} not supported by {:?} at {:?}",
+                            //         values,
+                            //         target,
+                            //         value_num,
+                            //         origin);
+                            // }
                             range.add_restriction(values);
                         }
                         Restriction::Only(ref values) => {
@@ -90,15 +90,15 @@ impl<'d> DomainWalker<'d> {
             }
         }
 
-        while let Some(assignment) = self.to_remove.pop() {
-            self.remove_value(assignment.key_num, assignment.value_num);
-        }
-    
         self.mapping[key_num] = Some(value_num);
         let row = &self.domain.constraint_table[key_num];
         for target_num in self.domain.keys.nums() {
             let restriction = &row[target_num][value_num];
             self.restrict(target_num, restriction);
+        }
+
+        while let Some(assignment) = self.to_remove.pop() {
+            self.remove_value(assignment.key_num, assignment.value_num);
         }
 
         // print ranges
@@ -129,15 +129,16 @@ impl<'d> DomainWalker<'d> {
             }
         }
 
-        while let Some(assignment) = self.to_add.pop() {
-            self.add_value(assignment.key_num, assignment.value_num);
-        }
-
         let row = &self.domain.constraint_table[key_num];
         for target_num in self.domain.keys.nums() {
             let restriction = &row[target_num][value_num];
             self.unrestrict(target_num, restriction);
         }
+
+        while let Some(assignment) = self.to_add.pop() {
+            self.add_value(assignment.key_num, assignment.value_num);
+        }
+
 
         // print ranges
         for key in self.domain.keys.nums() {
@@ -188,6 +189,10 @@ impl<'d> DomainWalker<'d> {
     }
 
     pub fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
+        if !self.ranges[key_num].accepts(value_num) {
+            return;
+        }
+
         println!(
             "removing value {:?} at {:?}",
             self.domain.values[value_num],
@@ -201,42 +206,59 @@ impl<'d> DomainWalker<'d> {
             let restrictor = &self.domain.constraint_table[origin_num][key_num];
             let support_set = &mut self.supports[key_num][origin_num];
 
-            match restrictor[value_num] {
+            let lost_support = match restrictor[value_num] {
                 Restriction::Not(ref values) => {
-                    support_set.remove_restriction(values);
+                    support_set.remove_restriction(values)
                 }
                 Restriction::Only(ref values) => {
-                    support_set.remove_rejection(values);
+                    support_set.remove_rejection(values)
                 }
+            };
+            
+            for &value_num in lost_support {
+                self.to_remove.push(Assignment {
+                    key_num: origin_num,
+                    value_num,
+                });
             }
-            for &unsupported in support_set.accepted() {
-                if self.ranges[origin_num].accepts(unsupported) {
-                    println!(
-                        "{:?} lost support at {:?}",
-                        self.domain.values[unsupported],
-                        self.domain.keys[origin_num],
-                    );
-
-                    self.to_remove.push(Assignment {
-                        key_num: origin_num,
-                        value_num: unsupported,
-                    });
-
-                    self.ranges[origin_num].reject(unsupported);
-                }
+            
+            if lost_support.len() > 0 {
+                println!(
+                    "lost support at {:?}: {:?}",
+                    self.domain.keys[origin_num],
+                    value_names(&self.domain, lost_support),
+                );
             }
+            self.ranges[origin_num].add_rejection(lost_support);
 
-            println!(
-                "{:?} now supports {:?} at {:?}",
-                self.domain.keys[key_num],
-                value_names(&self.domain, support_set.rejected()),
-                self.domain.keys[origin_num],
-            );
+
+            // for &unsupported in support_set.accepted() {
+            //     if self.ranges[origin_num].accepts(unsupported) {
+            //         println!(
+            //             "{:?} lost support at {:?}",
+            //             self.domain.values[unsupported],
+            //             self.domain.keys[origin_num],
+            //         );
+
+
+            //         self.ranges[origin_num].reject(unsupported);
+            //     }
+            // }
+
+            // println!(
+            //     "{:?} now supports {:?} at {:?}",
+            //     self.domain.keys[key_num],
+            //     value_names(&self.domain, support_set.rejected()),
+            //     self.domain.keys[origin_num],
+            // );
         }
 
     }
 
     pub fn add_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
+        if self.ranges[key_num].accepts(value_num) {
+            return;
+        }
         println!(
             "adding value {:?} at {:?}",
             self.domain.values[value_num],
@@ -250,32 +272,38 @@ impl<'d> DomainWalker<'d> {
 
             let restrictor = &self.domain.constraint_table[origin_num][key_num];
             let support_set = &mut self.supports[key_num][origin_num];
-
-            match restrictor[value_num] {
+            
+            let gained_support = match restrictor[value_num] {
                 Restriction::Not(ref values) => {
-                    support_set.add_restriction(values);
+                    support_set.add_restriction(values)
                 }
                 Restriction::Only(ref values) => {
-                    support_set.add_rejection(values);
+                    support_set.add_rejection(values)
                 }
+            };
+
+            for &value_num in gained_support {
+                self.to_add.push(Assignment {
+                    key_num: origin_num,
+                    value_num,
+                });
             }
 
-            for &unsupported in support_set.rejected() {
-                if !self.ranges[origin_num].accepts(unsupported) {
-                    println!(
-                        "{:?} gained support at {:?}",
-                        self.domain.values[unsupported],
-                        self.domain.keys[origin_num],
-                    );
+            println!(
+                "unrejecting at {:?}: {:?}",
+                self.domain.keys[origin_num],
+                value_names(&self.domain, gained_support),
+            );
+            self.ranges[origin_num].remove_rejection(gained_support);
+            println!("unrejected");
 
-                    self.to_add.push(Assignment {
-                        key_num: origin_num,
-                        value_num: unsupported,
-                    });
-
-                    self.ranges[origin_num].unreject(unsupported);
-                }
-            }
+            // for &value_num in gained_support {
+            //     println!(
+            //         "{:?} gained support at {:?}",
+            //         self.domain.values[value_num],
+            //         self.domain.keys[origin_num],
+            //     );
+            // }
         }
         println!("removed value");
 
