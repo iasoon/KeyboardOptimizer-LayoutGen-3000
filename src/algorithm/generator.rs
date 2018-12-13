@@ -9,7 +9,6 @@ use std::iter::FromIterator;
 pub struct Backtracker<'d> {
     domain_walker: DomainWalker<'d>,
     stack: Vec<Step>,
-    pos: Table<Key, Option<Num<Value>>>,
     unassigned: HashSet<Num<Key>>,
 }
 
@@ -33,7 +32,7 @@ impl Step {
     }
 
     fn has_next(&mut self) -> bool {
-        self.pos < self.values.len()
+        self.pos < self.values.len() - 1
     }
 
     fn assignment(&self) -> Assignment {
@@ -49,39 +48,31 @@ impl<'d> Backtracker<'d> {
         Backtracker {
             domain_walker: DomainWalker::new(domain),
             stack: Vec::with_capacity(domain.keys.count().as_usize()),
-            pos: domain.keys.map_nums(|_| None),
             unassigned: HashSet::from_iter(domain.keys.nums()),
         }
     }
 
     pub fn generate(&mut self) -> Result<()> {
         while let Some(key_num) = self.next_key() {
-            if self.check() {
+            println!("{:?}", self.domain_walker.mapping());
+            if self.domain_walker.range_for(key_num).len() > 0 {
                 self.descend(key_num);
             } else {
+                println!("backtrack");
                 // backtrack
                 try!(self.next());
             }
         }
+        println!("{:?}", self.domain_walker.mapping());
         Ok(())
     }
 
     fn next_key(&self) -> Option<Num<Key>> {
         // Select most constrained key first for fail-first strategy
-        self.unassigned.iter().cloned().min_by_key(|&key_num| {
-            self.domain_walker.range(key_num).accepted().len()
-        })
-    }
-
-    fn check(&self) -> bool {
-        for key_num in self.pos.nums() {
-            if let Some(value_num) = self.pos[key_num] {
-                if !self.domain_walker.range(key_num).accepts(value_num) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        // self.unassigned.iter().cloned().min_by_key(|&key_num| {
+        //     self.domain_walker.range(key_num).accepted().len()
+        // })
+        self.unassigned.iter().cloned().min()
     }
 
     fn next(&mut self) -> Result<()> {
@@ -132,14 +123,13 @@ impl<'d> Backtracker<'d> {
     }
 
     fn assign(&mut self, assignment: Assignment) {
-        self.pos[assignment.key_num] = Some(assignment.value_num);
         self.domain_walker.assign(assignment.key_num, assignment.value_num);
         self.unassigned.remove(&assignment.key_num);
     }
 
     fn unassign(&mut self, assignment: Assignment) {
-        self.pos[assignment.key_num] = None;
-        self.domain_walker.unassign(assignment.key_num, assignment.value_num);
+        println!("unassign");
+        self.domain_walker.unassign(assignment.key_num);
         self.unassigned.insert(assignment.key_num);
     }
 }
