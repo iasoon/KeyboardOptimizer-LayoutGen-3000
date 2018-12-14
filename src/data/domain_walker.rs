@@ -2,6 +2,7 @@ use super::RestrictedRange;
 use super::types::*;
 
 use cat::*;
+use cat::ops::*;
 
 pub struct DomainWalker<'d> {
     domain: &'d Domain,
@@ -16,8 +17,18 @@ pub struct DomainWalker<'d> {
 
 impl<'d> DomainWalker<'d> {
     pub fn new(domain: &'d Domain) -> Self {
-        let ranges = domain.keys.map_nums(|_| {
-            RestrictedRange::new(domain.values.count())
+        // init domains
+        let ranges = domain.key_restrictions.map(|restriction| {
+            let mut range = RestrictedRange::new(domain.values.count());
+            match restriction {
+                Restriction::Not(ref values) => {
+                    range.add_rejection(values);
+                }
+                Restriction::Only(ref values) => {
+                    range.add_restriction(values);
+                }
+            }
+            return range;
         });
 
         // init supports
@@ -29,14 +40,6 @@ impl<'d> DomainWalker<'d> {
                     // inverse constraints to apply De Morgan's law
                     match restrictor[value_num] {
                         Restriction::Not(ref values) => {
-                            // if values.len() > 0 {
-                            //     println!(
-                            //         "{:?} at {:?} not supported by {:?} at {:?}",
-                            //         values,
-                            //         target,
-                            //         value_num,
-                            //         origin);
-                            // }
                             range.add_restriction(values);
                         }
                         Restriction::Only(ref values) => {
@@ -230,27 +233,6 @@ impl<'d> DomainWalker<'d> {
                 );
             }
             self.ranges[origin_num].add_rejection(lost_support);
-
-
-            // for &unsupported in support_set.accepted() {
-            //     if self.ranges[origin_num].accepts(unsupported) {
-            //         println!(
-            //             "{:?} lost support at {:?}",
-            //             self.domain.values[unsupported],
-            //             self.domain.keys[origin_num],
-            //         );
-
-
-            //         self.ranges[origin_num].reject(unsupported);
-            //     }
-            // }
-
-            // println!(
-            //     "{:?} now supports {:?} at {:?}",
-            //     self.domain.keys[key_num],
-            //     value_names(&self.domain, support_set.rejected()),
-            //     self.domain.keys[origin_num],
-            // );
         }
 
     }

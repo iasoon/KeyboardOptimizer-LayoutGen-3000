@@ -16,6 +16,7 @@
         "green",
         "blue"
     ],
+    "restrictions": [],
     "constraints": [
         {
             "origin": "inner/1",

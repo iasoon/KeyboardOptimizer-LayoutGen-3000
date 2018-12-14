@@ -11,11 +11,19 @@ pub struct DomainData<'s> {
     keys: Vec<&'s str>,
     values: Vec<&'s str>,
     #[serde(borrow)]
+    restrictions: Vec<KeyRestrictionData<'s>>,
+    #[serde(borrow)]
     constraints: Vec<ConstraintData<'s>>,
 }
 
 #[derive(Deserialize)]
+pub struct KeyRestrictionData<'s> {
+    key: &'s str,
+    #[serde(borrow)]
+    restriction: RestrictionData<'s>,
+}
 
+#[derive(Deserialize)]
 pub struct ConstraintData<'s> {
     origin: &'s str,
     target: &'s str,
@@ -44,12 +52,27 @@ impl<'s> Reader<Domain> for NameReader<'s> {
     type Repr = DomainData<'s>;
 
     fn read(&self, repr: DomainData<'s>) -> Result<Domain> {
+        let key_restrictions = self.read(repr.restrictions)?;
         let constraint_table = self.read(repr.constraints)?;
         Ok(Domain {
             keys: self.keys().map(|key_name| key_name.to_string()),
             values: self.values().map(|value_name| value_name.to_string()),
-            constraint_table: constraint_table,
+            key_restrictions,
+            constraint_table,
         })
+    }
+}
+
+impl<'s> Reader<Table<Key, Restriction>> for NameReader<'s> {
+    type Repr = Vec<KeyRestrictionData<'s>>;
+
+    fn read(&self, repr: Self::Repr) -> Result<Table<Key, Restriction>> {
+        let mut table = self.keys().map_nums(|_| Restriction::Not(vec![]));
+        let restrictions: Vec<KeyRestriction> = self.read_vec(repr)?;
+        for r in restrictions.into_iter() {
+            table[r.key] = r.restriction;
+        }
+        return Ok(table);
     }
 }
 
@@ -59,7 +82,6 @@ impl<'s> Reader<Table<Key, Table<Key, Restrictor>>> for NameReader<'s> {
     fn read(&self, repr: Self::Repr)
         -> Result<Table<Key, Table<Key, Restrictor>>>
     {
-        let key_count = self.keys().count();
         // construct an empty constraint table
         let mut table = self.keys().map_nums(|_| {
             self.keys().map_nums(|_| None)
@@ -110,6 +132,17 @@ impl<'s> Reader<Restrictor> for NameReader<'s> {
             tbl[value_num] = restriction;
         }
         Ok(tbl)
+    }
+}
+
+impl<'s> Reader<KeyRestriction> for NameReader<'s> {
+    type Repr = KeyRestrictionData<'s>;
+
+    fn read(&self, repr: KeyRestrictionData<'s>) -> Result<KeyRestriction> {
+        Ok(KeyRestriction {
+            key: self.read(repr.key)?,
+            restriction: self.read(repr.restriction)?,
+        })
     }
 }
 

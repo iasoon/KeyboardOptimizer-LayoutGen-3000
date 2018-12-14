@@ -73,6 +73,11 @@ impl Restriction {
 
 pub type Restrictor = Table<Value, Restriction>;
 
+pub struct KeyRestriction {
+    pub key: Num<Key>,
+    pub restriction: Restriction,
+}
+
 pub struct Constraint {
     pub origin: Num<Key>,
     pub target: Num<Key>,
@@ -85,6 +90,8 @@ pub struct Domain {
     pub keys: Table<Key, String>,
     /// value names
     pub values: Table<Value, String>,
+    /// individual key restrictions
+    pub key_restrictions: Table<Key, Restriction>,
     /// assignment constraints
     // TODO: get rid of nested table
     pub constraint_table: Table<Key, Table<Key, Restrictor>>,
