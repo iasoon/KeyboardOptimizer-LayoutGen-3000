@@ -58,7 +58,6 @@ impl<'d> Backtracker<'d> {
             if self.domain_walker.range_for(key_num).len() > 0 {
                 self.descend(key_num);
             } else {
-                println!("backtrack");
                 // backtrack
                 try!(self.next());
             }
@@ -69,10 +68,10 @@ impl<'d> Backtracker<'d> {
 
     fn next_key(&self) -> Option<Num<Key>> {
         // Select most constrained key first for fail-first strategy
-        // self.unassigned.iter().cloned().min_by_key(|&key_num| {
-        //     self.domain_walker.range(key_num).accepted().len()
-        // })
-        self.unassigned.iter().cloned().min()
+        self.unassigned.iter().cloned().min_by_key(|&key_num| {
+            self.domain_walker.range(key_num).accepted().len()
+        })
+        // self.unassigned.iter().cloned().min()
     }
 
     fn next(&mut self) -> Result<()> {
@@ -128,7 +127,6 @@ impl<'d> Backtracker<'d> {
     }
 
     fn unassign(&mut self, assignment: Assignment) {
-        println!("unassign");
         self.domain_walker.unassign(assignment.key_num);
         self.unassigned.insert(assignment.key_num);
     }
