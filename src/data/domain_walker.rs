@@ -8,7 +8,14 @@ pub struct DomainWalker<'d> {
     domain: &'d Domain,
     mapping: Table<Key, Option<Num<Value>>>,
     ranges: Table<Key, RestrictedRange>,
-    // map key pairs to a range of values that have no support
+
+    // For each (origin, target) pair, keep track of a range of values that
+    // are not supported at target by any value at origin.
+    // We track unsupported values instead of supported values because that
+    // allows us to re-use the RestrictedRange for this purpose, by applying
+    // De Morgan's law: if we add a rejection for each supporting value, the
+    // value will only be present in the range once all the supporting values
+    // are dropped.
     supports: Table<Key, Table<Key, RestrictedRange>>,
 
     to_remove: Vec<Assignment>,
@@ -75,10 +82,6 @@ impl<'d> DomainWalker<'d> {
     }
 
     pub fn assign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
-        println!("assigning {:?} to {:?}",
-            self.domain.values[value_num],
-            self.domain.keys[key_num]
-        );
         // TODO
         // self.unassign(key_num);
 
@@ -103,15 +106,6 @@ impl<'d> DomainWalker<'d> {
         while let Some(assignment) = self.to_remove.pop() {
             self.remove_value(assignment.key_num, assignment.value_num);
         }
-
-        // print ranges
-        for key in self.domain.keys.nums() {
-            println!(
-                "domain for {:?} is {:?}",
-                self.domain.keys[key],
-                value_names(self.domain, self.ranges[key].accepted()),
-            )
-        }
     }
 
     pub fn unassign(&mut self, key_num: Num<Key>) {
@@ -128,7 +122,7 @@ impl<'d> DomainWalker<'d> {
                 self.to_add.push(Assignment {
                     key_num,
                     value_num: val,
-                })
+                });
             }
         }
 
@@ -141,17 +135,6 @@ impl<'d> DomainWalker<'d> {
         while let Some(assignment) = self.to_add.pop() {
             self.add_value(assignment.key_num, assignment.value_num);
         }
-
-
-        // print ranges
-        for key in self.domain.keys.nums() {
-            println!(
-                "domain for {:?} is {:?}",
-                self.domain.keys[key],
-                value_names(self.domain, self.ranges[key].accepted()),
-            )
-        }
-
     }
 
     fn restrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
@@ -196,11 +179,6 @@ impl<'d> DomainWalker<'d> {
             return;
         }
 
-        println!(
-            "removing value {:?} at {:?}",
-            self.domain.values[value_num],
-            self.domain.keys[key_num],
-        );
         for origin_num in self.domain.keys.nums() {
             if origin_num == key_num {
                 continue;
@@ -225,13 +203,6 @@ impl<'d> DomainWalker<'d> {
                 });
             }
             
-            if lost_support.len() > 0 {
-                println!(
-                    "lost support at {:?}: {:?}",
-                    self.domain.keys[origin_num],
-                    value_names(&self.domain, lost_support),
-                );
-            }
             self.ranges[origin_num].add_rejection(lost_support);
         }
 
@@ -241,11 +212,6 @@ impl<'d> DomainWalker<'d> {
         if self.ranges[key_num].accepts(value_num) {
             return;
         }
-        println!(
-            "adding value {:?} at {:?}",
-            self.domain.values[value_num],
-            self.domain.keys[key_num],
-        );
 
         for origin_num in self.domain.keys.nums() {
             if origin_num == key_num {
@@ -271,24 +237,8 @@ impl<'d> DomainWalker<'d> {
                 });
             }
 
-            println!(
-                "unrejecting at {:?}: {:?}",
-                self.domain.keys[origin_num],
-                value_names(&self.domain, gained_support),
-            );
             self.ranges[origin_num].remove_rejection(gained_support);
-            println!("unrejected");
-
-            // for &value_num in gained_support {
-            //     println!(
-            //         "{:?} gained support at {:?}",
-            //         self.domain.values[value_num],
-            //         self.domain.keys[origin_num],
-            //     );
-            // }
         }
-        println!("removed value");
-
     }
 }
 
