@@ -6,7 +6,11 @@ use cat::ops::*;
 
 pub struct DomainWalker<'d> {
     domain: &'d Domain,
+
+    // Assigned values
     mapping: Table<Key, Option<Num<Value>>>,
+
+    // Value domains remaining for each key
     ranges: Table<Key, RestrictedRange>,
 
     // For each (origin, target) pair, keep track of a range of values that
@@ -18,6 +22,7 @@ pub struct DomainWalker<'d> {
     // are dropped.
     supports: Table<Key, Table<Key, RestrictedRange>>,
 
+    // buffers for allowing and disallowing assignments
     to_remove: Vec<Assignment>,
     to_add: Vec<Assignment>,
 }
@@ -69,18 +74,23 @@ impl<'d> DomainWalker<'d> {
         }
     }
 
+    /// Get current walker position.
     pub fn mapping<'a>(&'a self) -> &'a Table<Key, Option<Num<Value>>> {
         &self.mapping
     }
 
+    /// Get RestrictedRange for given key_num.
     pub fn range<'a>(&'a self, key_num: Num<Key>) -> &'a RestrictedRange {
         &self.ranges[key_num]
     }
 
+    /// Get values that can be assigned to key_num without causing
+    /// inconsistencies.
     pub fn range_for<'a>(&'a self, key_num: Num<Key>) -> &'a [Num<Value>] {
         self.ranges[key_num].accepted()
     }
 
+    /// Assign a value to a key.
     pub fn assign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
         // TODO
         // self.unassign(key_num);
@@ -108,6 +118,7 @@ impl<'d> DomainWalker<'d> {
         }
     }
 
+    /// Clear the value for a key.
     pub fn unassign(&mut self, key_num: Num<Key>) {
         let value_num = match self.mapping[key_num].take() {
             Some(value_num) => value_num,
@@ -150,13 +161,6 @@ impl<'d> DomainWalker<'d> {
         for &value_num in removed {
             self.to_remove.push(Assignment { key_num, value_num });
         }
-
-        // if let Some(value_num) = self.mapping[key_num] {
-        //     if !self.range(key_num).accepts(value_num) {
-        //         println!("CONFLICT");
-        //         self.unassign(key_num);
-        //     }
-        // }
     }
 
     fn unrestrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
@@ -174,7 +178,7 @@ impl<'d> DomainWalker<'d> {
         }
     }
 
-    pub fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
+    fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
         if !self.ranges[key_num].accepts(value_num) {
             return;
         }
@@ -208,7 +212,7 @@ impl<'d> DomainWalker<'d> {
 
     }
 
-    pub fn add_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
+    fn add_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
         if self.ranges[key_num].accepts(value_num) {
             return;
         }
