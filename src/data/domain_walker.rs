@@ -148,6 +148,46 @@ impl<'d> DomainWalker<'d> {
         }
     }
 
+    pub fn unassign_conflicts(
+        &mut self,
+        key_num: Num<Key>,
+        value_num: Num<Value>,
+    ) {
+        let row = &self.domain.constraint_table[key_num];
+
+        for target_num in self.domain.keys.nums() {
+            let target_value = match self.mapping[target_num] {
+                None => continue,
+                Some(target_value) => target_value,
+            };
+
+            let mut conflicts = false;
+
+            conflicts |= match row[target_num][value_num] {
+                Restriction::Not(ref values) => {
+                    values.contains(&target_value)
+                }
+                Restriction::Only(ref values) => {
+                    !values.contains(&target_value)
+                }
+            };
+
+            conflicts |= match self.domain.constraint_table[target_num][key_num][target_value] {
+                 Restriction::Not(ref values) => {
+                    values.contains(&value_num)
+                }
+                Restriction::Only(ref values) => {
+                    !values.contains(&value_num)
+                }
+            };
+
+            if conflicts {
+                self.unassign(target_num);
+            }
+        }
+
+    }
+
     fn restrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
         let removed = match restriction {
             &Restriction::Not(ref values) => {
