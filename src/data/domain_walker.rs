@@ -148,44 +148,17 @@ impl<'d> DomainWalker<'d> {
         }
     }
 
-    pub fn unassign_conflicts(
-        &mut self,
-        key_num: Num<Key>,
-        value_num: Num<Value>,
-    ) {
-        let row = &self.domain.constraint_table[key_num];
-
-        for target_num in self.domain.keys.nums() {
-            let target_value = match self.mapping[target_num] {
+    pub fn unassign_conflicts(&mut self, assignment: Assignment) {
+        for key_num in self.domain.keys.nums() {
+            let a = match self.mapping[key_num] {
                 None => continue,
-                Some(target_value) => target_value,
+                Some(value_num) => Assignment { key_num, value_num },
             };
 
-            let mut conflicts = false;
-
-            conflicts |= match row[target_num][value_num] {
-                Restriction::Not(ref values) => {
-                    values.contains(&target_value)
-                }
-                Restriction::Only(ref values) => {
-                    !values.contains(&target_value)
-                }
-            };
-
-            conflicts |= match self.domain.constraint_table[target_num][key_num][target_value] {
-                 Restriction::Not(ref values) => {
-                    values.contains(&value_num)
-                }
-                Restriction::Only(ref values) => {
-                    !values.contains(&value_num)
-                }
-            };
-
-            if conflicts {
-                self.unassign(target_num);
+            if assignments_conflict(&self.domain, assignment, a) {
+                self.unassign(a.key_num);
             }
         }
-
     }
 
     fn restrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
@@ -282,6 +255,25 @@ impl<'d> DomainWalker<'d> {
             }
 
             self.ranges[origin_num].remove_rejection(gained_support);
+        }
+    }
+}
+
+/// Whether given assignments conflict in the stated domain.
+fn assignments_conflict(domain: &Domain, a: Assignment, b: Assignment) -> bool
+{
+    assignment_prohibits(domain, a, b) || assignment_prohibits(domain, b, a)
+}
+
+/// Whether assignment a prohibits assignment b from being made.
+fn assignment_prohibits(domain: &Domain, a: Assignment, b: Assignment) -> bool {
+    let cs = &domain.constraint_table;    
+    match cs[a.key_num][b.key_num][a.value_num] {
+        Restriction::Not(ref values) => {
+            !values.contains(&b.value_num)
+        }
+        Restriction::Only(ref values) => {
+            values.contains(&b.value_num)
         }
     }
 }
