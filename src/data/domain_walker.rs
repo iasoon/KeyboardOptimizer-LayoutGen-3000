@@ -23,6 +23,9 @@ pub struct DomainWalker<'d> {
     supports: Table<Key, Table<Key, RestrictedRange>>,
 
     // buffers for allowing and disallowing assignments
+    // Never randomly push values into these buffers; they are queues for
+    // processing assignments that _have been_ disallowed. That means that only
+    // newly-rejected values should ever be added to this range.
     to_remove: Vec<Assignment>,
     to_add: Vec<Assignment>,
 }
@@ -92,6 +95,8 @@ impl<'d> DomainWalker<'d> {
 
     /// Assign a value to a key.
     pub fn assign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
+        println!("assigning {:?} at {:?}", self.domain.values[value_num], key_num);
+        
         // TODO
         // self.unassign(key_num);
 
@@ -192,10 +197,7 @@ impl<'d> DomainWalker<'d> {
     }
 
     fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
-        if !self.ranges[key_num].accepts(value_num) {
-            return;
-        }
-
+        println!("removing {:?} at {:?}", self.domain.values[value_num], key_num);
         for origin_num in self.domain.keys.nums() {
             if origin_num == key_num {
                 continue;
@@ -206,21 +208,29 @@ impl<'d> DomainWalker<'d> {
 
             let lost_support = match restrictor[value_num] {
                 Restriction::Not(ref values) => {
-                    support_set.remove_restriction(values)
+                    if values.len() > 0 {
+                        support_set.remove_restriction(values)
+                    } else {
+                        &[]
+                    }
                 }
                 Restriction::Only(ref values) => {
                     support_set.remove_rejection(values)
                 }
             };
+
+            if lost_support.len() > 0 {
+                println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
+            }
+
+            let rejected = self.ranges[origin_num].add_rejection(lost_support);
             
-            for &value_num in lost_support {
+            for &value_num in rejected {
                 self.to_remove.push(Assignment {
                     key_num: origin_num,
                     value_num,
                 });
             }
-            
-            self.ranges[origin_num].add_rejection(lost_support);
         }
 
     }
