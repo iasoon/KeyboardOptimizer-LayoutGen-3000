@@ -222,36 +222,36 @@ impl<T> Index<Range<usize>> for SegmentedPermutation<T> {
 }
 
 
-pub struct RestrictedRange {
-    values: SegmentedPermutation<Value>,
-    times_rejected: Table<Value, usize>,
+pub struct RestrictedRange<T> {
+    values: SegmentedPermutation<T>,
+    times_rejected: Table<T, usize>,
 }
 
-impl RestrictedRange {
-    pub fn new(value_count: Count<Value>) -> Self {
+impl<T> RestrictedRange<T> {
+    pub fn new(value_count: Count<T>) -> Self {
         RestrictedRange {
             values: SegmentedPermutation::new(value_count),
             times_rejected: value_count.map_nums(|_| 0),
         }
     }
 
-    pub fn accepted<'a>(&'a self) -> &'a [Num<Value>] {
+    pub fn accepted<'a>(&'a self) -> &'a [Num<T>] {
         &self.values[(self.frontier()..self.values.len())]
     }
 
-    pub fn rejected<'a>(&'a self) -> &'a [Num<Value>] {
+    pub fn rejected<'a>(&'a self) -> &'a [Num<T>] {
         &self.values[(0..self.frontier())]
     }
 
-    pub fn accepts(&self, value_num: Num<Value>) -> bool {
+    pub fn accepts(&self, value_num: Num<T>) -> bool {
         let segment = self.values.segments().last().unwrap();
         let pos = self.values.pos(value_num);
         return segment.accepts(pos);
     }
 
     // returns the values that were rejected by this operation
-    pub fn add_rejection<'a>(&'a mut self, rejected: &[Num<Value>])
-        -> &'a [Num<Value>]
+    pub fn add_rejection<'a>(&'a mut self, rejected: &[Num<T>])
+        -> &'a [Num<T>]
     {
 
         let prev_frontier = self.frontier();
@@ -263,8 +263,8 @@ impl RestrictedRange {
         return &self.values[(prev_frontier..self.frontier())];
     }
 
-    pub fn remove_rejection<'a>(&'a mut self, rejected: &[Num<Value>])
-        -> &'a [Num<Value>]
+    pub fn remove_rejection<'a>(&'a mut self, rejected: &[Num<T>])
+        -> &'a [Num<T>]
     {
         let prev_frontier = self.frontier();
         for &value_num in rejected {
@@ -276,8 +276,8 @@ impl RestrictedRange {
     }
 
     // returns the values that were rejected by this operation
-    pub fn add_restriction<'a>(&'a mut self, allowed: &[Num<Value>])
-        -> &'a [Num<Value>]
+    pub fn add_restriction<'a>(&'a mut self, allowed: &[Num<T>])
+        -> &'a [Num<T>]
     {
         // add a new segment for this restriction
         self.values.push_segment();
@@ -296,8 +296,8 @@ impl RestrictedRange {
     }
 
     // returns the values that are now allowed because of this operation
-    pub fn remove_restriction<'a>(&'a mut self, allowed: &[Num<Value>])
-        -> &'a [Num<Value>]
+    pub fn remove_restriction<'a>(&'a mut self, allowed: &[Num<T>])
+        -> &'a [Num<T>]
     {
         // first, we demote all values that are currently not in the last
         // segment.
@@ -320,14 +320,14 @@ impl RestrictedRange {
         return &self.values[self.frontier()..prev_frontier];
     }
 
-    pub fn reject(&mut self, value_num: Num<Value>) {
+    pub fn reject(&mut self, value_num: Num<T>) {
         if self.times_rejected[value_num] == 0 {
             self.values.reject(value_num);
         }
         self.times_rejected[value_num] += 1;
     }
 
-    pub fn unreject(&mut self, value_num: Num<Value>) {
+    pub fn unreject(&mut self, value_num: Num<T>) {
         self.times_rejected[value_num] -= 1;
         if self.times_rejected[value_num] == 0 {
             self.values.accept(value_num);

@@ -55,6 +55,7 @@ impl<'d> DomainWalker<'d> {
                     // inverse constraints to apply De Morgan's law
                     match restrictor[value_num] {
                         Restriction::Not(ref values) => {
+                            // TODO: inspect this
                             range.add_restriction(values);
                         }
                         Restriction::Only(ref values) => {
