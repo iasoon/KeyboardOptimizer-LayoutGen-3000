@@ -18,6 +18,11 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
+
+
 use std::path::Path;
 
 mod errors {
@@ -47,7 +52,7 @@ fn main() {
 }
 
 fn run() -> errors::Result<()> {
-    let domain = json::read_config("petersen.json")
+    let domain = json::read_config("abcABC.json")
         .chain_err(|| "Could not parse domain")?;
     let mut b = algorithm::Backtracker::new(&domain);
     try!(b.generate());

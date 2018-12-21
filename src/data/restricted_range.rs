@@ -1,9 +1,10 @@
 use super::*;
 use cat::*;
+use rand::Rng;
 
 use std::ops::{Index, Range};
 
-
+#[derive(Debug, Clone)]
 struct Permutation<T> {
     items: Vec<Num<T>>,
     positions: Table<T, usize>,
@@ -31,6 +32,16 @@ impl<T> Permutation<T> {
         self.items.len()
     }
 
+    pub fn shuffle<G>(&mut self, gen: &mut G)
+        where G: Rng
+    {
+        gen.shuffle(&mut self.items);
+
+        for i in 0..self.items.len() {
+            self.update_pos(i);
+        }
+    }
+
     fn update_pos(&mut self, pos: usize) {
         self.positions[self.items[pos]] = pos;
     }
@@ -52,7 +63,7 @@ impl<T> Index<Range<usize>> for Permutation<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Segment {
     pub offset: usize,
     pub num_rejected: usize,
@@ -75,6 +86,7 @@ impl Segment {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct SegmentedPermutation<T> {
     items: Permutation<T>,
     segments: Vec<Segment>,
@@ -338,4 +350,44 @@ impl<T> RestrictedRange<T> {
         let last_segment = self.values.segments().last().unwrap();
         return last_segment.frontier();
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use quickcheck::{Arbitrary, Gen};
+    use rand::Rng;
+    use cat::internal::{to_count, to_num};
+
+    impl<T> Arbitrary for Count<T>
+        where T: Send + 'static
+    {
+        fn arbitrary<G: Gen>(g: &mut G) -> Self {
+            let size = g.size();
+            return to_count(g.gen_range(0, size));
+        }
+    }
+
+    impl<T> Arbitrary for SegmentedPermutation<T>
+        where T: Send + Clone + 'static
+    {
+        fn arbitrary<G: Gen>(g: &mut G) -> Self {
+            let count: Count<T> = Count::arbitrary(g);
+            let mut permutation = Permutation::new(count);
+            permutation.shuffle(g);
+
+            return SegmentedPermutation {
+                items: permutation,
+                segments: vec![Segment::empty(0)],
+                item_segment: Table::from_vec(vec![0; count.as_usize()]),
+            };
+        }
+    }
+
+    quickcheck! {
+        fn generate(_p: SegmentedPermutation<()>) -> bool {
+            return true;
+        }
+    }
+
 }
