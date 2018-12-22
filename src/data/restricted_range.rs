@@ -233,7 +233,7 @@ impl<T> Index<Range<usize>> for SegmentedPermutation<T> {
     }
 }
 
-
+#[derive(Debug, Clone)]
 pub struct RestrictedRange<T> {
     values: SegmentedPermutation<T>,
     times_rejected: Table<T, usize>,
@@ -355,39 +355,65 @@ impl<T> RestrictedRange<T> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use quickcheck::{Arbitrary, Gen};
-    use rand::Rng;
+    use rand::{Rng, RngCore};
+    use proptest::test_runner::TestRunner;
+    use proptest::strategy::{Strategy, ValueTree, NewTree};
+    use std::fmt::Debug;
+
     use cat::internal::{to_count, to_num};
 
-    impl<T> Arbitrary for Count<T>
-        where T: Send + 'static
-    {
-        fn arbitrary<G: Gen>(g: &mut G) -> Self {
-            let size = g.size();
-            return to_count(g.gen_range(0, size));
-        }
+    #[derive(Debug)]
+    struct RestrictedRangeStrategy<T> {
+        t_count: Count<T>,
     }
 
-    impl<T> Arbitrary for SegmentedPermutation<T>
-        where T: Send + Clone + 'static
+    impl<T> Strategy for RestrictedRangeStrategy<T>
+        where T: Debug + Clone
     {
-        fn arbitrary<G: Gen>(g: &mut G) -> Self {
-            let count: Count<T> = Count::arbitrary(g);
-            let mut permutation = Permutation::new(count);
-            permutation.shuffle(g);
+        type Tree = RestrictedRangeValueTree<T>;
+        type Value = RestrictedRange<T>;
 
-            return SegmentedPermutation {
+        fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+            let mut permutation = Permutation::new(self.t_count);
+            permutation.shuffle(runner.rng());
+
+            let values = SegmentedPermutation {
                 items: permutation,
                 segments: vec![Segment::empty(0)],
-                item_segment: Table::from_vec(vec![0; count.as_usize()]),
+                item_segment: Table::from_vec(vec![0; self.t_count.as_usize()]),
             };
+
+            let rr = RestrictedRange {
+                values,
+                times_rejected: self.t_count.map_nums(|_| 0),
+            };
+
+            return Ok(RestrictedRangeValueTree {
+                value: rr,
+            })
         }
     }
 
-    quickcheck! {
-        fn generate(_p: SegmentedPermutation<()>) -> bool {
-            return true;
-        }
+    #[derive(Debug)]
+    struct RestrictedRangeValueTree<T> {
+        value: RestrictedRange<T>,
     }
 
+    impl<T> ValueTree for RestrictedRangeValueTree<T>
+        where T: Debug + Clone
+    {
+        type Value = RestrictedRange<T>;
+
+        fn current(&self) -> RestrictedRange<T> {
+            self.value.clone()
+        }
+
+        fn simplify(&mut self) -> bool {
+            unimplemented!()
+        }
+
+        fn complicate(&mut self) -> bool {
+            unimplemented!()
+        }
+    }
 }

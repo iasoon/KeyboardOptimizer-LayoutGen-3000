@@ -20,7 +20,7 @@ extern crate serde_json;
 
 #[cfg(test)]
 #[macro_use]
-extern crate quickcheck;
+extern crate proptest;
 
 
 use std::path::Path;
