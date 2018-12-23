@@ -416,4 +416,15 @@ mod test {
             unimplemented!()
         }
     }
+
+
+    #[test]
+    fn test_generation() {
+        let mut runner = TestRunner::default();
+        let g = RestrictedRangeStrategy { t_count: to_count::<()>(5) };
+
+        runner.run(&g, |v| {
+            Ok(())
+        }).unwrap();
+    }
 }
