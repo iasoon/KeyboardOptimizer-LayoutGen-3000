@@ -356,6 +356,7 @@ impl<T> RestrictedRange<T> {
 mod test {
     use super::*;
     use rand::{Rng, RngCore};
+    use rand::distributions::{Binomial, Distribution};
     use proptest::test_runner::TestRunner;
     use proptest::strategy::{Strategy, ValueTree, NewTree};
     use std::fmt::Debug;
@@ -374,13 +375,52 @@ mod test {
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+            // first, choose the values for the range
             let mut permutation = Permutation::new(self.t_count);
             permutation.shuffle(runner.rng());
 
+            // then draw the structure
+            let max_segments = self.t_count.as_usize();
+            let num_segments = runner.rng().gen_range(1, max_segments);
+
+            let mut offsets = Vec::with_capacity(num_segments);
+            offsets.push(0);
+            for _ in 0..(num_segments - 1) {
+                let offset = runner.rng().gen_range(0, self.t_count.as_usize());
+                offsets.push(offset);
+            }
+            offsets.sort();
+
+
+            let mut segments = Vec::with_capacity(num_segments);
+            let mut segment_end = self.t_count.as_usize();
+            for i in (0..num_segments).rev() {    
+                let segment_len = segment_end - offsets[i];
+                let distribution = Binomial::new(segment_len as u64, 0.5);
+                let num_rejected = distribution.sample(runner.rng()) as usize;
+
+                segments.push(Segment {
+                    offset: offsets[i],
+                    num_rejected,
+                });
+                
+                segment_end = offsets[i];
+            }
+            segments.reverse();
+
+            let mut item_segment = self.t_count.map_nums(|_| 0);
+            let mut segment_end = self.t_count.as_usize();
+            for segment_num in (0..num_segments).rev() {
+                for i in offsets[segment_num]..segment_end {
+                    item_segment[permutation[i]] = segment_num;
+                }
+                segment_end = offsets[segment_num];
+            }
+
             let values = SegmentedPermutation {
                 items: permutation,
-                segments: vec![Segment::empty(0)],
-                item_segment: Table::from_vec(vec![0; self.t_count.as_usize()]),
+                segments,
+                item_segment,
             };
 
             let rr = RestrictedRange {

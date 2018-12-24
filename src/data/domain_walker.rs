@@ -11,7 +11,7 @@ pub struct DomainWalker<'d> {
     mapping: Table<Key, Option<Num<Value>>>,
 
     // Value domains remaining for each key
-    ranges: Table<Key, RestrictedRange>,
+    ranges: Table<Key, RestrictedRange<Value>>,
 
     // For each (origin, target) pair, keep track of a range of values that
     // are not supported at target by any value at origin.
@@ -20,7 +20,7 @@ pub struct DomainWalker<'d> {
     // De Morgan's law: if we add a rejection for each supporting value, the
     // value will only be present in the range once all the supporting values
     // are dropped.
-    supports: Table<Key, Table<Key, RestrictedRange>>,
+    supports: Table<Key, Table<Key, RestrictedRange<Value>>>,
 
     // buffers for allowing and disallowing assignments
     // Never randomly push values into these buffers; they are queues for
@@ -84,7 +84,7 @@ impl<'d> DomainWalker<'d> {
     }
 
     /// Get RestrictedRange for given key_num.
-    pub fn range<'a>(&'a self, key_num: Num<Key>) -> &'a RestrictedRange {
+    pub fn range<'a>(&'a self, key_num: Num<Key>) -> &'a RestrictedRange<Value> {
         &self.ranges[key_num]
     }
 
@@ -104,6 +104,8 @@ impl<'d> DomainWalker<'d> {
         {
             let rejected = self.ranges[key_num].add_restriction(&vec![value_num]);
 
+            println!("QUEUEING FOR REMOVAL AT {:?}: {:?}", key_num, value_names(&self.domain, rejected));
+
             for &val in rejected {
                 self.to_remove.push(Assignment {
                     key_num,
@@ -121,6 +123,10 @@ impl<'d> DomainWalker<'d> {
 
         while let Some(assignment) = self.to_remove.pop() {
             self.remove_value(assignment.key_num, assignment.value_num);
+        }
+
+        for key_num in self.domain.keys.nums() {
+            println!("domain for {:?} at {:?}", key_num, value_names(&self.domain, self.range_for(key_num)));
         }
     }
 
@@ -177,6 +183,8 @@ impl<'d> DomainWalker<'d> {
             }
         };
 
+        println!("QUEUEING FOR REMOVAL AT {:?}: {:?}", key_num, value_names(&self.domain, removed));
+
         for &value_num in removed {
             self.to_remove.push(Assignment { key_num, value_num });
         }
@@ -204,16 +212,14 @@ impl<'d> DomainWalker<'d> {
                 continue;
             }
 
+            // println!("removing support {:?}: {:?} -> {:?}", origin_num, value_num, key_num);
+
             let restrictor = &self.domain.constraint_table[origin_num][key_num];
             let support_set = &mut self.supports[key_num][origin_num];
 
             let lost_support = match restrictor[value_num] {
                 Restriction::Not(ref values) => {
-                    if values.len() > 0 {
-                        support_set.remove_restriction(values)
-                    } else {
-                        &[]
-                    }
+                    support_set.remove_restriction(values)
                 }
                 Restriction::Only(ref values) => {
                     support_set.remove_rejection(values)
@@ -221,17 +227,17 @@ impl<'d> DomainWalker<'d> {
             };
 
             if lost_support.len() > 0 {
-                println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
+                // println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
             }
 
             let rejected = self.ranges[origin_num].add_rejection(lost_support);
             
-            for &value_num in rejected {
-                self.to_remove.push(Assignment {
-                    key_num: origin_num,
-                    value_num,
-                });
-            }
+            // for &value_num in rejected {
+            //     self.to_remove.push(Assignment {
+            //         key_num: origin_num,
+            //         value_num,
+            //     });
+            // }
         }
 
     }
