@@ -423,9 +423,20 @@ mod test {
                 item_segment,
             };
 
+            let mut times_rejected = self.t_count.map_nums(|num| {
+                let pos = values.pos(num);
+                let segment_num = values.item_segment[num];
+
+                if values.segments()[segment_num].accepts(pos) {
+                    0
+                } else {
+                    1
+                }
+            });
+
             let rr = RestrictedRange {
                 values,
-                times_rejected: self.t_count.map_nums(|_| 0),
+                times_rejected,
             };
 
             return Ok(RestrictedRangeValueTree {
