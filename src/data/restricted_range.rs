@@ -430,7 +430,8 @@ mod test {
                 if values.segments()[segment_num].accepts(pos) {
                     0
                 } else {
-                    1
+                    const MAX_REJECTS: usize = 3;
+                    runner.rng().gen_range(1, MAX_REJECTS)
                 }
             });
 
@@ -478,4 +479,6 @@ mod test {
             Ok(())
         }).unwrap();
     }
+
+    
 }
