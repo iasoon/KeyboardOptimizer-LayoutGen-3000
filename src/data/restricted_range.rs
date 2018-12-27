@@ -357,7 +357,7 @@ mod test {
     use super::*;
     use rand::{Rng, RngCore};
     use rand::distributions::{Binomial, Distribution};
-    use proptest::test_runner::TestRunner;
+    use proptest::test_runner::{TestRunner, TestCaseError};
     use proptest::strategy::{Strategy, ValueTree, NewTree};
     use std::fmt::Debug;
 
@@ -476,9 +476,27 @@ mod test {
         let g = RestrictedRangeStrategy { t_count: to_count::<()>(5) };
 
         runner.run(&g, |v| {
-            Ok(())
+            check_segments(&v.values);
+            return Ok(());
         }).unwrap();
     }
 
-    
+    fn check_segments<T>(p: &SegmentedPermutation<T>) {
+        let mut segment_end = p.items.len();
+        for segment_num in (0..p.segments().len()).rev() {
+            let segment = &p.segments()[segment_num];
+
+            for pos in segment.offset..segment_end {
+                if p.item_segment[p.items[pos]] != segment_num {
+                    panic!("{} in wrong segment", pos);
+                }
+            }
+
+            if segment.offset + segment.num_rejected > segment_end {
+                panic!("segment no. {} leaks", segment_num);
+            }
+
+            segment_end = p.segments()[segment_num].offset;
+        };
+    }
 }
