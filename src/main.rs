@@ -6,12 +6,11 @@ mod cat;
 mod data;
 mod json;
 
-//mod layout;
 
 extern crate rand;
 
 #[macro_use]
-extern crate error_chain;
+extern crate failure;
 
 #[macro_use]
 extern crate serde_derive;
@@ -24,36 +23,38 @@ extern crate proptest;
 
 
 use std::path::Path;
+use std::result;
+use failure::ResultExt;
 
-mod errors {
-    error_chain! {
-        links {
-            // Parse(::json::errors::Error, ::json::errors::ErrorKind);
-        }
-    }
-}
-
-use errors::*;
+type Result<T> = result::Result<T, failure::Error>;
 
 fn main() {
     if let Err(ref e) = run() {
-        println!("error: {}", e);
+        eprintln!("{}", pretty_error(&e));
 
-        for e in e.iter().skip(1) {
-            println!("caused by: {}", e);
-        }
-
-        if let Some(backtrace) = e.backtrace() {
-            println!("backtrace: {:?}", backtrace);
+        let backtrace = e.backtrace().to_string();
+        if !backtrace.trim().is_empty() {
+            eprintln!("{}", backtrace);
         }
 
         ::std::process::exit(1);
     }
 }
 
-fn run() -> errors::Result<()> {
+fn pretty_error(err: &failure::Error) -> String {
+    let mut pretty = err.to_string();
+    let mut prev = err.as_fail();
+    while let Some(next) = prev.cause() {
+        pretty.push_str(": ");
+        pretty.push_str(&next.to_string());
+        prev = next;
+    }
+    pretty
+}
+
+fn run() -> Result<()> {
     let domain = json::read_config("abcABC.json")
-        .chain_err(|| "Could not parse domain")?;
+        .context("Could not parse domain")?;
     let mut b = algorithm::Backtracker::new(&domain);
     try!(b.generate());
     Ok(())

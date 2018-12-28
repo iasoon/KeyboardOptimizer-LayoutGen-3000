@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 
-use super::errors::*;
+use Result;
 
 
 pub struct JsonBuffer<'s> {

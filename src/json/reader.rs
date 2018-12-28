@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cat::*;
 use data::{Key, Value};
 
-use json::errors::*;
+use Result;
 
 pub trait Reader<R> {
     type Repr;

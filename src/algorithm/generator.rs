@@ -1,7 +1,7 @@
 use data::*;
 use cat::*;
 
-use errors::*;
+use Result;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;

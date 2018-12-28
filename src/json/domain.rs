@@ -3,7 +3,7 @@ use cat::*;
 use cat::ops::*;
 use std::collections::HashMap;
 
-use super::errors::*;
+use Result;
 use super::reader::*;
 
 #[derive(Deserialize)]

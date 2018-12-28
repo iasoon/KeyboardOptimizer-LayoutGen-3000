@@ -4,7 +4,7 @@ use data::*;
 use cat::*;
 use layout::Keymap;
 
-use json::errors::*;
+use Result;
 use json::reader::{Reader, EvalReader};
 
 #[derive(Serialize, Deserialize)]
