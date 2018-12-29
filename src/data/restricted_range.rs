@@ -398,7 +398,7 @@ mod test {
             let mut segment_end = self.t_count.as_usize();
             for i in (0..num_segments).rev() {    
                 let segment_len = segment_end - offsets[i];
-                let distribution = Binomial::new(segment_len as u64, 0.5);
+                let distribution = Binomial::new(segment_len as u64, 0.2);
                 let num_rejected = distribution.sample(runner.rng()) as usize;
 
                 segments.push(Segment {
@@ -475,14 +475,6 @@ mod test {
         RestrictedRangeStrategy { t_count: to_count(count) }
     }
 
-    proptest! {
-        #[test]
-        fn test_generation(range in restricted_range(5)) {
-            check_segments(&range.values);
-            check_rejects(&range);
-        }
-    }
-
     fn check_segments<T>(p: &SegmentedPermutation<T>)  {
         let mut segment_end = p.items.len();
         for segment_num in (0..p.segments().len()).rev() {
@@ -526,6 +518,144 @@ mod test {
                     )
                 }
             }
+        }
+    }
+
+    fn check_range_integrity<T>(range: &RestrictedRange<T>) {
+        check_segments(&range.values);
+        check_rejects(&range);
+    }
+
+    #[derive(Debug)]
+    struct SubsetValueTree<T> {
+        values: Vec<Num<T>>,
+        mask: Vec<bool>,
+    }
+
+    impl<T> SubsetValueTree<T> {
+        fn new(values: Vec<Num<T>>) -> Self {
+            let mask = vec![true; values.len()];
+            return SubsetValueTree {
+                values,
+                mask
+            };
+        }
+
+        fn random<R: Rng>(mut values: Vec<Num<T>>, rng: &mut R) -> Self {
+            rng.shuffle(&mut values);
+            let num_values = rng.gen_range(0, values.len());
+            return Self::new(values[0..num_values].to_vec());
+        }
+    }
+
+    impl<T> ValueTree for SubsetValueTree<T>
+        where T: Debug + Clone
+    {
+        type Value = Vec<Num<T>>;
+
+        fn current(&self) -> Self::Value {
+            let mut vec = Vec::with_capacity(self.values.len());
+            for i in 0..self.values.len() {
+                if self.mask[i] {
+                    vec.push(self.values[i]);
+                }
+            }
+            return vec;
+        }
+
+        fn simplify(&mut self) -> bool {
+            false
+        }
+
+        fn complicate(&mut self) -> bool {
+            false
+        }
+
+    }
+
+
+    #[derive(Debug)]
+    struct RangeSubsetStrategy<T> {
+        t_count: Count<T>,
+    }
+
+    impl<T> Strategy for RangeSubsetStrategy<T>
+        where T: Debug + Clone
+    {
+        type Tree = RangeSubsetValueTree<T>;
+        type Value = (RestrictedRange<T>, Vec<Num<T>>);
+
+        fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
+            let rr_strategy = RestrictedRangeStrategy { t_count: self.t_count };
+            let values = self.t_count.nums().collect();
+            let tree = RangeSubsetValueTree {
+                range: rr_strategy.new_tree(runner)?,
+                subset: SubsetValueTree::random(values, runner.rng()),
+            };
+            Ok(tree)
+        }
+    }
+
+    #[derive(Debug)]
+    struct RangeSubsetValueTree<T> {
+        range: RestrictedRangeValueTree<T>,
+        subset: SubsetValueTree<T>,
+    }
+
+    impl<T> ValueTree for RangeSubsetValueTree<T>
+        where T: Debug + Clone
+    {
+        type Value = (RestrictedRange<T>, Vec<Num<T>>);
+
+        fn current(&self) -> Self::Value {
+            (self.range.current(), self.subset.current())
+        }
+
+        fn simplify(&mut self) -> bool {
+            false
+        }
+
+        fn complicate(&mut self) -> bool {
+            false
+        }
+    }
+
+    fn range_subset(count: usize) -> RangeSubsetStrategy<()> {
+        RangeSubsetStrategy {
+            t_count: to_count(count),
+        }
+    }
+
+
+    fn check_times_rejected<T, F>(range: &RestrictedRange<T>, expected: F)
+        where F: Fn(Num<T>) -> usize
+    {
+        for (num, &reject_count) in range.times_rejected.enumerate() {
+            assert_eq!(reject_count, expected(num));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_generation(range in restricted_range(5)) {
+            check_range_integrity(&range);
+        }
+
+        #[test]
+        fn test_reject((range, to_reject) in range_subset(5)) {
+            let before = range;
+
+            let mut after = before.clone();
+            after.add_rejection(&to_reject);
+
+            check_range_integrity(&after);
+            check_times_rejected(&after, |num| {
+                if to_reject.contains(&num) {
+                    before.times_rejected[num] + 1
+                } else {
+                    before.times_rejected[num]
+                }
+            });
         }
     }
 }
