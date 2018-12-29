@@ -635,6 +635,14 @@ mod test {
         }
     }
 
+    fn sorted<T>(values: &[T]) -> Vec<T>
+        where T: Ord + Clone
+    {
+        let mut vec = values.to_vec();
+        vec.sort();
+        return vec;
+    }
+
     proptest! {
         #[test]
         fn test_generation(range in restricted_range(5)) {
@@ -646,7 +654,7 @@ mod test {
             let before = range;
 
             let mut after = before.clone();
-            after.add_rejection(&to_reject);
+            let mut removed = sorted(after.add_rejection(&to_reject));
 
             check_range_integrity(&after);
             check_times_rejected(&after, |num| {
@@ -656,6 +664,11 @@ mod test {
                     before.times_rejected[num]
                 }
             });
+
+            let mut diff = sorted(before.accepted());
+            diff.retain(|&num| !after.accepts(num));
+
+            assert_eq!(diff, removed);
         }
     }
 }
