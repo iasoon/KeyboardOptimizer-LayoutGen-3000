@@ -635,11 +635,27 @@ mod test {
         }
     }
 
+    fn check_segment<T, F>(range: &RestrictedRange<T>, expected: F)
+        where F: Fn(Num<T>) -> usize
+    {
+        for (num, &segment_num) in range.values.item_segment.enumerate() {
+            assert_eq!(segment_num, expected(num));
+        }
+    }
+
     fn sorted<T>(values: &[T]) -> Vec<T>
         where T: Ord + Clone
     {
         let mut vec = values.to_vec();
         vec.sort();
+        return vec;
+    }
+
+    fn diff<T>(fst: &RestrictedRange<T>, snd: &RestrictedRange<T>)
+        -> Vec<Num<T>>
+    {
+        let mut vec = sorted(fst.accepted());
+        vec.retain(|&num| !snd.accepts(num));
         return vec;
     }
 
@@ -654,7 +670,7 @@ mod test {
             let before = range;
 
             let mut after = before.clone();
-            let mut removed = sorted(after.add_rejection(&to_reject));
+            let removed = sorted(after.add_rejection(&to_reject));
 
             check_range_integrity(&after);
             check_times_rejected(&after, |num| {
@@ -665,10 +681,26 @@ mod test {
                 }
             });
 
-            let mut diff = sorted(before.accepted());
-            diff.retain(|&num| !after.accepts(num));
+            assert_eq!(diff(&before, &after), removed);
+        }
 
-            assert_eq!(diff, removed);
+        #[test]
+        fn test_restrict((range, to_restrict) in range_subset(5)) {
+            let before = range;
+
+            let mut after = before.clone();
+            let removed = sorted(after.add_restriction(&to_restrict));
+
+            check_range_integrity(&after);
+            check_segment(&after, |num| {
+                if to_restrict.contains(&num) {
+                    before.values.item_segment[num] + 1
+                } else {
+                    before.values.item_segment[num]
+                }
+            });
+
+            assert_eq!(diff(&before, &after), removed);
         }
     }
 }
