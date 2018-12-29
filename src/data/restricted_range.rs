@@ -355,6 +355,8 @@ impl<T> RestrictedRange<T> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use Result;
+    use failure::ResultExt;
     use rand::{Rng, RngCore};
     use rand::distributions::{Binomial, Distribution};
     use proptest::test_runner::{TestRunner, TestCaseError};
@@ -461,42 +463,69 @@ mod test {
         }
 
         fn simplify(&mut self) -> bool {
-            unimplemented!()
+            false
         }
 
         fn complicate(&mut self) -> bool {
-            unimplemented!()
+            false
         }
     }
 
-
-    #[test]
-    fn test_generation() {
-        let mut runner = TestRunner::default();
-        let g = RestrictedRangeStrategy { t_count: to_count::<()>(5) };
-
-        runner.run(&g, |v| {
-            check_segments(&v.values);
-            return Ok(());
-        }).unwrap();
+    fn restricted_range(count: usize) -> RestrictedRangeStrategy<()> {
+        RestrictedRangeStrategy { t_count: to_count(count) }
     }
 
-    fn check_segments<T>(p: &SegmentedPermutation<T>) {
+    proptest! {
+        #[test]
+        fn test_generation(range in restricted_range(5)) {
+            check_segments(&range.values);
+            check_rejects(&range);
+        }
+    }
+
+    fn check_segments<T>(p: &SegmentedPermutation<T>)  {
         let mut segment_end = p.items.len();
         for segment_num in (0..p.segments().len()).rev() {
             let segment = &p.segments()[segment_num];
 
             for pos in segment.offset..segment_end {
                 if p.item_segment[p.items[pos]] != segment_num {
-                    panic!("{} in wrong segment", pos);
+                    panic!(
+                        "{:?} in wrong segment: assigned {} but located in {}",
+                        p.items[pos],
+                        p.item_segment[p.items[pos]],
+                        segment_num,
+                    );
                 }
             }
 
             if segment.offset + segment.num_rejected > segment_end {
-                panic!("segment no. {} leaks", segment_num);
+                panic!("segment no. {} leaks into next segment", segment_num);
             }
 
             segment_end = p.segments()[segment_num].offset;
-        };
+        }
+    }
+
+    fn check_rejects<T>(range: &RestrictedRange<T>) {
+        let p = &range.values;
+        for pos in 0..p.len() {
+            let segment = &p.segments()[p.item_segment[p.items[pos]]];
+            if segment.accepts(pos) {
+                if range.times_rejected[p.items[pos]] > 0 {
+                    panic!(
+                        "{:?} is rejected but not in rejection zone",
+                        p.items[pos],
+                    )
+                }
+            } else {
+                if range.times_rejected[p.items[pos]] == 0 {
+                    panic!(
+                        "{:?} is not rejected but in rejection zone",
+                        p.items[pos],
+                    )
+                }
+            }
+        }
     }
 }
