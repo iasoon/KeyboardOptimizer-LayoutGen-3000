@@ -91,7 +91,6 @@ pub struct SegmentedPermutation<T> {
     items: Permutation<T>,
     segments: Vec<Segment>,
     item_segment: Table<T, usize>,
-
 }
 
 impl<T> SegmentedPermutation<T> {
@@ -362,12 +361,23 @@ mod test {
     use proptest::test_runner::{TestRunner, TestCaseError};
     use proptest::strategy::{Strategy, ValueTree, NewTree};
     use std::fmt::Debug;
+    use std::marker::PhantomData;
 
     use cat::internal::{to_count, to_num};
 
     #[derive(Debug)]
     struct RestrictedRangeStrategy<T> {
-        t_count: Count<T>,
+        phantom_t: PhantomData<T>,
+        max_size: usize,
+    }
+
+    impl<T> RestrictedRangeStrategy<T> {
+        fn new(max_size: usize) -> Self {
+            RestrictedRangeStrategy {
+                phantom_t: PhantomData,
+                max_size,
+            }
+        }
     }
 
     impl<T> Strategy for RestrictedRangeStrategy<T>
@@ -377,25 +387,28 @@ mod test {
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-            // first, choose the values for the range
-            let mut permutation = Permutation::new(self.t_count);
+            // select size
+            let t_count = to_count(runner.rng().gen_range(2, self.max_size));
+
+            // choose the values for the range
+            let mut permutation = Permutation::new(t_count);
             permutation.shuffle(runner.rng());
 
             // then draw the structure
-            let max_segments = self.t_count.as_usize();
+            let max_segments = t_count.as_usize();
             let num_segments = runner.rng().gen_range(1, max_segments);
 
             let mut offsets = Vec::with_capacity(num_segments);
             offsets.push(0);
             for _ in 0..(num_segments - 1) {
-                let offset = runner.rng().gen_range(0, self.t_count.as_usize());
+                let offset = runner.rng().gen_range(0, t_count.as_usize());
                 offsets.push(offset);
             }
             offsets.sort();
 
 
             let mut segments = Vec::with_capacity(num_segments);
-            let mut segment_end = self.t_count.as_usize();
+            let mut segment_end = t_count.as_usize();
             for i in (0..num_segments).rev() {    
                 let segment_len = segment_end - offsets[i];
                 let distribution = Binomial::new(segment_len as u64, 0.2);
@@ -410,8 +423,8 @@ mod test {
             }
             segments.reverse();
 
-            let mut item_segment = self.t_count.map_nums(|_| 0);
-            let mut segment_end = self.t_count.as_usize();
+            let mut item_segment = t_count.map_nums(|_| 0);
+            let mut segment_end = t_count.as_usize();
             for segment_num in (0..num_segments).rev() {
                 for i in offsets[segment_num]..segment_end {
                     item_segment[permutation[i]] = segment_num;
@@ -425,7 +438,7 @@ mod test {
                 item_segment,
             };
 
-            let mut times_rejected = self.t_count.map_nums(|num| {
+            let times_rejected = t_count.map_nums(|num| {
                 let pos = values.pos(num);
                 let segment_num = values.item_segment[num];
 
@@ -447,6 +460,70 @@ mod test {
             })
         }
     }
+
+    trait Shrink<T> {
+        /// shrink the value by removing an element from the domain.
+        /// this is done in a swap-remove fashion: the current last element
+        /// assumes the number of the removed element.
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self;
+    }
+
+    impl<T, V> Shrink<T> for Table<T, V>
+        where V: Clone
+    {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            // create a new table that is one element shorter
+            let new_count = to_count(self.count().as_usize() - 1);
+            let mut table = new_count.map_nums(|num| self[num].clone());
+
+            if to_remove.as_usize() < new_count.as_usize() {
+                // swap role of last element and removed element
+                table[to_remove] = self[to_num(new_count.as_usize())].clone();
+            }
+            return table;
+        }
+    }
+
+    impl<T> Shrink<T> for Permutation<T> {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            let last = to_num(self.items.len() - 1);
+            let mut items = self.items.clone();
+
+            items[self.positions[last]] = to_remove;
+            items.remove(self.positions[to_remove]);
+            let positions = self.positions.shrink_remove(to_remove);
+            return Permutation { items, positions };
+        }
+    }
+
+    impl<T> Shrink<T> for SegmentedPermutation<T> {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            let segment_num = self.item_segment[to_remove];
+            let mut segments = self.segments.clone();
+            if !segments[segment_num].accepts(self.items.pos(to_remove)) {
+                segments[segment_num].num_rejected -= 1;
+            }
+            // shift all following segments one place to the left
+            for i in (segment_num+1)..segments.len() {
+                segments[i].offset -= 1;
+            }
+            return SegmentedPermutation {
+                items: self.items.shrink_remove(to_remove),
+                item_segment: self.item_segment.shrink_remove(to_remove),
+                segments,
+            };
+        }
+    }
+
+    impl<T> Shrink<T> for RestrictedRange<T> {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            RestrictedRange {
+                values: self.values.shrink_remove(to_remove),
+                times_rejected: self.times_rejected.shrink_remove(to_remove),
+            }
+        }
+    }
+
 
     #[derive(Debug)]
     struct RestrictedRangeValueTree<T> {
@@ -471,8 +548,8 @@ mod test {
         }
     }
 
-    fn restricted_range(count: usize) -> RestrictedRangeStrategy<()> {
-        RestrictedRangeStrategy { t_count: to_count(count) }
+    fn restricted_range(max_size: usize) -> RestrictedRangeStrategy<()> {
+        RestrictedRangeStrategy::new(max_size)
     }
 
     fn check_segments<T>(p: &SegmentedPermutation<T>)  {
@@ -576,7 +653,8 @@ mod test {
 
     #[derive(Debug)]
     struct RangeSubsetStrategy<T> {
-        t_count: Count<T>,
+        phantom_t: PhantomData<T>,
+        max_size: usize,
     }
 
     impl<T> Strategy for RangeSubsetStrategy<T>
@@ -586,11 +664,12 @@ mod test {
         type Value = (RestrictedRange<T>, Vec<Num<T>>);
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-            let rr_strategy = RestrictedRangeStrategy { t_count: self.t_count };
-            let values = self.t_count.nums().collect();
+            let range = RestrictedRangeStrategy::new(self.max_size)
+                .new_tree(runner)?;
+            let values = range.value.values.items.items.clone();
             let tree = RangeSubsetValueTree {
-                range: rr_strategy.new_tree(runner)?,
                 subset: SubsetValueTree::random(values, runner.rng()),
+                range,
             };
             Ok(tree)
         }
@@ -620,9 +699,10 @@ mod test {
         }
     }
 
-    fn range_subset(count: usize) -> RangeSubsetStrategy<()> {
+    fn range_subset(max_size: usize) -> RangeSubsetStrategy<()> {
         RangeSubsetStrategy {
-            t_count: to_count(count),
+            phantom_t: PhantomData,
+            max_size,
         }
     }
 
@@ -661,12 +741,12 @@ mod test {
 
     proptest! {
         #[test]
-        fn test_generation(range in restricted_range(5)) {
+        fn test_generation(range in restricted_range(10)) {
             check_range_integrity(&range);
         }
 
         #[test]
-        fn test_reject((range, to_reject) in range_subset(5)) {
+        fn test_reject((range, to_reject) in range_subset(10)) {
             let before = range;
 
             let mut after = before.clone();
@@ -685,7 +765,7 @@ mod test {
         }
 
         #[test]
-        fn test_restrict((range, to_restrict) in range_subset(5)) {
+        fn test_restrict((range, to_restrict) in range_subset(10)) {
             let before = range;
 
             let mut after = before.clone();
@@ -701,6 +781,31 @@ mod test {
             });
 
             assert_eq!(diff(&before, &after), removed);
+        }
+
+        // TODO: how to properly test this?
+        #[test]
+        fn test_shrink(range in restricted_range(10), n in 0..10usize) {
+            prop_assume!(n < range.times_rejected.count().as_usize());
+            let to_remove = to_num(n);
+            let last = to_num(range.times_rejected.count().as_usize() - 1);
+            let after = range.shrink_remove(to_remove);
+
+            check_range_integrity(&after);
+            check_times_rejected(&after, |num| {
+                if num == to_remove {
+                    range.times_rejected[last]
+                } else {
+                    range.times_rejected[num]
+                }
+            });
+            check_segment(&after, |num| {
+                if num == to_remove {
+                    range.values.item_segment[last]
+                } else {
+                    range.values.item_segment[num]
+                }
+            });
         }
     }
 }
