@@ -774,11 +774,30 @@ mod test {
         }).boxed()
     }
 
+    fn range_and_restricted(max_size: usize)
+        -> BoxedStrategy<(RestrictedRange<()>, Subset<()>)>
+    {
+        RangeSubsetStrategy::new(max_size, |range| {
+            range.times_rejected.nums().filter(|&num| {
+                range.values.item_segment[num] > 0
+            }).collect()
+        }).boxed()
+    }
+
+
     fn check_times_rejected<T, F>(range: &RestrictedRange<T>, expected: F)
         where F: Fn(Num<T>) -> usize
     {
         for (num, &reject_count) in range.times_rejected.enumerate() {
-            assert_eq!(reject_count, expected(num));
+            let expected_reject_count = expected(num);
+            if reject_count != expected_reject_count {
+                panic!{
+                    "expected {} to be rejected {} times, but was {} times",
+                    num.as_usize(),
+                    expected_reject_count,
+                    reject_count,
+                }
+            }
         }
     }
 
@@ -786,7 +805,15 @@ mod test {
         where F: Fn(Num<T>) -> usize
     {
         for (num, &segment_num) in range.values.item_segment.enumerate() {
-            assert_eq!(segment_num, expected(num));
+            let expected_segment = expected(num);
+            if segment_num != expected_segment {
+                panic!{
+                    "expected {} to be in segment {}, but was in segment {}",
+                    num.as_usize(),
+                    expected_segment,
+                    segment_num,
+                }
+            }
         }
     }
 
@@ -870,6 +897,26 @@ mod test {
             });
 
             assert_eq!(diff(&before, &after), removed);
+        }
+
+        #[test]
+        fn test_unrestrict((range, subset) in range_and_restricted(10)) {
+            let before = range;
+            let to_unrestrict = subset.to_vec();
+
+            let mut after = before.clone();
+            let added = sorted(after.remove_restriction(&to_unrestrict));
+
+            check_range_integrity(&after);
+            check_segment(&after, |num| {
+                if to_unrestrict.contains(&num) {
+                    before.values.item_segment[num] - 1
+                } else {
+                    before.values.item_segment[num]
+                }
+            });
+
+            assert_eq!(diff(&after, &before), added);
         }
 
         // TODO: how to properly test this?
