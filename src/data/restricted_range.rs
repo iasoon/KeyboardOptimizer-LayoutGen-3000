@@ -697,6 +697,10 @@ mod test {
         mut items: Vec<Num<T>>
     ) -> Subset<T>
     {
+        if items.is_empty() {
+            return Subset::from_items(count, &[]);
+        }
+
         rng.shuffle(&mut items);
         let num_items = rng.gen_range(0, items.len());
         return Subset::from_items(count, &items[0..num_items]);
@@ -760,6 +764,16 @@ mod test {
         }).boxed()
     }
 
+    fn range_and_rejected(max_size: usize)
+        -> BoxedStrategy<(RestrictedRange<()>, Subset<()>)>
+    {
+        RangeSubsetStrategy::new(max_size, |range| {
+            range.times_rejected.nums().filter(|&num| {
+                range.times_rejected[num] > 0
+            }).collect()
+        }).boxed()
+    }
+
     fn check_times_rejected<T, F>(range: &RestrictedRange<T>, expected: F)
         where F: Fn(Num<T>) -> usize
     {
@@ -816,6 +830,26 @@ mod test {
             });
 
             assert_eq!(diff(&before, &after), removed);
+        }
+
+        #[test]
+        fn test_unreject((range, subset) in range_and_rejected(10)) {
+            let before = range;
+            let to_unreject = subset.to_vec();
+
+            let mut after = before.clone();
+            let added = sorted(after.remove_rejection(&to_unreject));
+
+            check_range_integrity(&after);
+            check_times_rejected(&after, |num| {
+                if to_unreject.contains(&num) {
+                    before.times_rejected[num] - 1
+                } else {
+                    before.times_rejected[num]
+                }
+            });
+
+            assert_eq!(diff(&after, &before), added);
         }
 
         #[test]
