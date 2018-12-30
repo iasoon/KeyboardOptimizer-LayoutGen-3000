@@ -354,16 +354,82 @@ impl<T> RestrictedRange<T> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use Result;
-    use failure::ResultExt;
-    use rand::{Rng, RngCore};
+    use rand::Rng;
     use rand::distributions::{Binomial, Distribution};
-    use proptest::test_runner::{TestRunner, TestCaseError};
-    use proptest::strategy::{Strategy, ValueTree, NewTree};
+    use proptest::test_runner::TestRunner;
+    use proptest::strategy::{Strategy, BoxedStrategy, ValueTree, NewTree};
+    use std::fmt;
     use std::fmt::Debug;
     use std::marker::PhantomData;
 
     use cat::internal::{to_count, to_num};
+
+    // TODO: oh please break this function up
+    fn generate_range<T, G: Rng>(rng: &mut G, t_count: Count<T>)
+        -> RestrictedRange<T>
+    {
+        // choose the values for the range
+        let mut permutation = Permutation::new(t_count);
+        permutation.shuffle(rng);
+
+        // then draw the structure
+        let max_segments = t_count.as_usize();
+        let num_segments = 1 + rng.gen_range(0, max_segments);
+
+        let mut offsets = Vec::with_capacity(num_segments);
+        offsets.push(0);
+        for _ in 0..(num_segments - 1) {
+            let offset = rng.gen_range(0, t_count.as_usize());
+            offsets.push(offset);
+        }
+        offsets.sort();
+
+
+        let mut segments = Vec::with_capacity(num_segments);
+        let mut segment_end = t_count.as_usize();
+        for i in (0..num_segments).rev() {    
+            let segment_len = segment_end - offsets[i];
+            let distribution = Binomial::new(segment_len as u64, 0.2);
+            let num_rejected = distribution.sample(rng) as usize;
+
+            segments.push(Segment {
+                offset: offsets[i],
+                num_rejected,
+            });
+            
+            segment_end = offsets[i];
+        }
+        segments.reverse();
+
+        let mut item_segment = t_count.map_nums(|_| 0);
+        let mut segment_end = t_count.as_usize();
+        for segment_num in (0..num_segments).rev() {
+            for i in offsets[segment_num]..segment_end {
+                item_segment[permutation[i]] = segment_num;
+            }
+            segment_end = offsets[segment_num];
+        }
+
+        let values = SegmentedPermutation {
+            items: permutation,
+            segments,
+            item_segment,
+        };
+
+        let times_rejected = t_count.map_nums(|num| {
+            let pos = values.pos(num);
+            let segment_num = values.item_segment[num];
+
+            if values.segments()[segment_num].accepts(pos) {
+                0
+            } else {
+                const MAX_REJECTS: usize = 3;
+                rng.gen_range(1, MAX_REJECTS)
+            }
+        });
+
+        return RestrictedRange { values, times_rejected };
+    }
 
     #[derive(Debug)]
     struct RestrictedRangeStrategy<T> {
@@ -387,75 +453,9 @@ mod test {
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-            // select size
-            let t_count = to_count(runner.rng().gen_range(2, self.max_size));
-
-            // choose the values for the range
-            let mut permutation = Permutation::new(t_count);
-            permutation.shuffle(runner.rng());
-
-            // then draw the structure
-            let max_segments = t_count.as_usize();
-            let num_segments = runner.rng().gen_range(1, max_segments);
-
-            let mut offsets = Vec::with_capacity(num_segments);
-            offsets.push(0);
-            for _ in 0..(num_segments - 1) {
-                let offset = runner.rng().gen_range(0, t_count.as_usize());
-                offsets.push(offset);
-            }
-            offsets.sort();
-
-
-            let mut segments = Vec::with_capacity(num_segments);
-            let mut segment_end = t_count.as_usize();
-            for i in (0..num_segments).rev() {    
-                let segment_len = segment_end - offsets[i];
-                let distribution = Binomial::new(segment_len as u64, 0.2);
-                let num_rejected = distribution.sample(runner.rng()) as usize;
-
-                segments.push(Segment {
-                    offset: offsets[i],
-                    num_rejected,
-                });
-                
-                segment_end = offsets[i];
-            }
-            segments.reverse();
-
-            let mut item_segment = t_count.map_nums(|_| 0);
-            let mut segment_end = t_count.as_usize();
-            for segment_num in (0..num_segments).rev() {
-                for i in offsets[segment_num]..segment_end {
-                    item_segment[permutation[i]] = segment_num;
-                }
-                segment_end = offsets[segment_num];
-            }
-
-            let values = SegmentedPermutation {
-                items: permutation,
-                segments,
-                item_segment,
-            };
-
-            let times_rejected = t_count.map_nums(|num| {
-                let pos = values.pos(num);
-                let segment_num = values.item_segment[num];
-
-                if values.segments()[segment_num].accepts(pos) {
-                    0
-                } else {
-                    const MAX_REJECTS: usize = 3;
-                    runner.rng().gen_range(1, MAX_REJECTS)
-                }
-            });
-
-            let rr = RestrictedRange {
-                values,
-                times_rejected,
-            };
-
-            return Ok(Shrinker::new(t_count, rr));
+            let count = to_count(runner.rng().gen_range(1, self.max_size));
+            let range = generate_range(runner.rng(), count);
+            return Ok(Shrinker::new(count, range));
         }
     }
 
@@ -464,6 +464,16 @@ mod test {
         /// this is done in a swap-remove fashion: the current last element
         /// assumes the number of the removed element.
         fn shrink_remove(&self, to_remove: Num<T>) -> Self;
+    }
+
+    impl<T, A, B> Shrink<T> for (A, B)
+        where A: Shrink<T>,
+              B: Shrink<T>
+    {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            let (ref a, ref b) = self;
+            (a.shrink_remove(to_remove), b.shrink_remove(to_remove))
+        }
     }
 
     impl<T, V> Shrink<T> for Table<T, V>
@@ -646,110 +656,108 @@ mod test {
         check_rejects(&range);
     }
 
-    #[derive(Debug)]
-    struct SubsetValueTree<T> {
-        values: Vec<Num<T>>,
-        mask: Vec<bool>,
+    #[derive(Clone)]
+    struct Subset<T> {
+        included: Table<T, bool>,
     }
 
-    impl<T> SubsetValueTree<T> {
-        fn new(values: Vec<Num<T>>) -> Self {
-            let mask = vec![true; values.len()];
-            return SubsetValueTree {
-                values,
-                mask
-            };
-        }
-
-        fn random<R: Rng>(mut values: Vec<Num<T>>, rng: &mut R) -> Self {
-            rng.shuffle(&mut values);
-            let num_values = rng.gen_range(0, values.len());
-            return Self::new(values[0..num_values].to_vec());
-        }
-    }
-
-    impl<T> ValueTree for SubsetValueTree<T>
-        where T: Debug + Clone
-    {
-        type Value = Vec<Num<T>>;
-
-        fn current(&self) -> Self::Value {
-            let mut vec = Vec::with_capacity(self.values.len());
-            for i in 0..self.values.len() {
-                if self.mask[i] {
-                    vec.push(self.values[i]);
-                }
+    impl<T> Subset<T> {
+        fn from_items(count: Count<T>, items: &[Num<T>]) -> Self {
+            let mut included = count.map_nums(|_| false);
+            for &num in items {
+                included[num] = true;
             }
-            return vec;
+            return Subset { included };
         }
 
-        fn simplify(&mut self) -> bool {
-            false
+        fn iter<'a>(&'a self) -> impl Iterator<Item = Num<T>> + 'a {
+            self.included.nums().filter(move |&num| self.included[num] )
         }
 
-        fn complicate(&mut self) -> bool {
-            false
+        fn to_vec(&self) -> Vec<Num<T>> {
+            self.iter().collect()
         }
+    }
 
+    impl<T> Debug for Subset<T> {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_list().entries(self.iter()).finish()
+        }
+    }
+    
+    impl<T> Shrink<T> for Subset<T> {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            Subset { included: self.included.shrink_remove(to_remove) }
+        } 
+    }
+
+    fn generate_subset<T, G: Rng>(
+        rng: &mut G,
+        count: Count<T>,
+        mut items: Vec<Num<T>>
+    ) -> Subset<T>
+    {
+        rng.shuffle(&mut items);
+        let num_items = rng.gen_range(0, items.len());
+        return Subset::from_items(count, &items[0..num_items]);
     }
 
 
-    #[derive(Debug)]
-    struct RangeSubsetStrategy<T> {
+    struct RangeSubsetStrategy<T, F> {
         phantom_t: PhantomData<T>,
+        subset_domain_fn: F,
         max_size: usize,
     }
 
-    impl<T> Strategy for RangeSubsetStrategy<T>
-        where T: Debug + Clone
+    impl<T, F> RangeSubsetStrategy<T, F>
+        where F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>
     {
-        type Tree = Shrinker<T, RangeAndSubset<T>>;
-        type Value = RangeAndSubset<T>;
+        fn new(max_size: usize, subset_domain_fn: F) -> Self {
+            RangeSubsetStrategy {
+                phantom_t: PhantomData,
+                subset_domain_fn,
+                max_size,
+            }
+        }
+    }
+
+
+    impl<T, F> Debug for RangeSubsetStrategy<T, F>
+        where F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>
+    {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RangeSubsetStrategy")
+                .field("max_size", &self.max_size)
+                .field("subset_domain_fn", &"<function>")
+                .finish()
+        }
+    }
+
+    impl<T, F> Strategy for RangeSubsetStrategy<T, F>
+        where T: Debug + Clone,
+              F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>,
+    {
+        type Tree = Shrinker<T, Self::Value>;
+        type Value = (RestrictedRange<T>, Subset<T>);
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
-            let range = RestrictedRangeStrategy::new(self.max_size)
-                .new_tree(runner)?.current();
-            
+            let t_count = to_count(runner.rng().gen_range(1, self.max_size));
+            let range = generate_range(runner.rng(), t_count);
+
+            let subset_domain = (self.subset_domain_fn)(&range);
+            let subset = generate_subset(runner.rng(), t_count, subset_domain);
             let values = range.values.items.items.clone();
-            let subset = SubsetValueTree::random(values, runner.rng())
-                .current();
-            let x = RangeAndSubset { range, subset };
-            Ok(Shrinker::new(x.range.times_rejected.count(), x))
+
+            Ok(Shrinker::new(t_count, (range, subset)))
         }
     }
 
-    #[derive(Debug, Clone)]
-    struct RangeAndSubset<T> {
-        range: RestrictedRange<T>,
-        subset: Vec<Num<T>>,
-    }
-
-    impl<T> Shrink<T> for RangeAndSubset<T> {
-        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
-            let last= to_num(self.range.times_rejected.count().as_usize() - 1);
-
-            let subset = self.subset.iter().filter_map(|&num| {
-                if num == to_remove {
-                    return None;
-                }
-                if num == last {
-                    return Some(to_remove);
-                }
-                Some(num)
-            }).collect();
-
-            let range = self.range.shrink_remove(to_remove);
-            return RangeAndSubset { range, subset };
-        }
-    }
-
-    prop_compose! {
-        fn range_subset(max_size: usize)
-            (x in RangeSubsetStrategy { max_size, phantom_t: PhantomData })
-            -> (RestrictedRange<()>, Vec<Num<()>>)
-        {
-            (x.range, x.subset)
-        }
+    fn range_and_subset(max_size: usize)
+        -> BoxedStrategy<(RestrictedRange<()>, Subset<()>)>
+    {
+        RangeSubsetStrategy::new(max_size, |range| {
+            range.times_rejected.count().nums().collect()
+        }).boxed()
     }
 
     fn check_times_rejected<T, F>(range: &RestrictedRange<T>, expected: F)
@@ -791,8 +799,9 @@ mod test {
         }
 
         #[test]
-        fn test_reject((range, to_reject) in range_subset(10)) {
+        fn test_reject((range, subset) in range_and_subset(10)) {
             let before = range;
+            let to_reject = subset.to_vec();
 
             let mut after = before.clone();
             let removed = sorted(after.add_rejection(&to_reject));
@@ -810,8 +819,9 @@ mod test {
         }
 
         #[test]
-        fn test_restrict((range, to_restrict) in range_subset(10)) {
+        fn test_restrict((range, subset) in range_and_subset(10)) {
             let before = range;
+            let to_restrict = subset.to_vec();
 
             let mut after = before.clone();
             let removed = sorted(after.add_restriction(&to_restrict));
