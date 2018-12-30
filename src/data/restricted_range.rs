@@ -383,7 +383,7 @@ mod test {
     impl<T> Strategy for RestrictedRangeStrategy<T>
         where T: Debug + Clone
     {
-        type Tree = RestrictedRangeValueTree<T>;
+        type Tree = Shrinker<T, RestrictedRange<T>>;
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -455,9 +455,7 @@ mod test {
                 times_rejected,
             };
 
-            return Ok(RestrictedRangeValueTree {
-                value: rr,
-            })
+            return Ok(Shrinker::new(t_count, rr));
         }
     }
 
@@ -484,6 +482,14 @@ mod test {
         }
     }
 
+    fn permutation_from_vec<T>(items: Vec<Num<T>>) -> Permutation<T> {
+        let mut positions = to_count(items.len()).map_nums(|_| 0);
+        for (pos, &num) in items.iter().enumerate() {
+            positions[num] = pos;
+        }
+        return Permutation { items, positions };
+    }
+
     impl<T> Shrink<T> for Permutation<T> {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
             let last = to_num(self.items.len() - 1);
@@ -491,8 +497,8 @@ mod test {
 
             items[self.positions[last]] = to_remove;
             items.remove(self.positions[to_remove]);
-            let positions = self.positions.shrink_remove(to_remove);
-            return Permutation { items, positions };
+
+            return permutation_from_vec(items);
         }
     }
 
@@ -524,27 +530,64 @@ mod test {
         }
     }
 
-
     #[derive(Debug)]
-    struct RestrictedRangeValueTree<T> {
-        value: RestrictedRange<T>,
+    struct Shrinker<D, T> {
+        parent: Option<T>,
+        pos: T,
+        current_count: Count<D>,
+        domain_enumerator: Enumerator<D>,
     }
 
-    impl<T> ValueTree for RestrictedRangeValueTree<T>
-        where T: Debug + Clone
+    impl<D, T> Shrinker<D, T>
+        where T: Shrink<D> + Clone + Debug,
+              D: Debug,
     {
-        type Value = RestrictedRange<T>;
+        fn new(count: Count<D>, value: T) -> Self {
+            Shrinker {
+                parent: None,
+                pos: value,
+                domain_enumerator: count.nums(),
+                current_count: count,
+            }
+        }
 
-        fn current(&self) -> RestrictedRange<T> {
-            self.value.clone()
+        /// goto next sibling node
+        fn next(&mut self) -> bool {
+            let to_remove = match self.domain_enumerator.next() {
+                None => return false,
+                Some(to_remove) => to_remove,
+            };
+
+            let parent = self.parent.as_ref().unwrap();
+            self.pos = parent.shrink_remove(to_remove);
+            return true;
+        }
+    }
+
+
+    impl<D, T> ValueTree for Shrinker<D, T>
+        where T: Shrink<D> + Clone + Debug,
+              D: Debug,
+    {
+        type Value = T;
+
+        fn current(&self) -> T {
+            self.pos.clone()
         }
 
         fn simplify(&mut self) -> bool {
-            false
+            if self.current_count.as_usize() == 0 {
+                return false;
+            }
+            self.parent = Some(self.pos.clone());
+            self.current_count = to_count(self.current_count.as_usize() - 1);
+            self.domain_enumerator = self.current_count.nums();
+
+            return self.next();
         }
 
         fn complicate(&mut self) -> bool {
-            false
+            self.next()
         }
     }
 
@@ -660,52 +703,54 @@ mod test {
     impl<T> Strategy for RangeSubsetStrategy<T>
         where T: Debug + Clone
     {
-        type Tree = RangeSubsetValueTree<T>;
-        type Value = (RestrictedRange<T>, Vec<Num<T>>);
+        type Tree = Shrinker<T, RangeAndSubset<T>>;
+        type Value = RangeAndSubset<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
             let range = RestrictedRangeStrategy::new(self.max_size)
-                .new_tree(runner)?;
-            let values = range.value.values.items.items.clone();
-            let tree = RangeSubsetValueTree {
-                subset: SubsetValueTree::random(values, runner.rng()),
-                range,
-            };
-            Ok(tree)
+                .new_tree(runner)?.current();
+            
+            let values = range.values.items.items.clone();
+            let subset = SubsetValueTree::random(values, runner.rng())
+                .current();
+            let x = RangeAndSubset { range, subset };
+            Ok(Shrinker::new(x.range.times_rejected.count(), x))
         }
     }
 
-    #[derive(Debug)]
-    struct RangeSubsetValueTree<T> {
-        range: RestrictedRangeValueTree<T>,
-        subset: SubsetValueTree<T>,
+    #[derive(Debug, Clone)]
+    struct RangeAndSubset<T> {
+        range: RestrictedRange<T>,
+        subset: Vec<Num<T>>,
     }
 
-    impl<T> ValueTree for RangeSubsetValueTree<T>
-        where T: Debug + Clone
-    {
-        type Value = (RestrictedRange<T>, Vec<Num<T>>);
+    impl<T> Shrink<T> for RangeAndSubset<T> {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            let last= to_num(self.range.times_rejected.count().as_usize() - 1);
 
-        fn current(&self) -> Self::Value {
-            (self.range.current(), self.subset.current())
-        }
+            let subset = self.subset.iter().filter_map(|&num| {
+                if num == to_remove {
+                    return None;
+                }
+                if num == last {
+                    return Some(to_remove);
+                }
+                Some(num)
+            }).collect();
 
-        fn simplify(&mut self) -> bool {
-            false
-        }
-
-        fn complicate(&mut self) -> bool {
-            false
-        }
-    }
-
-    fn range_subset(max_size: usize) -> RangeSubsetStrategy<()> {
-        RangeSubsetStrategy {
-            phantom_t: PhantomData,
-            max_size,
+            let range = self.range.shrink_remove(to_remove);
+            return RangeAndSubset { range, subset };
         }
     }
 
+    prop_compose! {
+        fn range_subset(max_size: usize)
+            (x in RangeSubsetStrategy { max_size, phantom_t: PhantomData })
+            -> (RestrictedRange<()>, Vec<Num<()>>)
+        {
+            (x.range, x.subset)
+        }
+    }
 
     fn check_times_rejected<T, F>(range: &RestrictedRange<T>, expected: F)
         where F: Fn(Num<T>) -> usize

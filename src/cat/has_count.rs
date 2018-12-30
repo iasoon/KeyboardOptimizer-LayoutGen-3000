@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::ops::Index;
+use std::fmt;
 
 use cat::*;
 use cat::internal::*;
@@ -44,6 +45,12 @@ impl<D> Count<D> {
     }
 }
 
+impl<D> fmt::Debug for Count<D> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.as_usize())
+    }
+}
+
 impl<D> HasCount<D> for Count<D> {
     fn count(&self) -> Count<D> {
         self.clone()
@@ -68,6 +75,16 @@ pub fn to_count<D>(count: usize) -> Count<D> {
     }
 }
 
+impl<A, B> HasCount<(A, B)> for (Count<A>, Count<B>)
+{
+    fn count(&self) -> Count<(A, B)> {
+        let &(major_count, minor_count) = self;
+        let count = major_count.as_usize() * minor_count.as_usize();
+        return to_count(count);
+    }
+}
+
+#[derive(Debug)]
 pub struct Enumerator<D> {
     count: Count<D>,
     pos: usize,
