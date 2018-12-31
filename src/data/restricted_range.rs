@@ -358,6 +358,7 @@ mod test {
     use rand::distributions::{Binomial, Distribution};
     use proptest::test_runner::TestRunner;
     use proptest::strategy::{Strategy, BoxedStrategy, ValueTree, NewTree};
+    use std::mem;
     use std::fmt;
     use std::fmt::Debug;
     use std::marker::PhantomData;
@@ -541,11 +542,36 @@ mod test {
     }
 
     #[derive(Debug)]
+    struct DomainShrinkerPos<D, T> {
+        value: T,
+        count: Count<D>,
+        next_step: Enumerator<D>,
+    }
+
+    impl<D, T> DomainShrinkerPos<D, T>
+        where T: Shrink<D>
+    {
+        fn new(count: Count<D>, value: T) -> Self {
+            DomainShrinkerPos {
+                value,
+                next_step: count.nums(),
+                count,
+            }
+        }
+
+        fn next_child(&mut self) -> Option<Self> {
+            self.next_step.next().map(|to_remove| {
+                let count = to_count(self.count.as_usize() - 1);
+                let value = self.value.shrink_remove(to_remove);
+                return Self::new(count, value);
+            })
+        }
+    }
+
+    #[derive(Debug)]
     struct Shrinker<D, T> {
-        parent: Option<T>,
-        pos: T,
-        current_count: Count<D>,
-        domain_enumerator: Enumerator<D>,
+        parent: Option<DomainShrinkerPos<D, T>>,
+        pos: DomainShrinkerPos<D, T>,
     }
 
     impl<D, T> Shrinker<D, T>
@@ -555,22 +581,8 @@ mod test {
         fn new(count: Count<D>, value: T) -> Self {
             Shrinker {
                 parent: None,
-                pos: value,
-                domain_enumerator: count.nums(),
-                current_count: count,
+                pos: DomainShrinkerPos::new(count, value),
             }
-        }
-
-        /// goto next sibling node
-        fn next(&mut self) -> bool {
-            let to_remove = match self.domain_enumerator.next() {
-                None => return false,
-                Some(to_remove) => to_remove,
-            };
-
-            let parent = self.parent.as_ref().unwrap();
-            self.pos = parent.shrink_remove(to_remove);
-            return true;
         }
     }
 
@@ -582,22 +594,28 @@ mod test {
         type Value = T;
 
         fn current(&self) -> T {
-            self.pos.clone()
+            self.pos.value.clone()
         }
 
         fn simplify(&mut self) -> bool {
-            if self.current_count.as_usize() == 0 {
-                return false;
+            match self.pos.next_child() {
+                None => false,
+                Some(child) => {
+                    let parent = mem::replace(&mut self.pos, child);
+                    self.parent = Some(parent);
+                    true
+                }
             }
-            self.parent = Some(self.pos.clone());
-            self.current_count = to_count(self.current_count.as_usize() - 1);
-            self.domain_enumerator = self.current_count.nums();
-
-            return self.next();
         }
 
         fn complicate(&mut self) -> bool {
-            self.next()
+            match self.parent.take() {
+                None => false,
+                Some(parent) => {
+                    self.pos = parent;
+                    true
+                }
+            }
         }
     }
 
