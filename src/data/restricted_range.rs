@@ -450,26 +450,26 @@ mod test {
     impl<T> Strategy for RestrictedRangeStrategy<T>
         where T: Debug + Clone
     {
-        type Tree = Shrinker<T, RestrictedRange<T>>;
+        type Tree = DomainShrinker<T, RestrictedRange<T>>;
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
             let count = to_count(runner.rng().gen_range(1, self.max_size));
             let range = generate_range(runner.rng(), count);
-            return Ok(Shrinker::new(count, range));
+            return Ok(DomainShrinker::new(count, range));
         }
     }
 
-    trait Shrink<T> {
+    trait ShrinkDomain<T> {
         /// shrink the value by removing an element from the domain.
         /// this is done in a swap-remove fashion: the current last element
         /// assumes the number of the removed element.
         fn shrink_remove(&self, to_remove: Num<T>) -> Self;
     }
 
-    impl<T, A, B> Shrink<T> for (A, B)
-        where A: Shrink<T>,
-              B: Shrink<T>
+    impl<T, A, B> ShrinkDomain<T> for (A, B)
+        where A: ShrinkDomain<T>,
+              B: ShrinkDomain<T>
     {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
             let (ref a, ref b) = self;
@@ -477,7 +477,7 @@ mod test {
         }
     }
 
-    impl<T, V> Shrink<T> for Table<T, V>
+    impl<T, V> ShrinkDomain<T> for Table<T, V>
         where V: Clone
     {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
@@ -501,7 +501,7 @@ mod test {
         return Permutation { items, positions };
     }
 
-    impl<T> Shrink<T> for Permutation<T> {
+    impl<T> ShrinkDomain<T> for Permutation<T> {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
             let last = to_num(self.items.len() - 1);
             let mut items = self.items.clone();
@@ -513,7 +513,7 @@ mod test {
         }
     }
 
-    impl<T> Shrink<T> for SegmentedPermutation<T> {
+    impl<T> ShrinkDomain<T> for SegmentedPermutation<T> {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
             let segment_num = self.item_segment[to_remove];
             let mut segments = self.segments.clone();
@@ -532,7 +532,7 @@ mod test {
         }
     }
 
-    impl<T> Shrink<T> for RestrictedRange<T> {
+    impl<T> ShrinkDomain<T> for RestrictedRange<T> {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
             RestrictedRange {
                 values: self.values.shrink_remove(to_remove),
@@ -549,7 +549,7 @@ mod test {
     }
 
     impl<D, T> DomainShrinkerPos<D, T>
-        where T: Shrink<D>
+        where T: ShrinkDomain<D>
     {
         fn new(count: Count<D>, value: T) -> Self {
             DomainShrinkerPos {
@@ -569,17 +569,17 @@ mod test {
     }
 
     #[derive(Debug)]
-    struct Shrinker<D, T> {
+    struct DomainShrinker<D, T> {
         parent: Option<DomainShrinkerPos<D, T>>,
         pos: DomainShrinkerPos<D, T>,
     }
 
-    impl<D, T> Shrinker<D, T>
-        where T: Shrink<D> + Clone + Debug,
+    impl<D, T> DomainShrinker<D, T>
+        where T: ShrinkDomain<D> + Clone + Debug,
               D: Debug,
     {
         fn new(count: Count<D>, value: T) -> Self {
-            Shrinker {
+            DomainShrinker {
                 parent: None,
                 pos: DomainShrinkerPos::new(count, value),
             }
@@ -587,8 +587,8 @@ mod test {
     }
 
 
-    impl<D, T> ValueTree for Shrinker<D, T>
-        where T: Shrink<D> + Clone + Debug,
+    impl<D, T> ValueTree for DomainShrinker<D, T>
+        where T: ShrinkDomain<D> + Clone + Debug,
               D: Debug,
     {
         type Value = T;
@@ -618,6 +618,7 @@ mod test {
             }
         }
     }
+
 
     fn restricted_range(max_size: usize) -> RestrictedRangeStrategy<()> {
         RestrictedRangeStrategy::new(max_size)
@@ -703,7 +704,7 @@ mod test {
         }
     }
     
-    impl<T> Shrink<T> for Subset<T> {
+    impl<T> ShrinkDomain<T> for Subset<T> {
         fn shrink_remove(&self, to_remove: Num<T>) -> Self {
             Subset { included: self.included.shrink_remove(to_remove) }
         } 
@@ -759,7 +760,7 @@ mod test {
         where T: Debug + Clone,
               F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>,
     {
-        type Tree = Shrinker<T, Self::Value>;
+        type Tree = DomainShrinker<T, Self::Value>;
         type Value = (RestrictedRange<T>, Subset<T>);
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -770,7 +771,7 @@ mod test {
             let subset = generate_subset(runner.rng(), t_count, subset_domain);
             let values = range.values.items.items.clone();
 
-            Ok(Shrinker::new(t_count, (range, subset)))
+            Ok(DomainShrinker::new(t_count, (range, subset)))
         }
     }
 
