@@ -586,7 +586,6 @@ mod test {
         }
     }
 
-
     impl<D, T> ValueTree for DomainShrinker<D, T>
         where T: ShrinkDomain<D> + Clone + Debug,
               D: Debug,

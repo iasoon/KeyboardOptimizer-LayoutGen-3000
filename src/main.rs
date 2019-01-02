@@ -22,7 +22,6 @@ extern crate serde_json;
 extern crate proptest;
 
 
-use std::path::Path;
 use std::result;
 use failure::ResultExt;
 
