@@ -1,6 +1,7 @@
 use super::*;
 use cat::*;
 use rand::Rng;
+use rand::seq::SliceRandom;
 
 use std::ops::{Index, Range};
 
@@ -35,7 +36,7 @@ impl<T> Permutation<T> {
     pub fn shuffle<G>(&mut self, gen: &mut G)
         where G: Rng
     {
-        gen.shuffle(&mut self.items);
+        self.items.shuffle(gen);
 
         for i in 0..self.items.len() {
             self.update_pos(i);
@@ -356,6 +357,8 @@ mod test {
     use super::*;
     use rand::Rng;
     use rand::distributions::{Binomial, Distribution};
+    use rand::seq::SliceRandom;
+
     use proptest::test_runner::TestRunner;
     use proptest::strategy::{Strategy, BoxedStrategy, ValueTree, NewTree};
     use std::mem;
@@ -719,7 +722,7 @@ mod test {
             return Subset::from_items(count, &[]);
         }
 
-        rng.shuffle(&mut items);
+        items.shuffle(rng);
         let num_items = rng.gen_range(0, items.len());
         return Subset::from_items(count, &items[0..num_items]);
     }
