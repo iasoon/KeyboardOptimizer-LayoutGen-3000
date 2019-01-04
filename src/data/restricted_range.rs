@@ -64,6 +64,12 @@ impl<T> Index<Range<usize>> for Permutation<T> {
     }
 }
 
+impl<T> HasCount<T> for Permutation<T> {
+    fn count(&self) -> Count<T> {
+        self.positions.count()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Segment {
     pub offset: usize,
@@ -368,6 +374,26 @@ mod test {
 
     use cat::internal::{to_count, to_num};
 
+    fn segment_permutation<T>(items: Permutation<T>, segments: Vec<Segment>)
+        -> SegmentedPermutation<T>
+    {
+        let mut item_segment = items.map_nums(|_| 0);
+
+        let mut segment_end = items.count().as_usize();
+        for segment_num in (0..segments.len()).rev() {
+            for i in segments[segment_num].offset..segment_end {
+                item_segment[items[i]] = segment_num;
+            }
+            segment_end = segments[segment_num].offset;
+        }
+
+        return SegmentedPermutation {
+            items,
+            segments,
+            item_segment,
+        };
+    }
+
     // TODO: oh please break this function up
     fn generate_range<T, G: Rng>(rng: &mut G, t_count: Count<T>)
         -> RestrictedRange<T>
@@ -405,20 +431,7 @@ mod test {
         }
         segments.reverse();
 
-        let mut item_segment = t_count.map_nums(|_| 0);
-        let mut segment_end = t_count.as_usize();
-        for segment_num in (0..num_segments).rev() {
-            for i in offsets[segment_num]..segment_end {
-                item_segment[permutation[i]] = segment_num;
-            }
-            segment_end = offsets[segment_num];
-        }
-
-        let values = SegmentedPermutation {
-            items: permutation,
-            segments,
-            item_segment,
-        };
+        let values = segment_permutation(permutation, segments);
 
         let times_rejected = t_count.map_nums(|num| {
             let pos = values.pos(num);
@@ -434,6 +447,31 @@ mod test {
 
         return RestrictedRange { values, times_rejected };
     }
+
+    fn remove_segment<T: Clone>(p: SegmentedPermutation<T>, segment_num: usize)
+        -> SegmentedPermutation<T>
+    {
+        let mut segments = p.segments.clone();
+        let mut items = p.items.clone();
+        
+        {
+            // TODO: this part is exact duplication from the implementation.
+            // maybe extract the shared code into a helper?
+            let segment = segments.remove(segment_num);
+            let prev_segment = &mut segments[segment_num - 1];
+
+            for i in 0..segment.num_rejected {
+                let pos = segment.offset + i;
+                let dest = prev_segment.frontier() + i;
+                items.swap(pos, dest);
+            }
+
+            prev_segment.num_rejected += segment.num_rejected;
+        }
+
+        return segment_permutation(items, segments);
+    }
+
 
     #[derive(Debug)]
     struct RestrictedRangeStrategy<T> {
@@ -771,7 +809,6 @@ mod test {
 
             let subset_domain = (self.subset_domain_fn)(&range);
             let subset = generate_subset(runner.rng(), t_count, subset_domain);
-            let values = range.values.items.items.clone();
 
             Ok(DomainShrinker::new(t_count, (range, subset)))
         }
