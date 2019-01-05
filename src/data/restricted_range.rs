@@ -448,7 +448,7 @@ mod test {
         return RestrictedRange { values, times_rejected };
     }
 
-    fn remove_segment<T: Clone>(p: SegmentedPermutation<T>, segment_num: usize)
+    fn remove_segment<T: Clone>(p: &SegmentedPermutation<T>, segment_num: usize)
         -> SegmentedPermutation<T>
     {
         let mut segments = p.segments.clone();
@@ -498,6 +498,83 @@ mod test {
             let count = to_count(runner.rng().gen_range(1, self.max_size));
             let range = generate_range(runner.rng(), count);
             return Ok(DomainShrinker::new(count, range));
+        }
+    }
+
+    enum RestrictedRangeShrink {
+        RemoveSegment(usize),
+    }
+
+    struct RestrictedRangeTreePos<T>
+        where T: Debug + Clone
+    {
+        value: RestrictedRange<T>,
+        remove_segment: usize,
+    }
+
+    impl<T> RestrictedRangeTreePos<T>
+        where T: Debug + Clone
+    {
+        fn new(value: RestrictedRange<T>) -> Self {
+            RestrictedRangeTreePos {
+                value,
+                // cannot remove first segment
+                remove_segment: 1,
+            }
+        }
+
+        fn next_child(&mut self) -> Option<Self> {
+            if self.remove_segment < self.value.values.segments.len() {
+                let to_remove = self.remove_segment;
+                self.remove_segment += 1;
+
+                let values = remove_segment(&self.value.values, to_remove);
+                let times_rejected = self.value.times_rejected.clone();
+                let value = RestrictedRange { values, times_rejected };
+
+                return Some(RestrictedRangeTreePos::new(value));
+            } else {
+                return None;
+            }
+        }
+    }
+
+    struct RestrictedRangeValueTree<T>
+        where T: Debug + Clone
+    {
+        pos: RestrictedRangeTreePos<T>,
+        parent: Option<RestrictedRangeTreePos<T>>,
+    }
+
+    impl<T> ValueTree for RestrictedRangeValueTree<T>
+        where T: Debug + Clone
+    {
+        type Value = RestrictedRange<T>;
+
+        fn current(&self) -> RestrictedRange<T> {
+            self.pos.value.clone()
+        }
+
+        fn simplify(&mut self) -> bool {
+            match self.pos.next_child() {
+                None => false,
+                Some(child) => {
+                    let parent = mem::replace(&mut self.pos, child);
+                    self.parent = Some(parent);
+                    true
+                }
+            }
+        }
+
+        fn complicate(&mut self) -> bool {
+            match self.parent.take() {
+                None => false,
+                Some(parent) => {
+                    self.pos = parent;
+                    true
+                }
+            }
+
         }
     }
 
