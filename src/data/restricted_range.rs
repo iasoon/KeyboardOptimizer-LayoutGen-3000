@@ -491,68 +491,86 @@ mod test {
     impl<T> Strategy for RestrictedRangeStrategy<T>
         where T: Debug + Clone
     {
-        type Tree = DomainShrinker<T, RestrictedRange<T>>;
+        type Tree = ShrinkDomainTree<T, RestrictedRange<T>>;
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
             let count = to_count(runner.rng().gen_range(1, self.max_size));
             let range = generate_range(runner.rng(), count);
-            return Ok(DomainShrinker::new(count, range));
+            return Ok(SimpleValueTree::new(
+                DomainShrinkerSubtree::new(count, range)
+            ));
         }
     }
 
-    enum RestrictedRangeShrink {
-        RemoveSegment(usize),
-    }
+    struct RemoveSegment(usize);
 
-    struct RestrictedRangeTreePos<T>
+    struct RestrictedRangeSubtree<T>
         where T: Debug + Clone
     {
-        value: RestrictedRange<T>,
-        remove_segment: usize,
+        root: RestrictedRange<T>,
+        next_shrink: RemoveSegment,
     }
 
-    impl<T> RestrictedRangeTreePos<T>
+    impl<T> RestrictedRangeSubtree<T>
         where T: Debug + Clone
     {
-        fn new(value: RestrictedRange<T>) -> Self {
-            RestrictedRangeTreePos {
-                value,
+        fn new(root: RestrictedRange<T>) -> Self {
+            RestrictedRangeSubtree {
+                root,
                 // cannot remove first segment
-                remove_segment: 1,
+                next_shrink: RemoveSegment(1),
             }
         }
 
         fn next_child(&mut self) -> Option<Self> {
-            if self.remove_segment < self.value.values.segments.len() {
-                let to_remove = self.remove_segment;
-                self.remove_segment += 1;
+            let RemoveSegment(to_remove) = self.next_shrink;
 
-                let values = remove_segment(&self.value.values, to_remove);
-                let times_rejected = self.value.times_rejected.clone();
-                let value = RestrictedRange { values, times_rejected };
-
-                return Some(RestrictedRangeTreePos::new(value));
-            } else {
+            if to_remove >= self.root.values.segments.len() {
                 return None;
+            }
+
+            let values = remove_segment(&self.root.values, to_remove);
+            let times_rejected = self.root.times_rejected.clone();
+            let child = RestrictedRange { values, times_rejected };
+
+            self.next_shrink = RemoveSegment(to_remove + 1);
+            return Some(RestrictedRangeSubtree::new(child));
+        }
+    }
+
+    /// An iterator over the 
+    trait ValueSubtree: Sized {
+        type Value: Debug;
+
+        fn root(&self) -> Self::Value;
+
+        /// Yield the next unvisited child
+        fn next_child(&mut self) -> Option<Self>;
+    }
+
+
+    struct SimpleValueTree<T> {
+        pos: T,
+        parent: Option<T>,
+    }
+
+    impl<T> SimpleValueTree<T> {
+        pub fn new(subtree: T) -> Self {
+            SimpleValueTree {
+                pos: subtree,
+                parent: None,
             }
         }
     }
 
-    struct RestrictedRangeValueTree<T>
-        where T: Debug + Clone
+    impl<T> ValueTree for SimpleValueTree<T>
+        where T: Debug + ValueSubtree
     {
-        pos: RestrictedRangeTreePos<T>,
-        parent: Option<RestrictedRangeTreePos<T>>,
-    }
+        type Value = T::Value;
 
-    impl<T> ValueTree for RestrictedRangeValueTree<T>
-        where T: Debug + Clone
-    {
-        type Value = RestrictedRange<T>;
-
-        fn current(&self) -> RestrictedRange<T> {
-            self.pos.value.clone()
+        fn current(&self) -> T::Value {
+            self.pos.root()
         }
 
         fn simplify(&mut self) -> bool {
@@ -574,9 +592,9 @@ mod test {
                     true
                 }
             }
-
         }
     }
+
 
     trait ShrinkDomain<T> {
         /// shrink the value by removing an element from the domain.
@@ -659,22 +677,32 @@ mod test {
         }
     }
 
+    type ShrinkDomainTree<D, T> = SimpleValueTree<DomainShrinkerSubtree<D, T>>;
+
     #[derive(Debug)]
-    struct DomainShrinkerPos<D, T> {
+    struct DomainShrinkerSubtree<D, T> {
         value: T,
         count: Count<D>,
         next_step: Enumerator<D>,
     }
 
-    impl<D, T> DomainShrinkerPos<D, T>
-        where T: ShrinkDomain<D>
-    {
+    impl<D, T> DomainShrinkerSubtree<D, T> {
         fn new(count: Count<D>, value: T) -> Self {
-            DomainShrinkerPos {
+            DomainShrinkerSubtree {
                 value,
                 next_step: count.nums(),
                 count,
             }
+        }
+    }
+
+    impl<D, T> ValueSubtree for DomainShrinkerSubtree<D, T>
+        where T: Debug + Clone + ShrinkDomain<D>
+    {
+        type Value = T;
+
+        fn root(&self) -> T {
+            self.value.clone()
         }
 
         fn next_child(&mut self) -> Option<Self> {
@@ -685,57 +713,6 @@ mod test {
             })
         }
     }
-
-    #[derive(Debug)]
-    struct DomainShrinker<D, T> {
-        parent: Option<DomainShrinkerPos<D, T>>,
-        pos: DomainShrinkerPos<D, T>,
-    }
-
-    impl<D, T> DomainShrinker<D, T>
-        where T: ShrinkDomain<D> + Clone + Debug,
-              D: Debug,
-    {
-        fn new(count: Count<D>, value: T) -> Self {
-            DomainShrinker {
-                parent: None,
-                pos: DomainShrinkerPos::new(count, value),
-            }
-        }
-    }
-
-    impl<D, T> ValueTree for DomainShrinker<D, T>
-        where T: ShrinkDomain<D> + Clone + Debug,
-              D: Debug,
-    {
-        type Value = T;
-
-        fn current(&self) -> T {
-            self.pos.value.clone()
-        }
-
-        fn simplify(&mut self) -> bool {
-            match self.pos.next_child() {
-                None => false,
-                Some(child) => {
-                    let parent = mem::replace(&mut self.pos, child);
-                    self.parent = Some(parent);
-                    true
-                }
-            }
-        }
-
-        fn complicate(&mut self) -> bool {
-            match self.parent.take() {
-                None => false,
-                Some(parent) => {
-                    self.pos = parent;
-                    true
-                }
-            }
-        }
-    }
-
 
     fn restricted_range(max_size: usize) -> RestrictedRangeStrategy<()> {
         RestrictedRangeStrategy::new(max_size)
@@ -877,7 +854,7 @@ mod test {
         where T: Debug + Clone,
               F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>,
     {
-        type Tree = DomainShrinker<T, Self::Value>;
+        type Tree = ShrinkDomainTree<T, Self::Value>;
         type Value = (RestrictedRange<T>, Subset<T>);
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -887,7 +864,9 @@ mod test {
             let subset_domain = (self.subset_domain_fn)(&range);
             let subset = generate_subset(runner.rng(), t_count, subset_domain);
 
-            Ok(DomainShrinker::new(t_count, (range, subset)))
+            Ok(SimpleValueTree::new(
+                DomainShrinkerSubtree::new(t_count, (range, subset))
+            ))
         }
     }
 
