@@ -491,20 +491,27 @@ mod test {
     impl<T> Strategy for RestrictedRangeStrategy<T>
         where T: Debug + Clone
     {
-        type Tree = ShrinkDomainTree<T, RestrictedRange<T>>;
+        type Tree = DomainShrinkerTree<T, 
+            SimpleValueTree<RestrictedRangeSubtree<T>>
+        >;
         type Value = RestrictedRange<T>;
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
             let count = to_count(runner.rng().gen_range(1, self.max_size));
             let range = generate_range(runner.rng(), count);
-            return Ok(SimpleValueTree::new(
-                DomainShrinkerSubtree::new(count, range)
-            ));
+            return Ok(
+                DomainShrinkerTree::new(
+                    count,
+                    SimpleValueTree::new(RestrictedRangeSubtree::new(range)),
+                )
+            );
         }
     }
 
+    #[derive(Debug, Clone)]
     struct RemoveSegment(usize);
 
+    #[derive(Debug, Clone)]
     struct RestrictedRangeSubtree<T>
         where T: Debug + Clone
     {
@@ -522,6 +529,16 @@ mod test {
                 next_shrink: RemoveSegment(1),
             }
         }
+    }
+
+    impl<T> ValueSubtree for RestrictedRangeSubtree<T>
+        where T: Debug + Clone
+    {
+        type Value = RestrictedRange<T>;
+
+        fn root(&self) -> RestrictedRange<T> {
+            self.root.clone()
+        }
 
         fn next_child(&mut self) -> Option<Self> {
             let RemoveSegment(to_remove) = self.next_shrink;
@@ -537,9 +554,20 @@ mod test {
             self.next_shrink = RemoveSegment(to_remove + 1);
             return Some(RestrictedRangeSubtree::new(child));
         }
+
     }
 
-    /// An iterator over the 
+    impl<T> ShrinkDomain<T> for RestrictedRangeSubtree<T>
+        where T: Debug + Clone
+    {
+        fn shrink_remove(&self, to_remove: Num<T>) -> Self {
+            RestrictedRangeSubtree {
+                root: self.root.shrink_remove(to_remove),
+                next_shrink: self.next_shrink.clone(),
+            }
+        }
+    }
+
     trait ValueSubtree: Sized {
         type Value: Debug;
 
@@ -550,10 +578,12 @@ mod test {
     }
 
 
+    #[derive(Debug, Clone)]
     struct SimpleValueTree<T> {
         pos: T,
         parent: Option<T>,
     }
+
 
     impl<T> SimpleValueTree<T> {
         pub fn new(subtree: T) -> Self {
@@ -595,6 +625,80 @@ mod test {
         }
     }
 
+    impl<D, T> ShrinkDomain<D> for SimpleValueTree<T>
+        where T: ShrinkDomain<D>
+    {
+        fn shrink_remove(&self, to_remove: Num<D>) -> Self {
+            SimpleValueTree {
+                pos: self.pos.shrink_remove(to_remove),
+                parent: self.parent.as_ref().map(|parent| {
+                    parent.shrink_remove(to_remove)
+                }),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct DomainShrinkerTree<D, T> {
+        pos: DomainShrinkerSubtree<D, T>,
+        parent: Option<DomainShrinkerSubtree<D, T>>,
+        shrinking_inner: bool,
+    }
+
+    impl<D, T> DomainShrinkerTree<D, T>
+        where T: Debug + Clone + ValueTree + ShrinkDomain<D>
+    {
+        fn new(count: Count<D>, value: T) -> Self {
+            DomainShrinkerTree {
+                pos: DomainShrinkerSubtree::new(count, value),
+                parent: None,
+                shrinking_inner: false,
+            }
+        }
+    }
+
+    impl<D, T> ValueTree for DomainShrinkerTree<D, T>
+        where T: Debug + Clone + ValueTree + ShrinkDomain<D>
+    {
+        type Value = T::Value;
+
+        fn current(&self) -> T::Value {
+            self.pos.value.current()
+        }
+
+        fn simplify(&mut self) -> bool {
+            loop {
+                if self.shrinking_inner {
+                    return self.pos.value.simplify();
+                }
+
+                match self.pos.next_child() {
+                    Some(child) => {
+                        let parent = mem::replace(&mut self.pos, child);
+                        self.parent = Some(parent);
+                        return true;
+                    }
+                    None => {
+                        self.shrinking_inner = true;
+                    }
+                }
+            }
+        }
+
+        fn complicate(&mut self) -> bool {
+            if self.shrinking_inner {
+                return self.pos.value.complicate()
+            }
+
+            match self.parent.take() {
+                None => false,
+                Some(parent) => {
+                    self.pos = parent;
+                    true
+                }
+            }
+        }
+    }
 
     trait ShrinkDomain<T> {
         /// shrink the value by removing an element from the domain.
