@@ -959,7 +959,7 @@ mod test {
         where T: Debug + Clone,
               F: Copy + Fn(&RestrictedRange<T>) -> Vec<Num<T>>,
     {
-        type Tree = SimpleValueTree<RangeSubsetSubtree<T, F>>;
+        type Tree = DomainShrinkerTree<T, SimpleValueTree<RangeSubsetSubtree<T, F>>>;
         type Value = (RestrictedRange<T>, Subset<T>);
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
@@ -969,16 +969,21 @@ mod test {
             let subset_domain = (self.domain_func)(&range);
             let subset = generate_subset(runner.rng(), t_count, subset_domain);
 
-            Ok(SimpleValueTree::new(
-                RangeSubsetSubtree {
-                    range: RestrictedRangeSubtree::new(range),
-                    subset,
-                    domain_func: self.domain_func,
-                }
-            ))
+            Ok(
+                DomainShrinkerTree::new(
+                    t_count,
+                    SimpleValueTree::new(
+                    RangeSubsetSubtree {
+                        range: RestrictedRangeSubtree::new(range),
+                        subset,
+                        domain_func: self.domain_func,
+                    }
+                ))
+            )
         }
     }
 
+    #[derive(Clone)]
     struct RangeSubsetSubtree<D, F>
         where D: Debug + Clone
     {
@@ -1026,6 +1031,19 @@ mod test {
                     range,
                 }
             })
+        }
+    }
+
+    impl<D, F> ShrinkDomain<D> for RangeSubsetSubtree<D, F>
+        where D: Debug + Clone,
+              F: Copy
+    {
+        fn shrink_remove(&self, to_remove: Num<D>) -> Self {
+            RangeSubsetSubtree {
+                range: self.range.shrink_remove(to_remove),
+                subset: self.subset.shrink_remove(to_remove),
+                domain_func: self.domain_func,
+            }
         }
     }
 
