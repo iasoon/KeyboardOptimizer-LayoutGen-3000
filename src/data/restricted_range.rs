@@ -373,6 +373,7 @@ mod test {
     use std::marker::PhantomData;
 
     use cat::internal::{to_count, to_num};
+    use cat::ops::*;
 
     fn segment_permutation<T>(items: Permutation<T>, segments: Vec<Segment>)
         -> SegmentedPermutation<T>
@@ -926,17 +927,17 @@ mod test {
 
     struct RangeSubsetStrategy<T, F> {
         phantom_t: PhantomData<T>,
-        subset_domain_fn: F,
+        domain_func: F,
         max_size: usize,
     }
 
     impl<T, F> RangeSubsetStrategy<T, F>
         where F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>
     {
-        fn new(max_size: usize, subset_domain_fn: F) -> Self {
+        fn new(max_size: usize, domain_func: F) -> Self {
             RangeSubsetStrategy {
                 phantom_t: PhantomData,
-                subset_domain_fn,
+                domain_func,
                 max_size,
             }
         }
@@ -949,28 +950,82 @@ mod test {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             f.debug_struct("RangeSubsetStrategy")
                 .field("max_size", &self.max_size)
-                .field("subset_domain_fn", &"<function>")
+                .field("domain_func", &"<function>")
                 .finish()
         }
     }
 
     impl<T, F> Strategy for RangeSubsetStrategy<T, F>
         where T: Debug + Clone,
-              F: Fn(&RestrictedRange<T>) -> Vec<Num<T>>,
+              F: Copy + Fn(&RestrictedRange<T>) -> Vec<Num<T>>,
     {
-        type Tree = ShrinkDomainTree<T, Self::Value>;
+        type Tree = SimpleValueTree<RangeSubsetSubtree<T, F>>;
         type Value = (RestrictedRange<T>, Subset<T>);
 
         fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
             let t_count = to_count(runner.rng().gen_range(1, self.max_size));
             let range = generate_range(runner.rng(), t_count);
 
-            let subset_domain = (self.subset_domain_fn)(&range);
+            let subset_domain = (self.domain_func)(&range);
             let subset = generate_subset(runner.rng(), t_count, subset_domain);
 
             Ok(SimpleValueTree::new(
-                DomainShrinkerSubtree::new(t_count, (range, subset))
+                RangeSubsetSubtree {
+                    range: RestrictedRangeSubtree::new(range),
+                    subset,
+                    domain_func: self.domain_func,
+                }
             ))
+        }
+    }
+
+    struct RangeSubsetSubtree<D, F>
+        where D: Debug + Clone
+    {
+        range: RestrictedRangeSubtree<D>,
+        subset: Subset<D>,
+        domain_func: F,
+    }
+
+    impl<D, F> Debug for RangeSubsetSubtree<D, F>
+        where F: Fn(&RestrictedRange<D>) -> Vec<Num<D>>,
+              D: Debug + Clone,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.debug_struct("RangeSubsetSubtree")
+                .field("range", &self.range)
+                .field("subset", &self.subset)
+                .field("domain_func", &"<function>")
+                .finish()
+        }
+    }
+
+
+    impl<D, F> ValueSubtree for RangeSubsetSubtree<D, F>
+        where D: Debug + Clone,
+              F: Copy + Fn(&RestrictedRange<D>) -> Vec<Num<D>>,
+    {
+        type Value = (RestrictedRange<D>, Subset<D>);
+
+        fn root(&self) -> Self::Value {
+            (self.range.root(), self.subset.clone())
+        }
+
+        fn next_child(&mut self) -> Option<Self> {
+            self.range.next_child().map(|range| {
+                let allowed_values = (self.domain_func)(&range.root);
+
+                let mut included = self.subset.included.map(|_| false);
+                for num in allowed_values {
+                    included[num] = self.subset.included[num];
+                }
+                
+                RangeSubsetSubtree {
+                    domain_func: self.domain_func,
+                    subset: Subset { included },
+                    range,
+                }
+            })
         }
     }
 
