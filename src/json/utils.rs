@@ -20,8 +20,8 @@ impl<'s> JsonBuffer<'s> {
     }
 
     pub fn read_file(&mut self) -> Result<()> {
-        let mut file = try!(File::open(self.path));
-        try!(file.read_to_string(&mut self.contents));
+        let mut file = File::open(self.path)?;
+        file.read_to_string(&mut self.contents)?;
         Ok(())
     }
 
@@ -29,8 +29,8 @@ impl<'s> JsonBuffer<'s> {
         where F: Fn(D) -> Result<R>,
               D: Deserialize<'de>
     {
-        try!(self.read_file());
-        let json = try!(serde_json::from_str(&self.contents));
+        self.read_file()?;
+        let json = serde_json::from_str(&self.contents)?;
         return fun(json);
     }
 }

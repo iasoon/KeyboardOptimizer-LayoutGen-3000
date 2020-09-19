@@ -29,7 +29,7 @@ impl<D, T> Table<D, T> {
     {
         let mut elems = Vec::with_capacity(self.elems.len());
         for (num, elem) in self.enumerate() {
-            let res = try!(fun(num, elem));
+            let res = fun(num, elem)?;
             elems.push(res);
         }
         Ok(Table::from_vec(elems))

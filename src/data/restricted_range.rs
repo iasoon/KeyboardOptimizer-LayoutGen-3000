@@ -1,4 +1,3 @@
-use super::*;
 use cat::*;
 use rand::Rng;
 use rand::seq::SliceRandom;
@@ -362,7 +361,7 @@ impl<T> RestrictedRange<T> {
 mod test {
     use super::*;
     use rand::Rng;
-    use rand::distributions::{Binomial, Distribution};
+    use rand_distr::{Binomial, Distribution};
     use rand::seq::SliceRandom;
 
     use proptest::test_runner::TestRunner;
@@ -420,7 +419,7 @@ mod test {
         let mut segment_end = t_count.as_usize();
         for i in (0..num_segments).rev() {    
             let segment_len = segment_end - offsets[i];
-            let distribution = Binomial::new(segment_len as u64, 0.2);
+            let distribution = Binomial::new(segment_len as u64, 0.2).unwrap();
             let num_rejected = distribution.sample(rng) as usize;
 
             segments.push(Segment {

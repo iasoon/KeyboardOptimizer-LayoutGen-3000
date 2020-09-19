@@ -230,7 +230,7 @@ impl<'d> DomainWalker<'d> {
                 // println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
             }
 
-            let rejected = self.ranges[origin_num].add_rejection(lost_support);
+            let _rejected = self.ranges[origin_num].add_rejection(lost_support);
             
             // for &value_num in rejected {
             //     self.to_remove.push(Assignment {

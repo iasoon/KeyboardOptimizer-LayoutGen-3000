@@ -59,7 +59,7 @@ impl<'d> Backtracker<'d> {
                 self.descend(key_num);
             } else {
                 // backtrack
-                try!(self.next());
+                self.next()?
             }
         }
         println!("{:?}", self.domain_walker.mapping());

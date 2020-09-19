@@ -1,4 +1,3 @@
-#![feature(plugin, custom_derive, conservative_impl_trait)]
 #![allow(dead_code)]
 
 mod algorithm;
@@ -8,6 +7,7 @@ mod json;
 
 
 extern crate rand;
+extern crate rand_distr;
 
 #[macro_use]
 extern crate failure;
@@ -55,6 +55,5 @@ fn run() -> Result<()> {
     let domain = json::read_config("abcABC.json")
         .context("Could not parse domain")?;
     let mut b = algorithm::Backtracker::new(&domain);
-    try!(b.generate());
-    Ok(())
+    return b.generate();
 }
