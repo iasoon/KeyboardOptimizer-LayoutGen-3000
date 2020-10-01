@@ -1075,16 +1075,33 @@ mod test {
         }).boxed()
     }
 
-    fn range_and_restricted(max_size: usize)
+    fn range_subset<F>(max_size: usize, fun: F)
         -> BoxedStrategy<(RestrictedRange<()>, Subset<()>)>
+        where F: Fn(&RestrictedRange<()>) -> Vec<Num<()>> + Copy + 'static
     {
-        RangeSubsetStrategy::new(max_size, |range| {
-            range.times_rejected.nums().filter(|&num| {
-                range.values.item_segment[num] > 0
-            }).collect()
-        }).boxed()
+        RangeSubsetStrategy::new(max_size, fun).boxed()
     }
 
+    prop_compose! {
+        fn range_and_restricted(max_size: usize)
+            (
+                (range, mut subset)
+                in RangeSubsetStrategy::new(max_size, |range| {
+                    range.times_rejected.nums().filter(|&num| {
+                        let segment = range.values.item_segment[num];
+                        segment > 0 && segment < range.values.segments.len() -1
+                    }).collect()
+                })
+            )
+            -> (RestrictedRange<()>, Subset<()>)
+        {
+            let segments = &range.values.segments;
+            for &num in &range.values.items.items[segments[segments.len() - 1].offset..] {
+                subset.included[num] = true;
+            }
+            return (range, subset);
+        }
+    }
 
     fn check_times_rejected<T, F>(range: &RestrictedRange<T>, expected: F)
         where F: Fn(Num<T>) -> usize
@@ -1202,6 +1219,16 @@ mod test {
 
         #[test]
         fn test_unrestrict((range, subset) in range_and_restricted(10)) {
+            prop_assume!(range.values.segments.len() > 1);
+            
+            let last_segment = &range.values.segments[range.values.segments.len() - 1];
+
+            prop_assume!(
+                range.values.items.items[last_segment.offset..].iter().all(|&a| {
+                    subset.included[a]
+                }));
+
+
             let before = range;
             let to_unrestrict = subset.to_vec();
 
