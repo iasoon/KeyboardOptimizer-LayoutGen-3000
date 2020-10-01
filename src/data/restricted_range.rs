@@ -120,10 +120,10 @@ impl<T> SegmentedPermutation<T> {
         self.reject_pos(segment, pos);
     }
 
-    pub fn promote(&mut self, item_num: Num<T>) {
+    pub fn promote(&mut self, item_num: Num<T>, frontier: &mut usize) {
         let segment = self.item_segment[item_num];
         let pos = self.items.pos(item_num);
-        self.promote_pos(segment, pos);
+        self.promote_pos(segment, pos, frontier);
         self.item_segment[item_num] = segment + 1;
     }
 
@@ -169,7 +169,7 @@ impl<T> SegmentedPermutation<T> {
         self.items.len()
     }
 
-    fn promote_pos(&mut self, segment: usize, pos: usize) {
+    fn promote_pos(&mut self, segment: usize, pos: usize, frontier: &mut usize) {
         // the position that will be moved to the next segment
         let promoting_pos = self.segments[segment + 1].offset - 1;
 
@@ -180,7 +180,17 @@ impl<T> SegmentedPermutation<T> {
         } else {
             let accepted_pos = self.accept_pos(segment, pos);
             self.items.swap(accepted_pos, promoting_pos);
+
             self.extend_rejected(segment + 1);
+
+            // TODO: this is ugly, just like myself :(
+            if segment == self.segments.len() - 2 {
+                *frontier -= 1;
+                if *frontier < self.segments[segment+1].offset {
+                    self.items.swap(*frontier, accepted_pos)
+                }
+            }
+
         }
     }
 
@@ -297,23 +307,20 @@ impl<T> RestrictedRange<T> {
     pub fn add_restriction<'a>(&'a mut self, allowed: &[Num<T>])
         -> &'a [Num<T>]
     {
-        let prev_num_accepted = self.accepted().len();
+
+        let mut frontier = self.frontier();
 
         // add a new segment for this restriction
         self.values.push_segment();
-        for &value_num in allowed {
-            self.values.promote(value_num);
-        }
+
         let num_segments = self.values.segments.len();
 
-        let num_accepted = self.accepted().len();
-        // this was the last segment before adding the restriction
-        let last_segment = &self.values.segments[num_segments - 1];
+        for &value_num in allowed {
+            self.values.promote(value_num, &mut frontier)
+        }
 
-        let start = last_segment.offset + num_accepted- prev_num_accepted;
-        // the values that were dropped in this operation are the values that
-        // are accepted in the now one-but-last segment.
-        return &self.values[(start..last_segment.offset)];
+        let last_segment = &self.values.segments[num_segments -1];
+        return &self.values[(frontier..last_segment.offset)];
     }
 
     // returns the values that are now allowed because of this operation
