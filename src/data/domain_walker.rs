@@ -96,7 +96,7 @@ impl<'d> DomainWalker<'d> {
 
     /// Assign a value to a key.
     pub fn assign(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
-        println!("assigning {:?} at {:?}", self.domain.values[value_num], key_num);
+        println!("assigning {:?} at {:?}", self.domain.values[value_num], self.domain.keys[key_num]);
         
         // TODO
         // self.unassign(key_num);
@@ -126,7 +126,7 @@ impl<'d> DomainWalker<'d> {
         }
 
         for key_num in self.domain.keys.nums() {
-            println!("domain for {:?} at {:?}", key_num, value_names(&self.domain, self.range_for(key_num)));
+            println!("domain for {:?}: {:?}", self.domain.keys[key_num], value_names(&self.domain, self.range_for(key_num)));
         }
     }
 
@@ -183,7 +183,7 @@ impl<'d> DomainWalker<'d> {
             }
         };
 
-        println!("QUEUEING FOR REMOVAL AT {:?}: {:?}", key_num, value_names(&self.domain, removed));
+        println!("apply restriction to {:?}: removing {:?}", self.domain.keys[key_num], value_names(&self.domain, removed));
 
         for &value_num in removed {
             self.to_remove.push(Assignment { key_num, value_num });
@@ -206,13 +206,13 @@ impl<'d> DomainWalker<'d> {
     }
 
     fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
-        println!("removing {:?} at {:?}", self.domain.values[value_num], key_num);
+        println!("removing {:?} at {:?}", self.domain.values[value_num], self.domain.keys[key_num]);
         for origin_num in self.domain.keys.nums() {
             if origin_num == key_num {
                 continue;
             }
 
-            // println!("removing support {:?}: {:?} -> {:?}", origin_num, value_num, key_num);
+            println!("dropping support {:?}@{:?} for {:?}", self.domain.values[value_num], self.domain.keys[key_num], self.domain.keys[origin_num]);
 
             let restrictor = &self.domain.constraint_table[origin_num][key_num];
             let support_set = &mut self.supports[key_num][origin_num];
@@ -227,17 +227,17 @@ impl<'d> DomainWalker<'d> {
             };
 
             if lost_support.len() > 0 {
-                // println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
+                println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
             }
 
-            let _rejected = self.ranges[origin_num].add_rejection(lost_support);
+            let rejected = self.ranges[origin_num].add_rejection(lost_support);
             
-            // for &value_num in rejected {
-            //     self.to_remove.push(Assignment {
-            //         key_num: origin_num,
-            //         value_num,
-            //     });
-            // }
+            for &value_num in rejected {
+                self.to_remove.push(Assignment {
+                    key_num: origin_num,
+                    value_num,
+                });
+            }
         }
 
     }
