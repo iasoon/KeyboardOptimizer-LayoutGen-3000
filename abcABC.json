@@ -1,0 +1,88 @@
+{
+    "keys": [
+        "1/lower",
+        "2/lower",
+        "3/lower",
+        "1/upper",
+        "2/upper",
+        "3/upper"
+    ],
+    "values": [
+        "a",
+        "b",
+        "c",
+        "A",
+        "B",
+        "C"
+    ],
+    "restrictions": [
+        {
+            "key": "1/lower",
+            "restriction": { "only": ["a", "b", "c"] }
+        },
+        {
+            "key": "2/lower",
+            "restriction": { "only": ["a", "b", "c"] }
+        },
+        {
+            "key": "3/lower",
+            "restriction": { "only": ["a", "b", "c"] }
+        }
+    ],
+    "constraints": [
+        {
+            "origin": "1/lower",
+            "target": "2/lower",
+            "restrictor": {
+                "a": { "not": ["a"] },
+                "b": { "not": ["b"] },
+                "c": { "not": ["c"] }
+            }
+        },
+        {
+            "origin": "1/lower",
+            "target": "3/lower",
+            "restrictor": {
+                "a": { "not": ["a"] },
+                "b": { "not": ["b"] },
+                "c": { "not": ["c"] }
+            }
+        },
+        {
+            "origin": "2/lower",
+            "target": "3/lower",
+            "restrictor": {
+                "a": { "not": ["a"] },
+                "b": { "not": ["b"] },
+                "c": { "not": ["c"] }
+            }
+        },
+        {
+            "origin": "1/lower",
+            "target": "1/upper",
+            "restrictor": {
+                "a": { "only": ["A"] },
+                "b": { "only": ["B"] },
+                "c": { "only": ["C"] }
+            }
+        },
+        {
+            "origin": "2/lower",
+            "target": "2/upper",
+            "restrictor": {
+                "a": { "only": ["A"] },
+                "b": { "only": ["B"] },
+                "c": { "only": ["C"] }
+            }
+        },
+        {
+            "origin": "3/lower",
+            "target": "3/upper",
+            "restrictor": {
+                "a": { "only": ["A"] },
+                "b": { "only": ["B"] },
+                "c": { "only": ["C"] }
+            }
+        }
+    ]
+}
