@@ -2,9 +2,11 @@ use cat;
 use cat::*;
 
 /// Indicator struct for a key
+#[derive(Debug)]
 pub struct Key;
 
 /// Indicator struct for a value
+#[derive(Debug)]
 pub struct Value;
 
 /// Simple key/value pair
@@ -61,11 +63,22 @@ pub enum Restriction {
 impl Restriction {
     pub fn inverse(&self) -> Restriction {
         match self {
-            &Restriction::Not(ref values) => {
+            Restriction::Not(values) => {
                 Restriction::Only(values.clone())
             }
-            &Restriction::Only(ref values) => {
+            Restriction::Only(values) => {
                 Restriction::Not(values.clone())
+            }
+        }
+    }
+
+    pub fn allows(&self, value_num: Num<Value>) -> bool {
+        match self {
+            Restriction::Not(values) => {
+                !values.contains(&value_num)
+            }
+            Restriction::Only(values) => {
+                values.contains(&value_num)
             }
         }
     }

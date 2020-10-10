@@ -137,3 +137,44 @@ impl<'d> Backtracker<'d> {
         self.unassigned.insert(assignment.key_num);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use failure::ResultExt;
+    use cat::ops::*;
+    use json;
+
+    fn mapping_valid(mapping: &Table<Key, Num<Value>>, domain: &Domain) -> bool {
+        // TODO: maybe give a reason
+        for (key_num, &value_num) in mapping.enumerate() {
+            if !domain.key_restrictions[key_num].allows(value_num) {
+                return false;
+            }
+
+            for (other_key, &other_value) in mapping.enumerate() {
+                let restrictor = &domain.constraint_table[key_num][other_key];
+                if !restrictor[value_num].allows(other_value) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+
+    #[test]
+    fn test_sudoku() {
+        // TODO: clean suite of files to test on, maybe
+        let domain = json::read_config("sudoku.json")
+            .context("Could not parse domain").unwrap();
+        
+        let mut g = Backtracker::new(&domain);
+        g.generate().unwrap();
+        // TODO: implement mapmaybe?
+        let mapping = g.domain_walker.mapping().map(|e| e.unwrap());
+
+        assert!(mapping_valid(&mapping, &domain))
+    }
+}
