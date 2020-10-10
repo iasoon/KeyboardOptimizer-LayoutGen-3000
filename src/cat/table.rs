@@ -75,6 +75,18 @@ impl<D, T> Clone for Table<D, T>
     }
 }
 
+impl<D, T> PartialEq for Table<D, T>
+    where T: PartialEq
+{
+    fn eq(&self, other: &Table<D, T>) -> bool {
+        self.elems.eq(&other.elems)
+    }
+}
+
+impl<D, T> Eq for Table<D, T>
+    where T: Eq
+{}
+
 impl<D, T, V> Map<T, V, Table<D, V>> for Table<D, T>
 {
     fn map<'t, F>(&'t self, fun: F) -> Table<D, V>
