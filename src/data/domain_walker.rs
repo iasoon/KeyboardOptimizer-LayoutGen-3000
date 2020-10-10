@@ -102,20 +102,21 @@ impl<'d> DomainWalker<'d> {
         // self.unassign(key_num);
 
         {
-            let rejected = self.ranges[key_num].add_restriction(&vec![value_num]);
+            let _rejected = self.ranges[key_num].add_restriction(&vec![value_num]);
 
-            println!("QUEUEING FOR REMOVAL AT {:?}: {:?}", key_num, value_names(&self.domain, rejected));
+            // println!("QUEUEING FOR REMOVAL AT {:?}: {:?}", key_num, value_names(&self.domain, rejected));
 
-            for &val in rejected {
-                self.to_remove.push(Assignment {
-                    key_num,
-                    value_num: val,
-                });
-            }
+            // for &val in rejected {
+            //     self.to_remove.push(Assignment {
+            //         key_num,
+            //         value_num: val,
+            //     });
+            // }
         }
 
         self.mapping[key_num] = Some(value_num);
         let row = &self.domain.constraint_table[key_num];
+
         for target_num in self.domain.keys.nums() {
             let restriction = &row[target_num][value_num];
             self.restrict(target_num, restriction);
@@ -183,11 +184,11 @@ impl<'d> DomainWalker<'d> {
             }
         };
 
-        println!("apply restriction to {:?}: removing {:?}", self.domain.keys[key_num], value_names(&self.domain, removed));
+        // println!("apply restriction to {:?}: removing {:?}", self.domain.keys[key_num], value_names(&self.domain, removed));
 
-        for &value_num in removed {
-            self.to_remove.push(Assignment { key_num, value_num });
-        }
+        // for &value_num in removed {
+        //     self.to_remove.push(Assignment { key_num, value_num });
+        // }
     }
 
     fn unrestrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
@@ -203,6 +204,21 @@ impl<'d> DomainWalker<'d> {
         for &value_num in added {
             self.to_add.push(Assignment { key_num, value_num })
         }
+    }
+
+    pub fn valid_state(&self) -> bool {
+        self.mapping.enumerate().all(|(key_num, value)| {
+            let valid = match value {
+                None => true,
+                &Some(value_num) => {
+                    self.ranges[key_num].accepts(value_num)
+                }
+            };
+
+            let satisfiable = self.ranges[key_num].accepted().len() > 0;
+
+            valid && satisfiable
+        })
     }
 
     fn remove_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
@@ -230,14 +246,14 @@ impl<'d> DomainWalker<'d> {
                 println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
             }
 
-            let rejected = self.ranges[origin_num].add_rejection(lost_support);
+            let _rejected = self.ranges[origin_num].add_rejection(lost_support);
             
-            for &value_num in rejected {
-                self.to_remove.push(Assignment {
-                    key_num: origin_num,
-                    value_num,
-                });
-            }
+            // for &value_num in rejected {
+            //     self.to_remove.push(Assignment {
+            //         key_num: origin_num,
+            //         value_num,
+            //     });
+            // }
         }
 
     }
@@ -299,4 +315,19 @@ fn value_names<'a>(domain: &'a Domain, values: &[Num<Value>]) -> Vec<&'a str> {
     values.iter().map(|&value_num| {
         domain.values[value_num].as_str()
     }).collect()
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use failure::ResultExt;
+    use json;
+
+
+    #[test]
+    fn test_domains() {
+        let domain = json::read_config("abcABC.json")
+            .context("Could not parse domain").unwrap();
+    }
 }

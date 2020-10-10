@@ -53,17 +53,23 @@ impl<'d> Backtracker<'d> {
     }
 
     pub fn generate(&mut self) -> Result<()> {
-        while let Some(key_num) = self.next_key() {
-            println!("{:?}", self.domain_walker.mapping());
-            if self.domain_walker.range_for(key_num).len() > 0 {
+        loop {
+            while !self.domain_walker.valid_state() {
+                // reached invalid state; backtrack
+                println!("{:?}", self.domain_walker.mapping());
+                println!("INVALID");
+
+                self.next()?;
+            }
+
+            if let Some(key_num) = self.next_key() {
                 self.descend(key_num);
             } else {
-                // backtrack
-                self.next()?
+                // all keys assigned! We are done.
+                println!("{:?}", self.domain_walker.mapping());
+                return Ok(());
             }
         }
-        println!("{:?}", self.domain_walker.mapping());
-        Ok(())
     }
 
     fn next_key(&self) -> Option<Num<Key>> {
