@@ -13,7 +13,11 @@ pub struct DomainWalker<'d> {
     // Value domains remaining for each key
     ranges: Table<Key, RestrictedRange<Value>>,
 
-    // For each (origin, target) pair, keep track of a range of values that
+    // For each (origin, target) pair, keep track of a range of values which 
+    // are _not_ supported by origin at target.
+    // 'supported' here means that there is some value that can be assigned at
+    // origin so that the restrictions imposed by the value at target are valid.
+    // This value at origin then 'supports' the assignment of the value at target.
     // are not supported at target by any value at origin.
     // We track unsupported values instead of supported values because that
     // allows us to re-use the RestrictedRange for this purpose, by applying
@@ -52,13 +56,16 @@ impl<'d> DomainWalker<'d> {
                 let mut range = RestrictedRange::new(domain.values.count());
                 let restrictor = &domain.constraint_table[target][origin];
                 for value_num in domain.values.nums() {
-                    // inverse constraints to apply De Morgan's law
+                    // invert constraints to apply De Morgan's law:
                     match restrictor[value_num] {
                         Restriction::Not(ref values) => {
-                            // TODO: inspect this
+                            // When `value_num` at target does not allow `values` at origin,
+                            // `value_num` is a support for all values except `values`.
                             range.add_restriction(values);
                         }
                         Restriction::Only(ref values) => {
+                            // When `value_num` at target only allows `values` at origin,
+                            // `value` num is a support for just these values.
                             range.add_rejection(values);
                         }
                     }
@@ -102,16 +109,16 @@ impl<'d> DomainWalker<'d> {
         // self.unassign(key_num);
 
         {
-            let _rejected = self.ranges[key_num].add_restriction(&vec![value_num]);
+            let rejected = self.ranges[key_num].add_restriction(&vec![value_num]);
 
             // println!("QUEUEING FOR REMOVAL AT {:?}: {:?}", key_num, value_names(&self.domain, rejected));
 
-            // for &val in rejected {
-            //     self.to_remove.push(Assignment {
-            //         key_num,
-            //         value_num: val,
-            //     });
-            // }
+            for &val in rejected {
+                self.to_remove.push(Assignment {
+                    key_num,
+                    value_num: val,
+                });
+            }
         }
 
         self.mapping[key_num] = Some(value_num);
@@ -186,9 +193,9 @@ impl<'d> DomainWalker<'d> {
 
         // println!("apply restriction to {:?}: removing {:?}", self.domain.keys[key_num], value_names(&self.domain, removed));
 
-        // for &value_num in removed {
-        //     self.to_remove.push(Assignment { key_num, value_num });
-        // }
+        for &value_num in removed {
+            self.to_remove.push(Assignment { key_num, value_num });
+        }
     }
 
     fn unrestrict(&mut self, key_num: Num<Key>, restriction: &Restriction) {
@@ -242,11 +249,11 @@ impl<'d> DomainWalker<'d> {
                 }
             };
 
-            if lost_support.len() > 0 {
-                println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
-            }
+            // if lost_support.len() > 0 {
+            //     println!("no value at {:?} supports {:?} at {:?}", key_num, value_names(&self.domain, lost_support), origin_num);
+            // }
 
-            let _rejected = self.ranges[origin_num].add_rejection(lost_support);
+            self.ranges[origin_num].add_rejection(lost_support);
             
             // for &value_num in rejected {
             //     self.to_remove.push(Assignment {
@@ -259,10 +266,6 @@ impl<'d> DomainWalker<'d> {
     }
 
     fn add_value(&mut self, key_num: Num<Key>, value_num: Num<Value>) {
-        if self.ranges[key_num].accepts(value_num) {
-            return;
-        }
-
         for origin_num in self.domain.keys.nums() {
             if origin_num == key_num {
                 continue;
@@ -280,12 +283,12 @@ impl<'d> DomainWalker<'d> {
                 }
             };
 
-            for &value_num in gained_support {
-                self.to_add.push(Assignment {
-                    key_num: origin_num,
-                    value_num,
-                });
-            }
+            // for &value_num in gained_support {
+            //     self.to_add.push(Assignment {
+            //         key_num: origin_num,
+            //         value_num,
+            //     });
+            // }
 
             self.ranges[origin_num].remove_rejection(gained_support);
         }
@@ -324,6 +327,19 @@ mod test {
     use failure::ResultExt;
     use json;
 
+    enum Op {
+        Assign(Assignment),
+    }
+
+    impl Op {
+        fn apply(&self, w: &mut DomainWalker) {
+            match self {
+                &Op::Assign(Assignment { key_num, value_num }) => {
+                    w.assign(key_num, value_num)
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_domains() {
